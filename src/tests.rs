@@ -1658,8 +1658,9 @@ fn the_tour_goes_to_new_people_and_whats_new_to_people_updating() {
     use crate::app::onboarding::{wanted, Kind};
     assert_eq!(wanted("", true), Some(Kind::Full));
     assert_eq!(wanted("", false), Some(Kind::New), "an existing settings file without the key is an update");
-    assert_eq!(wanted("blue-pages", false), None);
-    assert_eq!(wanted("blue-pages", true), None);
+    assert_eq!(wanted("blue-pages", false), Some(Kind::New), "Blue Pages people still see the new look");
+    assert_eq!(wanted("new-look", false), None);
+    assert_eq!(wanted("new-look", true), None);
     let s = crate::settings::Settings::parse("light_mode = no\n");
     assert!(!s.fresh);
     assert!(crate::settings::Settings::default().fresh);

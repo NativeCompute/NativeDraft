@@ -3267,12 +3267,7 @@ impl App {
             .show(ctx, |ui| {
                 ui.set_opacity(0.2 + 0.8 * t);
                 let (win, _) = ui.allocate_exact_size(rect.size(), Sense::click());
-                ui.painter().rect_filled(win, egui::Rounding::same(theme::R_ISLAND), p.solid);
-                ui.painter().rect_stroke(
-                    win.shrink(0.5),
-                    egui::Rounding::same(theme::R_ISLAND),
-                    Stroke::new(1.0_f32, p.line_strong),
-                );
+                ncf::theme::surface(ui.painter(), win, theme::R_ISLAND, ncf::theme::Lift::Float);
 
                 // head here---
                 let head = Rect::from_min_size(win.min, Vec2::new(win.width(), 56.0));
@@ -3304,29 +3299,13 @@ impl App {
                         .max_rect(nav)
                         .layout(Layout::top_down(Align::Min)),
                 );
-                n.spacing_mut().item_spacing.y = 0.0;
+                n.spacing_mut().item_spacing.y = 4.0;
                 let mut picked = None;
-                let mut rows = Vec::new();
                 for (label, icon, id) in tabs.iter() {
-                    let (clicked, r) = settings_tab_row(&mut n, label, *icon, *id == tab);
+                    let (clicked, _) = settings_tab_row(&mut n, label, *icon, *id == tab);
                     if clicked {
                         picked = Some(*id);
                     }
-                    rows.push(r);
-                }
-                if let (Some(first), Some(last)) = (rows.first(), rows.last()) {
-                    for r in &rows[1..] {
-                        let y = r.top().round() + 0.5;
-                        ui.painter().line_segment(
-                            [Pos2::new(r.left(), y), Pos2::new(r.right(), y)],
-                            Stroke::new(1.0_f32, p.line),
-                        );
-                    }
-                    ui.painter().rect_stroke(
-                        Rect::from_min_max(first.min, last.max).shrink(0.5),
-                        egui::Rounding::same(theme::R_ROW),
-                        Stroke::new(1.0_f32, p.line_strong),
-                    );
                 }
                 if let Some(k) = picked {
                     self.settings_tab = k;
@@ -4660,30 +4639,30 @@ fn settings_tab_row(ui: &mut egui::Ui, label: &str, icon: Icon, on: bool) -> (bo
     let (rect, resp) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 36.0), Sense::click());
     let hot = anim::ease(ui.ctx(), resp.id, resp.hovered(), anim::HOVER);
     let lit = anim::ease(ui.ctx(), resp.id.with("on"), on, 0.15);
+    let round = egui::Rounding::same(rect.height() * 0.5);
+    let (sel_fill, sel_ink) = ncf::theme::pal().selected();
     if lit > 0.005 {
-        ui.painter()
-            .rect_filled(rect, egui::Rounding::same(theme::R_ROW), theme::wash(p.text, (255.0 * lit) as u8));
+        ui.painter().rect_filled(rect, round, theme::wash(sel_fill, (255.0 * lit) as u8));
     } else if hot > 0.01 {
         ui.painter().rect_filled(
             rect,
-            egui::Rounding::same(theme::R_ROW),
+            round,
             theme::wash(if p.dark { p.raised } else { p.sunken }, (255.0 * hot) as u8),
         );
     }
-    let ink = theme::mix(theme::mix(p.text_dim, p.text, hot), p.backdrop, lit);
+    let ink = theme::mix(theme::mix(p.text_dim, p.text, hot), sel_ink, lit);
     icons::draw(
         ui.painter(),
-        Rect::from_center_size(Pos2::new(rect.left() + 18.0, rect.center().y), Vec2::splat(13.0)),
+        Rect::from_center_size(Pos2::new(rect.left() + 20.0, rect.center().y), Vec2::splat(14.0)),
         icon,
         ink,
     );
-    theme::tracked_text(
-        ui.painter(),
-        Pos2::new(rect.left() + 34.0, rect.center().y),
-        &label.to_uppercase(),
-        theme::font_hud(theme::T_CAP),
+    ui.painter().text(
+        Pos2::new(rect.left() + 38.0, rect.center().y),
+        egui::Align2::LEFT_CENTER,
+        label,
+        theme::font_semi(theme::T_SM),
         ink,
-        0.9,
     );
     (resp.clicked(), rect)
 }

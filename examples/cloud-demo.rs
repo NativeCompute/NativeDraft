@@ -28,7 +28,7 @@ fn main() -> eframe::Result<()> {
     let light = args.iter().any(|a| a == "--light");
     let _ = std::fs::write(
         home.join("blackline/settings.conf"),
-        format!("splash = no\nonboarded = blue-pages\ncloud_asked = yes\nlight_mode = {}\n", if light { "yes" } else { "no" }),
+        format!("splash = no\nonboarded = new-look\ncloud_asked = yes\nappearance = {}\n", if light { "light" } else { "dark" }),
     );
     let pick = |flag: &str| args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).cloned().unwrap_or_default();
     let (view, settings, open) = (pick("--home"), pick("--settings"), pick("--open"));
@@ -49,7 +49,7 @@ fn main() -> eframe::Result<()> {
         ("EXT. HARBOUR - NIGHT", "Rain hammers the pier. A lone lamp swings.", "MARA", "They said the boat would wait."),
         ("INT. CUSTOMS HOUSE - CONTINUOUS", "Ledgers everywhere. A kettle screams.", "OSKAR", "Boats don't wait. People do."),
     ]);
-    let h = ann.create_project(&room, "blackline", "Harbour", &harbour, &serde_json::json!({"pages": 2, "scenes": 2})).unwrap();
+    let h = ann.create_project(&room, "blackline", "Harbour", &harbour, &serde_json::json!({"pages": 2, "scenes": 2, "cover": "sky"})).unwrap();
     let ledger = script("The Ledger", "Ben Ito", &[("INT. BANK VAULT - DAY", "Dust in the light.", "IRIS", "Count it again.")]);
     let l = ben.create_project(&room, "blackline", "The Ledger", &ledger, &serde_json::json!({"pages": 1, "scenes": 1})).unwrap();
     ben.save_project(&l.id, 1, &ledger.replace("Count it again.", "Count it again. Slowly."), None, None, None).unwrap();

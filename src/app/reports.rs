@@ -88,18 +88,18 @@ impl App {
                     });
                 });
                 let r = &self.report;
-                ui.label(
-                    egui::RichText::new(format!(
-                        "{}  ·  {}  ·  {}  ·  {}",
-                        ui::elide(&title, 48),
-                        count(r.pages, "page", "pages"),
-                        count(r.scenes.len(), "scene", "scenes"),
-                        count(r.speakers.len(), "speaking part", "speaking parts")
-                    ))
-                    .font(theme::font(theme::T_CAP))
-                    .color(p.text_faint),
-                );
+                ui.label(egui::RichText::new(ui::elide(&title, 64)).font(theme::font(theme::T_CAP)).color(p.text_faint));
                 ui.add_space(12.0);
+                figures(
+                    ui,
+                    &[
+                        (r.pages, if r.pages == 1 { "page" } else { "pages" }),
+                        (r.scenes.len(), if r.scenes.len() == 1 { "scene" } else { "scenes" }),
+                        (r.speakers.len(), if r.speakers.len() == 1 { "speaking part" } else { "speaking parts" }),
+                        (r.places.len(), if r.places.len() == 1 { "location" } else { "locations" }),
+                    ],
+                );
+                ui.add_space(14.0);
                 if let Some(k) = ui::tabs(ui, &TABS, self.report_tab) {
                     self.report_tab = k;
                 }
@@ -284,6 +284,33 @@ fn c_right(cols: &[Col], k: usize) -> bool {
     cols.get(k).map(|c| c.right).unwrap_or(false)
 }
 
-fn count(n: usize, one: &str, many: &str) -> String {
-    format!("{n} {}", if n == 1 { one } else { many })
+// figure tiles here---
+fn figures(ui: &mut egui::Ui, items: &[(usize, &str)]) {
+    let p = pal();
+    let gap = 10.0;
+    let n = items.len().max(1) as f32;
+    let w = ((ui.available_width() - gap * (n - 1.0)) / n).max(60.0);
+    let h = 74.0;
+    let (row, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), h), Sense::hover());
+    for (k, (value, label)) in items.iter().enumerate() {
+        let r = Rect::from_min_size(Pos2::new(row.left() + k as f32 * (w + gap), row.top()), Vec2::new(w, h));
+        ui.painter().rect_filled(r, egui::Rounding::same(ncf::theme::R_MD), p.tile(k));
+        let size = 30.0;
+        theme::tracked_text(
+            ui.painter(),
+            Pos2::new(r.left() + 16.0, r.top() + 28.0),
+            &value.to_string(),
+            theme::font_display(size),
+            p.on_tile,
+            ncf::theme::display_tracking(size),
+        );
+        let font = theme::font_med(theme::T_CAP);
+        ui.painter().text(
+            Pos2::new(r.left() + 16.0, r.bottom() - 18.0),
+            egui::Align2::LEFT_CENTER,
+            ui::elide_to_width(ui.ctx(), label, font.clone(), 0.0, w - 24.0),
+            font,
+            theme::wash(p.on_tile, 200),
+        );
+    }
 }

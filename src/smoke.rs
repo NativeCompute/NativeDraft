@@ -120,10 +120,15 @@ enum Step {
     Settings,
     Import,
     Revision,
+    LightHome,
+    LightWrite,
+    LightCards,
+    LightRead,
+    LightSettings,
     Quit,
 }
 
-const STEPS: [Step; 12] = [
+const STEPS: [Step; 17] = [
     Step::Splash,
     Step::Tour,
     Step::Home,
@@ -135,6 +140,11 @@ const STEPS: [Step; 12] = [
     Step::Settings,
     Step::Import,
     Step::Revision,
+    Step::LightHome,
+    Step::LightWrite,
+    Step::LightCards,
+    Step::LightRead,
+    Step::LightSettings,
     Step::Quit,
 ];
 
@@ -273,7 +283,25 @@ impl Smoke {
                 app.debug_left_tab(1);
                 app.debug_start_revision();
             }
+            Step::LightHome => {
+                app.debug_close_popover();
+                app.debug_set_appearance(ncf::settings::Appearance::Light);
+                app.debug_go_home();
+            }
+            Step::LightWrite => {
+                let lib = library(&self.dir);
+                app.debug_open_from_home(lib.join("scripts/the-long-way-down.md"));
+            }
+            Step::LightCards => app.set_mode(Mode::Cards),
+            Step::LightRead => app.set_mode(Mode::Read),
+            Step::LightSettings => {
+                app.set_mode(Mode::Write);
+                app.debug_run(Command::Settings);
+            }
             Step::Quit => {
+                app.debug_close_popover();
+                let lib = library(&self.dir);
+                app.debug_open_from_home(lib.join("scripts/crossfire.md"));
                 app.debug_append(UNSAVED);
                 if !app.is_dirty_now() {
                     note("FAIL the unsaved edit was not taken".into());

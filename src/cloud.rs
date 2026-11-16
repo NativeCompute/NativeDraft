@@ -338,7 +338,6 @@ impl CloudStore {
                 preview: p.and_then(|p| p.meta.get("preview")).and_then(Value::as_str).unwrap_or("").to_string(),
                 pages: p.and_then(|p| p.meta.get("pages")).and_then(Value::as_u64).unwrap_or(0) as usize,
                 scenes: p.and_then(|p| p.meta.get("scenes")).and_then(Value::as_u64).unwrap_or(0) as usize,
-                cover: p.and_then(|p| p.meta.get("cover")).and_then(Value::as_str).and_then(storage::cover_named),
                 ..Default::default()
             },
         };
@@ -351,6 +350,9 @@ impl CloudStore {
                 let named = self.spaces.iter().flat_map(|(_, _, m)| m.iter()).find(|(_, x)| x.id == b.id).map(|(_, x)| x.clone()).unwrap_or_else(|| b.clone());
                 person(&named)
             });
+        }
+        if e.cover.is_none() {
+            e.cover = p.and_then(|p| p.meta.get("cover")).and_then(Value::as_str).and_then(storage::cover_named);
         }
         e.starred = self.stars.contains(id);
         e.editing = self.leases.get(id).filter(|l| l.user.as_ref().map(|u| u.id != me).unwrap_or(true)).and_then(|l| l.user.as_ref()).map(person);

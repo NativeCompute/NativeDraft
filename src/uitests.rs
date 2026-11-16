@@ -26,7 +26,7 @@ fn sandbox(settings: &str) -> std::sync::MutexGuard<'static, ()> {
     std::env::set_var("XDG_DATA_HOME", &dir);
     let _ = std::fs::write(
         dir.join("blackline/settings.conf"),
-        format!("splash = no\nanimations = no\nautosave_ms = 150\nonboarded = blue-pages\n{settings}"),
+        format!("splash = no\nanimations = no\nautosave_ms = 150\nonboarded = new-look\n{settings}"),
     );
     guard
 }
@@ -1223,6 +1223,19 @@ fn update_now_asks_first_and_a_copy_that_cannot_update_itself_stays_open() {
 }
 
 #[test]
+fn people_who_saw_blue_pages_only_get_the_new_look() {
+    use crate::app::onboarding::Kind;
+    let mut h = Harness::with(1320.0, 900.0, "onboarded = blue-pages\n");
+    assert_eq!(h.app.debug_tour(), Some((Kind::New, 0)));
+    for step in 1..3 {
+        h.press(Key::Enter, Modifiers::NONE);
+        assert_eq!(h.app.debug_tour(), Some((Kind::New, step)));
+    }
+    h.press(Key::Enter, Modifiers::NONE);
+    assert_eq!(h.app.debug_tour(), None, "three slides, then back to work");
+}
+
+#[test]
 fn whats_new_shows_once_takes_the_keys_and_can_be_replayed() {
     use crate::app::onboarding::Kind;
     let mut h = Harness::with(1320.0, 900.0, "onboarded = \n");
@@ -1237,7 +1250,7 @@ fn whats_new_shows_once_takes_the_keys_and_can_be_replayed() {
     h.press(Key::Escape, Modifiers::NONE);
     assert_eq!(h.app.debug_tour(), None);
     h.idle();
-    assert_eq!(storage::read_settings().onboarded, "blue-pages", "seen, so it will not show again");
+    assert_eq!(storage::read_settings().onboarded, "new-look", "seen, so it will not show again");
 
     h.app.debug_start_tour();
     h.frames(1);

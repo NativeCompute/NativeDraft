@@ -8,7 +8,8 @@ use crate::keys::Command;
 use crate::theme::{self, pal};
 use crate::ui;
 
-pub const SEEN: &str = "blue-pages";
+pub const SEEN: &str = "new-look";
+pub const BLUE_PAGES: &str = "blue-pages";
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Kind {
@@ -35,6 +36,9 @@ enum Sketch {
     Dual,
     Panel,
     Reports,
+    Look,
+    Appearance,
+    Covers,
 }
 
 struct Step {
@@ -99,29 +103,56 @@ impl App {
                     sketch: Sketch::Files,
                 },
             ],
-            Kind::New => vec![
-                Step {
-                    title: "Dual dialogue",
-                    body: format!("Two characters talking at once: put the cursor in the second speech and press {}. The pair sits side by side, on screen and in print.", k(Command::DualDialogue)),
-                    sketch: Sketch::Dual,
-                },
-                Step {
-                    title: "Notes, and a new left panel",
-                    body: format!("Leave a note on any line with {}. The left panel now lists your notes and changes. Your scripts are one click away, under Library at the top left.", k(Command::AddNote)),
-                    sketch: Sketch::Panel,
-                },
-                Step {
-                    title: "Revisions in colour",
-                    body: "Start a revision from the Changes tab. Changed lines get an asterisk, locked pages keep their numbers with new material on A-pages, and you can print just the changed pages.".into(),
-                    sketch: Sketch::Revisions,
-                },
-                Step {
-                    title: "Reports, and find everywhere",
-                    body: format!("{} opens reports on characters, scenes, locations and time of day. {} searches inside every script from Home.", k(Command::Reports), k(Command::FindScripts)),
-                    sketch: Sketch::Reports,
-                },
-            ],
+            Kind::New => {
+                let mut steps = vec![
+                    Step {
+                        title: "A new look",
+                        body: "Rounded pages, softer surfaces and a toolbar that floats above your work. Home opens on where you left off, the words you've written this session and your whole library at a glance.".into(),
+                        sketch: Sketch::Look,
+                    },
+                    Step {
+                        title: "Light, dark, or your system",
+                        body: "Blackline now follows your computer's light or dark setting and changes when it does. To keep one look, pick Light or Dark under Settings, Appearance.".into(),
+                        sketch: Sketch::Appearance,
+                    },
+                    Step {
+                        title: "A cover for every script",
+                        body: "Each script gets a cover colour so you can find it at a glance. Change it from the script's menu on Home or from the Details panel. A cloud script changes its cover while it's open.".into(),
+                        sketch: Sketch::Covers,
+                    },
+                ];
+                if self.settings.onboarded != BLUE_PAGES {
+                    steps.extend(self.blue_pages_steps());
+                }
+                steps
+            }
         }
+    }
+
+    fn blue_pages_steps(&self) -> Vec<Step> {
+        let k = |c: Command| self.keys_for(c);
+        vec![
+            Step {
+                title: "Dual dialogue",
+                body: format!("Two characters talking at once: put the cursor in the second speech and press {}. The pair sits side by side, on screen and in print.", k(Command::DualDialogue)),
+                sketch: Sketch::Dual,
+            },
+            Step {
+                title: "Notes, and a new left panel",
+                body: format!("Leave a note on any line with {}. The left panel now lists your notes and changes. Your scripts are one click away, under Library at the top left.", k(Command::AddNote)),
+                sketch: Sketch::Panel,
+            },
+            Step {
+                title: "Revisions in colour",
+                body: "Start a revision from the Changes tab. Changed lines get an asterisk, locked pages keep their numbers with new material on A-pages, and you can print just the changed pages.".into(),
+                sketch: Sketch::Revisions,
+            },
+            Step {
+                title: "Reports, and find everywhere",
+                body: format!("{} opens reports on characters, scenes, locations and time of day. {} searches inside every script from Home.", k(Command::Reports), k(Command::FindScripts)),
+                sketch: Sketch::Reports,
+            },
+        ]
     }
 
     fn end_tour(&mut self) {
@@ -209,8 +240,7 @@ impl App {
 
                 let size = Vec2::new((screen.width() - 64.0).min(820.0), (screen.height() - 64.0).min(440.0));
                 let card = Rect::from_center_size(screen.center(), size);
-                ui.painter().rect_filled(card, egui::Rounding::same(theme::R_ISLAND), p.solid);
-                ui.painter().rect_stroke(card.shrink(0.5), egui::Rounding::same(theme::R_ISLAND), Stroke::new(1.0_f32, p.line_strong));
+                ncf::theme::surface(ui.painter(), card, ncf::theme::R_XL, ncf::theme::Lift::Float);
 
                 let art_w = (card.width() * 0.42).min(330.0);
                 let art = Rect::from_min_size(card.min, Vec2::new(art_w, card.height())).shrink(28.0);
@@ -223,7 +253,7 @@ impl App {
                 col.set_opacity(0.15 + 0.85 * e);
                 let label = match kind {
                     Kind::Full => format!("Tour / {:02} of {:02}", step + 1, steps.len()),
-                    Kind::New => format!("What's new in Blue Pages / {:02} of {:02}", step + 1, steps.len()),
+                    Kind::New => format!("What's new / {:02} of {:02}", step + 1, steps.len()),
                 };
                 ui::hud(&mut col, &label.to_uppercase(), Some(p.primary_light));
                 col.add_space(14.0);
@@ -247,8 +277,8 @@ impl App {
                     let on = k == step;
                     ui.painter().rect_filled(
                         Rect::from_center_size(c, Vec2::new(if on { 10.0 } else { 6.0 }, 6.0)),
-                        egui::Rounding::same(1.0),
-                        if on { p.primary_light } else { p.line_strong },
+                        egui::Rounding::same(3.0),
+                        if on { p.primary } else { p.line_strong },
                     );
                 }
                 let mut buttons = ui.new_child(egui::UiBuilder::new().max_rect(foot).layout(egui::Layout::right_to_left(egui::Align::Center)));
@@ -441,6 +471,81 @@ fn sketch(painter: &egui::Painter, area: Rect, kind: Sketch, fade: &dyn Fn(Color
                 let track = Rect::from_min_size(Pos2::new(area.left() + area.width() * 0.4, y - 3.0), Vec2::new(area.width() * 0.6, 6.0));
                 painter.rect_filled(track, egui::Rounding::same(3.0), fade(p.line));
                 painter.rect_filled(Rect::from_min_size(track.min, Vec2::new(track.width() * share * 2.0, 6.0)), egui::Rounding::same(3.0), blue);
+            }
+        }
+        Sketch::Look => {
+            let back = Rect::from_center_size(area.center(), Vec2::new(area.width(), area.height().min(area.width() * 1.05)));
+            painter.rect_filled(back, egui::Rounding::same(ncf::theme::R_MD), fade(p.sunken));
+            let bar_r = Rect::from_min_size(back.min + Vec2::new(14.0, 14.0), Vec2::new(back.width() - 28.0, 30.0));
+            painter.rect_filled(bar_r, egui::Rounding::same(15.0), fade(p.raised));
+            painter.rect_stroke(bar_r.shrink(0.5), egui::Rounding::same(15.0), Stroke::new(1.0_f32, fade(p.line_strong)));
+            let seg = (bar_r.width() * 0.55) / 3.0;
+            for k in 0..3 {
+                let r = Rect::from_min_size(Pos2::new(bar_r.left() + 5.0 + k as f32 * seg, bar_r.top() + 5.0), Vec2::new(seg - 4.0, 20.0));
+                if k == 0 {
+                    painter.rect_filled(r, egui::Rounding::same(10.0), strong);
+                } else {
+                    bar(painter, r.left() + seg * 0.2, r.center().y - 1.5, seg * 0.5, ink);
+                }
+            }
+            for k in 0..3 {
+                painter.circle_filled(Pos2::new(bar_r.right() - 16.0 - k as f32 * 18.0, bar_r.center().y), 4.0, ink);
+            }
+            let sheet = Rect::from_min_max(Pos2::new(back.left() + 30.0, bar_r.bottom() + 16.0), Pos2::new(back.right() - 30.0, back.bottom() - 14.0));
+            painter.rect_filled(sheet, egui::Rounding::same(ncf::theme::R_MD), fade(if p.dark { p.solid_hi } else { Color32::WHITE }));
+            let inner = sheet.shrink2(Vec2::new(sheet.width() * 0.14, 20.0));
+            for i in 0..7 {
+                let y = inner.top() + i as f32 * 16.0;
+                if y > inner.bottom() {
+                    break;
+                }
+                bar(painter, inner.left() + if i % 3 == 1 { inner.width() * 0.3 } else { 0.0 }, y, inner.width() * if i == 0 { 0.6 } else if i % 3 == 1 { 0.4 } else { 0.9 }, if i == 0 { strong } else { ink });
+            }
+        }
+        Sketch::Appearance => {
+            let w = (area.width() - 12.0) / 2.0;
+            let h = (area.height() - 60.0).min(w * 1.3);
+            let top = area.center().y - (h + 48.0) * 0.5;
+            for (k, (fill, line, icon)) in [
+                (Color32::from_rgb(0xF3, 0xF4, 0xF7), Color32::from_rgb(0x45, 0x49, 0x56), crate::icons::Icon::Sun),
+                (Color32::from_rgb(0x1A, 0x1B, 0x21), Color32::from_rgb(0xC8, 0xCA, 0xD2), crate::icons::Icon::Moon),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let r = Rect::from_min_size(Pos2::new(area.left() + k as f32 * (w + 12.0), top), Vec2::new(w, h));
+                painter.rect_filled(r, egui::Rounding::same(ncf::theme::R_MD), fade(fill));
+                painter.rect_stroke(r.shrink(0.5), egui::Rounding::same(ncf::theme::R_MD), Stroke::new(1.0_f32, fade(p.line_strong)));
+                crate::icons::draw(painter, Rect::from_center_size(Pos2::new(r.left() + 22.0, r.top() + 22.0), Vec2::splat(14.0)), icon, fade(line));
+                for i in 0..5 {
+                    bar(painter, r.left() + 16.0, r.top() + 48.0 + i as f32 * 14.0, (w - 32.0) * if i % 2 == 0 { 0.9 } else { 0.55 }, fade(line));
+                }
+            }
+            let pill = Rect::from_center_size(Pos2::new(area.center().x, top + h + 34.0), Vec2::new(area.width().min(240.0), 30.0));
+            painter.rect_filled(pill, egui::Rounding::same(15.0), fade(p.raised));
+            let seg = (pill.width() - 8.0) / 3.0;
+            for (k, name) in ["SYSTEM", "LIGHT", "DARK"].iter().enumerate() {
+                let r = Rect::from_min_size(Pos2::new(pill.left() + 4.0 + k as f32 * seg, pill.top() + 4.0), Vec2::new(seg, 22.0));
+                if k == 0 {
+                    painter.rect_filled(r, egui::Rounding::same(11.0), strong);
+                }
+                let wn = theme::tracked_width(painter.ctx(), name, theme::font_hud(theme::T_MICRO), 0.8);
+                tag(painter, Pos2::new(r.center().x - wn * 0.5, r.center().y), name, if k == 0 { fade(p.solid) } else { ink });
+            }
+        }
+        Sketch::Covers => {
+            let gap = 12.0;
+            let w = (area.width() - gap) / 2.0;
+            let h = ((area.height() - gap) / 2.0).min(w * 0.9);
+            let top = area.center().y - h - gap * 0.5;
+            for (k, initial) in ["L", "C", "T", "N"].iter().enumerate() {
+                let r = Rect::from_min_size(Pos2::new(area.left() + (k % 2) as f32 * (w + gap), top + (k / 2) as f32 * (h + gap)), Vec2::new(w, h));
+                painter.rect_filled(r, egui::Rounding::same(ncf::theme::R_MD), fade(p.raised));
+                let chip = Rect::from_min_size(r.min + Vec2::new(14.0, 14.0), Vec2::splat(34.0));
+                painter.rect_filled(chip, egui::Rounding::same(10.0), fade(p.tile(k)));
+                painter.text(chip.center(), Align2::CENTER_CENTER, *initial, theme::font_display(17.0), fade(p.on_tile));
+                bar(painter, r.left() + 14.0, chip.bottom() + 16.0, w * 0.6, strong);
+                bar(painter, r.left() + 14.0, chip.bottom() + 28.0, w * 0.4, ink);
             }
         }
     }

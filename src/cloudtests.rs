@@ -17,7 +17,7 @@ fn sandbox(name: &str) -> std::sync::MutexGuard<'static, ()> {
     let _ = std::fs::remove_dir_all(&dir);
     let _ = std::fs::create_dir_all(dir.join("blackline"));
     std::env::set_var("XDG_DATA_HOME", &dir);
-    let _ = std::fs::write(dir.join("blackline/settings.conf"), "splash = no\nanimations = no\nautosave_ms = 150\nonboarded = blue-pages\n");
+    let _ = std::fs::write(dir.join("blackline/settings.conf"), "splash = no\nanimations = no\nautosave_ms = 150\nonboarded = new-look\n");
     guard
 }
 
@@ -89,6 +89,22 @@ fn signed_out_it_is_the_local_library() {
     assert_eq!(s.list().len(), 1);
     assert!(s.sync().is_none());
     assert!(s.team().is_none());
+}
+
+#[test]
+fn a_cover_set_elsewhere_comes_down_with_the_script() {
+    let _g = sandbox("cover");
+    let r = room();
+    let body = storage::to_markdown(&doc("Lighthouse", "Beam."));
+    let id = r.ann.create_project(&r.team, "blackline", "Lighthouse", &body, &serde_json::json!({"pages": 1, "cover": "sun"})).unwrap().id;
+    let mut s = store_for(&r.ann, "Ann's Mac");
+    drain(&mut s);
+    s.set_source(Source::Space(r.team.clone()));
+    let key = s.key_for(&id);
+    let e = s.list().into_iter().find(|e| e.path == key).expect("the script is listed");
+    assert_eq!(e.cover, Some(2));
+    let plain = s.list().into_iter().find(|e| e.path == s.key_for(&r.script)).unwrap();
+    assert_eq!(plain.cover, None, "no cover in the metadata, so the file name decides");
 }
 
 #[test]
