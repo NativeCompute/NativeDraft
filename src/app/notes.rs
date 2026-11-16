@@ -275,7 +275,7 @@ impl App {
             .filter(|b| !b.remark.trim().is_empty())
             .map(|b| Entry { id: b.id, top: self.where_is(b.id), text: b.remark.trim().to_string(), sub: b.text.trim().to_string() })
             .collect();
-        ui::hud(ui, &format!("Notes / {:02}", entries.len()), None);
+        ui::hud(ui, &if entries.len() == 1 { "1 note".to_string() } else { format!("{} notes", entries.len()) }, None);
         ui.add_space(8.0);
         if entries.is_empty() {
             ui::body(ui, "No notes yet.");
@@ -316,7 +316,8 @@ impl App {
             .filter_map(|id| self.doc.block(*id))
             .map(|b| Entry { id: b.id, top: format!("{} · {}", b.element.short(), self.where_is(b.id)), text: b.text.trim().to_string(), sub: String::new() })
             .collect();
-        ui::hud(ui, &format!("{} revision / {:02} changed", crate::revision::name(colour), entries.len()), Some(crate::theme::pal().primary_light));
+        let changed = if entries.is_empty() { "nothing changed yet".to_string() } else if entries.len() == 1 { "1 line changed".to_string() } else { format!("{} lines changed", entries.len()) };
+        ui::hud(ui, &format!("{} revision · {changed}", crate::revision::name(colour)), Some(crate::theme::pal().primary_light));
         ui.add_space(4.0);
         ui::caption(ui, &format!("{} · since {}", crate::revision::header(colour, &self.doc.meta.revision_date), self.doc.meta.revision_date));
         ui.add_space(6.0);

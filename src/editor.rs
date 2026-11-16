@@ -779,7 +779,7 @@ pub fn act_notes(doc: &Document, page_starts: &HashMap<u64, usize>, pages: usize
         out.insert(
             a.id,
             format!(
-                "Act {:02} \u{2014} {} scene{} \u{2014} {pages}",
+                "Act {} \u{2014} {} scene{} \u{2014} {pages}",
                 a.number,
                 scenes,
                 if scenes == 1 { "" } else { "s" }

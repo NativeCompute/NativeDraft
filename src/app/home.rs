@@ -480,7 +480,8 @@ impl App {
         let mut open = None;
         let mut y = rect.top() + 36.0;
         if let Some(team) = self.store.team().cloned() {
-            clip.text(Pos2::new(x, y), egui::Align2::LEFT_CENTER, ui::elide_to_width(ui.ctx(), &team.name, hf.clone(), 0.0, room - 70.0), hf, ink);
+            let room_name = team.name.split(" · ").next().unwrap_or(&team.name).to_string();
+            clip.text(Pos2::new(x, y), egui::Align2::LEFT_CENTER, ui::elide_to_width(ui.ctx(), &room_name, hf.clone(), 0.0, room - 70.0), hf, ink);
             if !live.is_empty() {
                 let text = format!("{} live", live.len());
                 let size = ui::tag_size(ui.ctx(), &text, true);

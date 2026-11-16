@@ -13,6 +13,8 @@ pub const NEW_SCRIPT: &str = "---\ntitle: Crossfire\nauthor: Sam\ncontact: \ndra
 
 pub const ODD_FOUNTAIN: &str = "Title: Odd Bits\nCopyright: 2026 Somebody\n\nINT. ROOM - DAY #12#\n\nShe waits.\n\n~La la la\n\n===\n\nShe leaves.\n";
 
+const HEIST: &str = "---\ntitle: The Harbour Job\nauthor: Sam Reyes\ndraft: Draft 2\nstorylines: 0=Maria; 1=The heist; 2=Cole\ndeadline: DEADLINE\n---\n\n## INT. KITCHEN - NIGHT\n\n<!-- scene: tint=0 | Maria tells Jonas to stop. He won't. -->\n\nThe kettle screams. Nobody moves.\n\n## EXT. ROOFTOP - NIGHT\n\n<!-- scene: tint=0 | A cigarette she doesn't want. -->\n\nMaria at the edge, the city below.\n\n## INT. KITCHEN - DAY\n\n<!-- scene: tint=1 | Morning light. The plan, on a napkin. -->\n\nCoffee rings on a hand-drawn map.\n\n## INT./EXT. CAR - DAWN\n\n<!-- scene: tint=2 | The handoff goes wrong. -->\n\nCole drums the wheel. The bag isn't there.\n\n## EXT. HARBOUR - NIGHT\n\n<!-- scene: tint=1 | Cole meets the crew. Someone talked. -->\n\nFog over the cranes. Five shapes on the quay.\n\n## INT. VAULT - NIGHT\n\n<!-- scene: tint=0 | The lock gives way. Someone's here. -->\n\nThe dial clicks home.\n\n";
+
 pub const UNSAVED: &str = " SMOKE-UNSAVED-EDIT";
 
 const SETTINGS: &str = "appearance = dark\nsplash = yes\nanimations = yes\ncheck_updates = no\nautosave_ms = 10000\nafter_export = nothing\n";
@@ -100,11 +102,30 @@ pub fn prepare(dir: &Path) -> Result<(), String> {
     std::env::set_var("XDG_DATA_HOME", dir.join("data"));
     let lib = library(&dir);
     std::fs::create_dir_all(lib.join("scripts")).map_err(|e| e.to_string())?;
-    std::fs::write(lib.join("settings.conf"), SETTINGS).map_err(|e| e.to_string())?;
+    std::fs::write(lib.join("settings.conf"), settings_now()).map_err(|e| e.to_string())?;
     std::fs::write(lib.join("scripts/the-long-way-down.md"), OLD_SCRIPT).map_err(|e| e.to_string())?;
     std::fs::write(lib.join("scripts/crossfire.md"), NEW_SCRIPT).map_err(|e| e.to_string())?;
+    std::fs::write(lib.join("scripts/the-harbour-job.md"), heist_now()).map_err(|e| e.to_string())?;
     std::fs::write(dir.join("odd.fountain"), ODD_FOUNTAIN).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+fn settings_now() -> String {
+    use chrono::Datelike;
+    let today = crate::stats::today();
+    let back = today.weekday().num_days_from_monday() as i64;
+    let mut log = Vec::new();
+    for (k, n) in [(0i64, 320i64), (1, 410), (2, 260), (3, 250)] {
+        if k <= back {
+            crate::stats::add_words(&mut log, today - chrono::Duration::days(back - k), n);
+        }
+    }
+    format!("{SETTINGS}words = {}\n", crate::stats::write_words(&log))
+}
+
+fn heist_now() -> String {
+    let due = crate::stats::write_deadline(crate::stats::today() + chrono::Duration::days(4), "Pilot draft due");
+    HEIST.replace("DEADLINE", &due)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -114,6 +135,7 @@ enum Step {
     Home,
     Write,
     Cards,
+    Storylines,
     Read,
     Reports,
     Export,
@@ -125,18 +147,20 @@ enum Step {
     LightHome,
     LightWrite,
     LightCards,
+    LightStorylines,
     LightRead,
     LightSettings,
     LightPalette,
     Quit,
 }
 
-const STEPS: [Step; 20] = [
+const STEPS: [Step; 22] = [
     Step::Splash,
     Step::Tour,
     Step::Home,
     Step::Write,
     Step::Cards,
+    Step::Storylines,
     Step::Read,
     Step::Reports,
     Step::Export,
@@ -148,6 +172,7 @@ const STEPS: [Step; 20] = [
     Step::LightHome,
     Step::LightWrite,
     Step::LightCards,
+    Step::LightStorylines,
     Step::LightRead,
     Step::LightSettings,
     Step::LightPalette,
@@ -266,7 +291,16 @@ impl Smoke {
                 app.debug_open_from_home(lib.join("scripts/the-long-way-down.md"));
             }
             Step::Cards => app.set_mode(Mode::Cards),
-            Step::Read => app.set_mode(Mode::Read),
+            Step::Storylines | Step::LightStorylines => {
+                let lib = library(&self.dir);
+                app.debug_open_from_home(lib.join("scripts/the-harbour-job.md"));
+                app.set_mode(Mode::Cards);
+            }
+            Step::Read => {
+                let lib = library(&self.dir);
+                app.debug_open_from_home(lib.join("scripts/the-long-way-down.md"));
+                app.set_mode(Mode::Read);
+            }
             Step::Reports => app.debug_run(Command::Reports),
             Step::Export => {
                 app.debug_close_popover();
@@ -310,7 +344,11 @@ impl Smoke {
                 app.debug_open_from_home(lib.join("scripts/the-long-way-down.md"));
             }
             Step::LightCards => app.set_mode(Mode::Cards),
-            Step::LightRead => app.set_mode(Mode::Read),
+            Step::LightRead => {
+                let lib = library(&self.dir);
+                app.debug_open_from_home(lib.join("scripts/the-long-way-down.md"));
+                app.set_mode(Mode::Read);
+            }
             Step::LightSettings => {
                 app.set_mode(Mode::Write);
                 app.debug_run(Command::Settings);

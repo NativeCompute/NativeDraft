@@ -437,7 +437,10 @@ impl App {
 
     pub(super) fn save_state(&self) -> (String, egui::Color32) {
         let p = pal();
-        let cloud = self.path.as_ref().and_then(|x| self.entries.iter().find(|e| &e.path == x)).and_then(|e| e.cloud.clone());
+        let cloud = self.path.as_ref().and_then(|x| self.entries.iter().find(|e| &e.path == x)).and_then(|e| e.cloud.clone()).or_else(|| {
+            let id = self.store.place(self.path.as_ref()?)?;
+            self.store.spaces().into_iter().find(|s| s.id == id).map(|s| s.name)
+        });
         if self.dirty {
             return ("Unsaved".to_string(), p.warn);
         }

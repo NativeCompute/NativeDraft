@@ -32,7 +32,7 @@ pub struct CardsState {
 
 pub const STORYLINES: usize = 6;
 
-const LANE_MIN: f32 = 248.0;
+const LANE_MIN: f32 = 220.0;
 const LANE_MAX: f32 = 440.0;
 const LANE_GAP: f32 = 16.0;
 const LANE_HEAD: f32 = 44.0;
@@ -736,12 +736,12 @@ fn draw_card(
 
     let (page, eighths) = lengths.get(&sc.id).copied().unwrap_or((0, 0));
     let mut foot = if page > 0 {
-        format!("p.{page} / {} pg", eighths_label(eighths))
+        format!("p. {page} · {} pg", eighths_label(eighths))
     } else {
         "not on the page yet".to_string()
     };
     if !sc.cast.is_empty() {
-        foot.push_str(" / ");
+        foot.push_str(" · ");
         foot.push_str(&sc.cast.join(", "));
     }
     let foot_font = theme::font_hud(theme::T_MICRO);
@@ -910,7 +910,7 @@ pub fn columns(
     let lane_w = ((avail - 4.0 - (n - 1.0) * LANE_GAP) / n).clamp(LANE_MIN, LANE_MAX.max(LANE_MIN));
     let full_w = n * lane_w + (n - 1.0) * LANE_GAP;
     let top0 = ui.cursor().top() + 2.0;
-    let beat_h = beat_row(ui, doc, st, &scenes, &spans, total, guides, Rect::from_min_size(Pos2::new(left, top0), Vec2::new((avail - 4.0).max(full_w), 0.0)), &mut out);
+    let beat_h = beat_row(ui, doc, st, &scenes, &spans, total, guides, Rect::from_min_size(Pos2::new(left, top0), Vec2::new(avail - 4.0, 0.0)), &mut out);
     if let Some((t, name)) = out.rename.take() {
         doc.meta.set_storyline(t, &name);
         out.changed = true;

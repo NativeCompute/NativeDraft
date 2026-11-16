@@ -13,20 +13,22 @@ on Linux, `~/Library/Application Support/Blackline/scripts` on a Mac,
 diffable, and yours.
 
 Blackline is drawn in NativeCompute's design language, the same one as
-[NativeCompute's own website](https://nativecompute.net): rounded tiles on a
-soft wallpaper, one coral accent with ink text on it, and four bright tiles
-(coral, lilac, sun and sky) for the things worth a glance. Bricolage Grotesque
-sets the display type, Plus Jakarta Sans the interface and JetBrains Mono the
-readouts. It follows your computer's light or dark setting; dark is ink with a
-coral glow in the corner, light is pastel with white tiles.
+[NativeCompute's own website](https://nativecompute.net): solid tiles on a
+soft wallpaper, clear glass for the chrome that floats over them, one coral
+accent with ink text on it, and four bright tiles (coral, lilac, sun and sky)
+for the things worth a glance. Bricolage Grotesque sets the display type and
+Plus Jakarta Sans everything else, labels and figures included; the script
+itself is Courier Prime. It follows your computer's light or dark setting.
 
-![Writing: notes on the left, the page in the middle, the scene navigator on the right, under a floating toolbar](docs/blackline-write.png)
+![Writing: the library sidebar, the page with its title block, and Scenes, Notes, Changes and Cast in tabs on the right](docs/blackline-write.png)
 
-![Home: where you left off, this session, your library, and every script with its cover](docs/blackline-home.png)
+![Home: the glass hero, where you left off, this week's words, the next deadline and your scripts](docs/blackline-home.png)
 
 ![Home in light](docs/blackline-home-light.png)
 
-![Cards: storylines, the timeline with beat guides, and the scenes as index cards](docs/blackline-cards.png)
+![Cards: one column per storyline, with the story's beats above](docs/blackline-cards.png)
+
+![Search or jump to: scripts, scenes, lines and commands in one list](docs/blackline-palette.png)
 
 ---
 
@@ -34,18 +36,40 @@ coral glow in the corner, light is pastel with white tiles.
 
 Not released yet; this is what the next version brings.
 
-- **A new look.** Rounded pages and panels with soft shadows, a toolbar that
-  floats in two pills above your work, pill buttons and switches, and the
-  NativeCompute website's type and colours.
+- **A new layout.** Your library sits in a glass sidebar on the left (it
+  folds to a rail when the window is narrow, and hides in Focus). The tools
+  float in a glass pill above the page; Scenes, Notes, Changes and Cast share
+  tabs on the right; the page count, words and save state sit in a pill along
+  the bottom.
+- **Search or jump to.** `Ctrl+K`, or the search in the title bar: one list of
+  your scripts, the scenes in the open one, lines in every script and every
+  command with its shortcut. Arrow keys and `Enter` pick; `Esc` closes.
+- **Storylines in columns.** Cards opens on a column per storyline. Drag a
+  card into another column to change its storyline, or up and down to move
+  the scene in the script. The beats sit as chips above. *+ Storyline* starts
+  an empty column; the grid with its timeline is one click away.
+- **The title page, on the page.** The script's title and byline sit at the
+  top of the page. Click them, or press `Ctrl+I`, for the title page: title,
+  author, draft, contact, cover and deadline.
+- **This week and what's due.** Home counts the words you write each day and
+  shows the week's total and your streak. Give a script a deadline on its
+  title page and the nearest one shows on Home as *4 days*, *Tomorrow* or
+  *Today*. The word log and the places you left off are kept with your
+  settings, never in a script; a deadline is one line in the script's front
+  matter (`deadline: 2026-11-20 Pilot draft due`), written only once you set
+  one.
+- **Labels you can read.** Labels and figures are Plus Jakarta Sans in
+  sentence case, with figures that line up; the only capitals left are small
+  eyebrows such as *Continue writing*.
 - **Light, dark, or your system.** Settings → Appearance has System, Light and
   Dark. System follows your computer and changes when it does. When the
   computer says nothing (some Linux desktops), Blackline goes dark.
-- **A new Home.** A coral tile takes you back to the script you were in, with
-  the page and scene you left off on during this session. Next to it: the
-  words you've written since you opened Blackline (and how far along your
-  session goal you are), and your whole library in pages and scenes.
+- **A new Home.** A hero with glass art and a greeting, then a coral tile that
+  opens the script you were in on the page and scene you left, the week's
+  words in lilac, the next deadline in sun, your scripts as a list, and either
+  the writers' room or your latest notes in sky.
 - **Covers.** Every script has a cover colour: coral, lilac, sun or sky. Pick
-  one from the script's menu on Home or from the Details panel. A script with
+  one from the script's menu on Home or on its title page. A script with
   no cover picked gets one from its file name, so it doesn't move.
 - **Characters in colour.** The first six speakers get the six bright colours,
   on screen and in the PDF; the rest still get a colour each.
@@ -266,18 +290,22 @@ On a Mac, Blackline uses the Mac's own window frame instead: the red, yellow
 and green buttons sit at the top left over the title strip, and resizing,
 full screen and window tiling are the system's.
 
-The window is the website's wallpaper: pastel corners in light, ink with a
-coral glow at the top left in dark. Anything you *work in* — the notes panel,
-the page, the scene navigator — is a rounded panel on it with a soft shadow.
-The toolbar floats above them in two pills: Library, the Write | Cards | Read
-switch and the tools for the view on the left, the panels, menu and settings
-on the right. Counts, pages and timings are mono readouts.
+The window is the website's wallpaper: coral, sky and lilac washes over a
+soft gradient, pastel in light and deep in dark. The title bar holds the
+name, where you are (*Crossfire · Cards*) and **Search or jump to…** in the
+middle.
+
+The chrome is glass: the library sidebar on the left, the toolbar pill over
+the page (Library, the Write | Cards | Read switch, then the tools for the
+view) and the status pill along the bottom. What you *work in* is solid: the
+page, the cards, the tabs on the right. Below 1180 points the sidebar folds to
+a rail of icons.
 
 ---
 
 ## Three views
 
-The switch near the left of the ribbon (`Ctrl+G` steps through them). Left of
+The switch near the left of the toolbar (`Ctrl+G` steps through them). Left of
 it, **Library** goes back to Home and all your scripts.
 
 **Write** — the script, one typed block per paragraph, at industry indents in
@@ -298,15 +326,17 @@ are dealt out in order of first appearance, so a new character never repaints
 the others; **Shuffle** deals them again. They can follow you into Reading
 mode too, or stay in the editor.
 
-**Cards** — every scene as an index card: its number, heading, where it falls
-and how long it runs (in eighths of a page), who speaks in it, and a synopsis
-you write straight onto the card. Drag a card by its head to move the whole
-scene; right-click for a storyline colour or to delete the scene (it asks first,
-and `Ctrl+Z` brings it back). Above the cards, the storylines (name them with
-*Name*, click one to show only its scenes) and a timeline of the whole script
-to scale, with beat guides at 10, 25, 50, 75 and 90 percent of the page count
-(*Beats* in the ribbon turns them off). Click a scene on the timeline to go to
-its card.
+**Cards** — every scene as a card: its number, heading, a synopsis you write
+straight onto the card and its time of day. **Columns** (the default) gives
+each storyline a column; drag a card into another column to change its
+storyline, or up and down to move the whole scene in the script. *Name
+storylines* names them, *+ Storyline* opens an empty column, and the beats
+(inciting incident, the act breaks, midpoint, climax) sit as chips above;
+click one to find its scene. **Grid** lays the cards out in rows under a
+timeline of the whole script to scale, with beat guides at 10, 25, 50, 75 and
+90 percent of the page count (*Beats* in the toolbar turns them off).
+Right-click a card for a storyline colour or to delete the scene (it asks
+first, and `Ctrl+Z` brings it back).
 
 **Read** — Reading mode: the script exactly as it will print, one page at a
 time, typeset, drawn from the same layout pass the PDF is written from — no
@@ -315,17 +345,23 @@ the page you were writing. Turn it with `←` `→`, `Page Up` `Page Down`,
 `Home` `End`, the scroll wheel, or the control under the page. Click any
 line to go and write it.
 
-On the left, **Notes and changes** (`Ctrl+B`): every note in script order, and
-every line changed in the revision you are running. Click one to go to it.
+On the left, the **library sidebar** (`Ctrl+B`): New script, Home, the open
+script, Starred, Recently deleted and, when you are signed in, your cloud
+and team spaces. Settings and you sit at its foot.
 
-On the right, **Details** (`Ctrl+I`, or the ⓘ in the ribbon) is the script's
-title page — title, author, draft, contact — and what the script adds up to:
-pages, running time, scenes, speaking parts, words, and how much is dialogue.
-Under it, the **scene navigator** (`Ctrl+Shift+I`) lists every scene on a mini rail of its
-own, with the page it starts on, its length in eighths and its word count;
-click one to jump to it. **Cast** lists everyone who speaks, most lines first —
-click a name to step through their cues — and shows how much of the script is
-dialogue.
+On the right, four tabs (`Ctrl+Shift+I` shows or hides them):
+
+- **Scenes** lists every scene with its number, its length in eighths, its
+  word count and a tag for the time of day; click one to jump to it.
+- **Notes** lists every note in script order.
+- **Changes** lists every line changed in the revision you are running, and
+  starts or ends one.
+- **Cast** lists everyone who speaks, most lines first — click a name to step
+  through their cues — and shows how much of the script is dialogue.
+
+The **title page** (`Ctrl+I`, or click the title on the page) holds the
+title, author, draft, contact, cover and deadline. Pages, running time,
+scenes and words sit in the status pill, and the rest is in Reports.
 
 ---
 
@@ -346,20 +382,21 @@ and the type decides the indent, the width, and whether it is forced to caps.
 | `Alt+↑` / `Alt+↓` | Move the whole block up or down |
 | `Ctrl+Enter` | A new scene straight after the one you are in |
 | `Ctrl+D` | Dual dialogue: pair this speech with the one before it, or unpair it |
-| `Ctrl+M` or `Ctrl+K` | Add a note to this line, or edit it |
+| `Ctrl+M` | Add a note to this line, or edit it |
+| `Ctrl+K` | Search or jump to: scripts, scenes, lines and commands |
 | `Ctrl+S` | Save now (also renames the file to match the title) |
 | `Ctrl+Z` / `Ctrl+Shift+Z` or `Ctrl+Y` | Undo / redo, document-wide |
 | `Ctrl+N` | New script — its title is selected, ready to type over |
 | `Ctrl+E` | Quick Export: PDF, then open it (or show it, or nothing — Settings) |
 | `Ctrl+Shift+E` | Export PDF…: choose pages, title page, scene numbers, character colours |
 | `Ctrl+F` / `Ctrl+H` | Find and replace in the script |
-| `Ctrl+Shift+F` | Search every script, from Home |
+| `Ctrl+Shift+F` | Search every script, on Home |
 | `Ctrl+Shift+R` | Reports |
 | `Ctrl+G` | Write → Cards → Read |
-| `Ctrl+B` | Show / hide Notes and Changes |
-| `Ctrl+I` | Show / hide the script's details |
-| `Ctrl+Shift+I` | Show / hide the scene navigator |
-| `Ctrl+.` | Focus: hide both side islands and dim everything outside this scene |
+| `Ctrl+B` | Show / hide the library sidebar |
+| `Ctrl+I` | The title page |
+| `Ctrl+Shift+I` | Show / hide Scenes, Notes, Changes and Cast |
+| `Ctrl+.` | Focus: hide the sidebar and the tabs and dim everything outside this scene |
 | `Ctrl+±` | Page text bigger / smaller (remembered) |
 | `Ctrl+,` | Settings |
 | `Esc` | Close whatever is open |
@@ -369,8 +406,8 @@ Find and replace is `Cmd+Option+F`, because `Cmd+H` hides the app on a Mac.
 Every hint in the app names the keys the way your platform does.
 
 Typing is saved automatically about a second after you stop, and again
-when the app quits. The ribbon says
-`unsaved` while there is something to save, and `saved 2m ago` after.
+when the app quits. The status pill says *Unsaved* while there is something
+to save, and *Saved on this computer* or *Saved · synced to My cloud* after.
 
 **SmartType** finishes what you are typing, in ghost ink after the caret:
 character names from everyone who already speaks, `INT.` / `EXT.` and the
@@ -527,7 +564,7 @@ To try it without a server, `cargo run --example cloud-demo` opens Blackline aga
 
 ## Settings
 
-Settings (`Ctrl+,`, or the sliders in the ribbon) open as a window of their
+Settings (`Ctrl+,`, or Settings at the foot of the sidebar) open as a window of their
 own over the app, in seven categories — Appearance, The page, Colour, Panels,
 Writing & saving, YouTrack, About. `Esc`, the close button or a click outside
 puts it away.
@@ -536,7 +573,7 @@ System, light or dark, animations, interface size, page text size, page breaks i
 numbers, SmartType, typewriter scrolling, element colours, character colours
 (and whether Reading mode shows them), which panels are open, the **View on
 YouTrack** link, how the library sorts, a session word
-goal (shown as a track in the ribbon), the splash screen, what Quick Export does
+goal (shown as a track in the status pill), the splash screen, what Quick Export does
 with the PDF, and how long the app waits before saving.
 
 The look is saved as `appearance = system`, `light` or `dark`. Older versions
@@ -566,7 +603,7 @@ stays within the site's 100–300 ms.
 [YouTrack](https://www.jetbrains.com/youtrack/) is JetBrains' issue tracker
 and project management tool. If your production keeps its notes and tasks
 there, paste your workspace's link into Settings → YouTrack and a **View on
-YouTrack** button appears at the foot of Home and of the notes panel. The link is empty until
+YouTrack** button appears at the foot of Home. The link is empty until
 you set one, and the button stays hidden until then.
 
 ---
@@ -638,8 +675,8 @@ and goes.
   the ones above. They are kept with your own settings, so each person has
   their own, and only the shortcuts you changed are written down.
 
-The app opens on **Home**, a picker of your scripts: Continue writing, your
-starred scripts, then the rest as cards. Scripts without acts or chosen
+The app opens on **Home**: Continue writing, the week, the next deadline and
+your scripts. Scripts without acts or chosen
 colours are written exactly as before.
 
 A speech that runs over a page break is printed the industry way: `(MORE)` at
@@ -662,7 +699,7 @@ follows the [code of conduct](CODE_OF_CONDUCT.md).
 ## Development
 
 ```bash
-cargo test          # 150 tests: behaviour, files, formats, headless UI
+cargo test          # 197 tests: behaviour, files, formats, headless UI
 cargo build --release
 ./target/release/blackline --emit-icon icon.svg   # the mark, as the app draws it
 ./target/release/blackline --emit-ico packaging/blackline.ico   # the Windows icon
@@ -694,9 +731,13 @@ the dark and light casts are all exercised for real.
 | `src/fountain.rs` | Fountain and Final Draft readers |
 | `src/editor.rs` | The page: block rendering and every structural keystroke |
 | `src/cards.rs` / `src/pages.rs` | Cards, and Reading mode |
-| `src/app.rs` | Shell — ribbon, navigator, popovers, autosave, undo |
-| `src/app/home.rs` | Home: the tiles, the scripts with their covers, and search inside every script |
-| `src/app/notes.rs` | The note window, the Notes and Changes panel, starting and ending a revision |
+| `src/app.rs` | The app: title bar, popovers, the page, autosave, undo |
+| `src/app/shell.rs` | The library sidebar, the toolbar and status pills, the tabs on the right, the title page |
+| `src/app/palette.rs` | Search or jump to (`Ctrl+K`) |
+| `src/app/home.rs` | Home: the hero, Continue writing, the week, the next deadline, the scripts, and search inside every script |
+| `src/stats.rs` | The word log, the places you left off, and deadlines |
+| `src/art.rs` | The glass art on Home, one image per look (`assets/art/`) |
+| `src/app/notes.rs` | The note window, the Notes and Changes lists, starting and ending a revision |
 | `src/app/reports.rs` `src/report.rs` | The Reports window, and the figures behind it |
 | `src/app/imported.rs` | The window listing what an import could not keep |
 | `src/app/onboarding.rs` | The tour and *what's new* |

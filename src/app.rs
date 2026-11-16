@@ -1661,7 +1661,7 @@ impl App {
             icons::show(ui, Icon::Users, 13.0, p.text_faint);
             ui::hud(ui, "CAST", Some(p.text_dim));
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                ui::hud(ui, &format!("{:02}", self.layout.cast.len()), None);
+                ui::hud(ui, &self.layout.cast.len().to_string(), None);
             });
         });
         ui.add_space(6.0);

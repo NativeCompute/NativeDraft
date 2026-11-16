@@ -329,9 +329,9 @@ pub fn show(
 
     // hud strip foot here---
     let label = if st.current == 0 {
-        format!("TITLE PAGE / {:02} PP", st.sheets - 1)
+        if st.sheets == 2 { "Title page · 1 page".to_string() } else { format!("Title page · {} pages", st.sheets - 1) }
     } else {
-        format!("PAGE {} / {:02}", labels[st.current - 1], st.sheets - 1)
+        format!("Page {} of {}", labels[st.current - 1], st.sheets - 1)
     };
     let hud = theme::font_hud(theme::T_CAP);
     let text_w = theme::tracked_width(ui.ctx(), &label, hud.clone(), 0.9);

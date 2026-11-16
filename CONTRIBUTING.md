@@ -44,7 +44,11 @@ On Linux, `./install.sh` builds and installs it for your user.
    Blackline needs that NCF lacks belongs in NCF. Rounded surfaces from NCF's
    radius scale, NCF's shadows, one coral accent with ink text on it, the
    bright tiles only where something is worth a glance, and both light and dark
-   checked (`--smoke` takes shots of each).
+   checked (`--smoke` takes shots of each). Glass is for the chrome that floats
+   (the sidebar, the toolbar and status pills); anything you read or write on
+   is a solid tile. Labels are sentence case in Plus Jakarta Sans; capitals are
+   only for eyebrows (`ui::eyebrow`) and for what the screenplay format itself
+   puts in capitals.
 6. **Keep it small.** One change per pull request, described in plain words:
    what it does for a writer, and how you checked it.
 

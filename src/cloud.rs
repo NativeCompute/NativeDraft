@@ -243,7 +243,7 @@ impl CloudStore {
 
     fn shown(&self, w: &nc::Workspace) -> String {
         match w.org_id.as_ref().and_then(|o| self.orgs.get(o)) {
-            Some((org, _)) if !w.is_personal() => format!("{org} / {}", w.name),
+            Some((org, _)) if !w.is_personal() => format!("{org} · {}", w.name),
             _ => w.shown(),
         }
     }
@@ -685,7 +685,7 @@ impl Store for CloudStore {
     fn location(&self) -> String {
         match &self.source {
             Source::Local => self.local.location(),
-            Source::Space(id) => format!("NativeCloud / {}", self.space_name(id)),
+            Source::Space(id) => format!("NativeCloud · {}", self.space_name(id)),
         }
     }
 
