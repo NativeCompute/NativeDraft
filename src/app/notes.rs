@@ -207,62 +207,6 @@ impl App {
         self.deck.ok("Revision ended", "The marks are cleared. The next revision takes the next colour.");
     }
 
-    pub(super) fn left_panel(&mut self, ctx: &egui::Context) {
-        if !self.settings.show_library || self.focus_mode {
-            return;
-        }
-        egui::SidePanel::left("ns-rail")
-            .exact_width(theme::RAIL_W + theme::GAP)
-            .resizable(false)
-            .show_separator_line(false)
-            .frame(egui::Frame::none().inner_margin(egui::Margin {
-                left: theme::GAP,
-                right: 0.0,
-                top: theme::GAP,
-                bottom: theme::GAP,
-            }))
-            .show(ctx, |ui| {
-                theme::island_frame(theme::R_ISLAND)
-                    .inner_margin(egui::Margin::symmetric(12.0, 14.0))
-                    .show(ui, |ui| {
-                        ui.set_min_size(ui.available_size());
-                        self.left_rect = ui.max_rect();
-                        if let Some(k) = ui::tabs(ui, &["Notes", "Changes"], self.left_tab) {
-                            self.left_tab = k;
-                        }
-                        ui.add_space(12.0);
-
-                        const TRACKER: f32 = 34.0;
-                        const FOOT: f32 = 24.0;
-                        let tracker = !self.settings.youtrack_url.trim().is_empty();
-                        let gaps = ui.spacing().item_spacing.y * if tracker { 2.0 } else { 1.0 };
-                        let list_h = (ui.available_height() - if tracker { TRACKER } else { 0.0 } - FOOT - gaps).max(60.0);
-                        let (list, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), list_h), egui::Sense::hover());
-                        let mut list_ui = ui.new_child(egui::UiBuilder::new().max_rect(list).layout(egui::Layout::top_down(egui::Align::Min)));
-                        self.left_rows.clear();
-                        if self.left_tab == 0 {
-                            self.notes_list(&mut list_ui);
-                        } else {
-                            self.changes_list(&mut list_ui);
-                        }
-
-                        if tracker && super::youtrack_button(ui, &self.settings.youtrack_url) {
-                            let url = self.settings.youtrack_url.trim().to_string();
-                            if url.starts_with("http://") || url.starts_with("https://") {
-                                self.store.open_url(&url);
-                            } else {
-                                self.deck.warn("That is not a web address", "Set the YouTrack link in Settings.");
-                            }
-                        }
-                        let (foot, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), FOOT), egui::Sense::hover());
-                        self.foot_rect = foot;
-                        if ui::maker_line(ui, foot.translate(Vec2::new(0.0, 2.0)), false) {
-                            self.store.open_url(crate::NATIVECOMPUTE_URL);
-                        }
-                    });
-            });
-    }
-
     fn entry_list(&mut self, ui: &mut egui::Ui, salt: &str, entries: &[Entry]) -> Option<u64> {
         let p = crate::theme::pal();
         let mut picked = None;
@@ -323,7 +267,7 @@ impl App {
         self.ed.jump_to(id);
     }
 
-    fn notes_list(&mut self, ui: &mut egui::Ui) {
+    pub(super) fn notes_list(&mut self, ui: &mut egui::Ui) {
         let entries: Vec<Entry> = self
             .doc
             .blocks
@@ -353,7 +297,7 @@ impl App {
         }
     }
 
-    fn changes_list(&mut self, ui: &mut egui::Ui) {
+    pub(super) fn changes_list(&mut self, ui: &mut egui::Ui) {
         if !self.doc.meta.revising() {
             let next = self.doc.meta.revision.map(|c| c + 1).unwrap_or(0);
             ui::hud(ui, "Revision mode", None);

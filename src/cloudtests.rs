@@ -236,7 +236,7 @@ fn offline_edits_wait_and_lose_to_a_newer_version_as_a_snapshot() {
     a.set_source(Source::Space(r.team.clone()));
     let e = a.list().into_iter().find(|e| e.path == key).unwrap();
     assert!(e.waiting);
-    assert!(a.sync().unwrap().text.starts_with("OFFLINE"));
+    assert!(a.sync().unwrap().text.starts_with("Offline"));
     assert!(storage::load(&key).unwrap().blocks.iter().any(|b| b.text == "Written on a plane."));
     r.cloud.set_offline(false);
     r.cloud.advance(200);

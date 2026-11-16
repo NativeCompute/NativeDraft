@@ -32,8 +32,6 @@ impl App {
 
     pub(super) fn make_local(&mut self, _path: &PathBuf) {}
 
-    pub(super) fn sources_bar(&mut self, _ui: &mut egui::Ui, _w: f32) {}
-
     pub(super) fn cloud_title(&mut self, _ui: &mut egui::Ui) {}
 
     pub(super) fn account_body(&mut self, _ui: &mut egui::Ui, _tab: usize) {}

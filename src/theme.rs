@@ -466,8 +466,9 @@ pub fn island_frame(radius: f32) -> egui::Frame {
 }
 
 pub fn sheet_frame() -> egui::Frame {
-    let lift = if pal().dark { ncf::theme::Lift::Rest } else { ncf::theme::Lift::Float };
-    ncf::theme::surface_frame(R_SHEET, lift)
+    let p = pal();
+    let lift = if p.dark { ncf::theme::Lift::Rest } else { ncf::theme::Lift::Float };
+    ncf::theme::surface_frame(R_SHEET, lift).fill(if p.dark { p.solid } else { p.raised })
 }
 
 pub fn lift_shadow(painter: &egui::Painter, rect: Rect, radius: f32, lift: f32) {
@@ -624,3 +625,16 @@ pub fn font_page(size: f32) -> egui::FontId {
 pub fn font_page_bold(size: f32) -> egui::FontId {
     egui::FontId::new(size, page_bold())
 }
+
+pub fn paper_sheet(rect: Rect) -> Shape {
+    let p = pal();
+    let r = Rounding::same(ncf::theme::R_MD);
+    let mut v = Vec::new();
+    if !p.dark {
+        v.push(Shape::Rect(ncf::theme::shadow_of(ncf::theme::Lift::Rest).as_shape(rect, r)));
+    }
+    v.push(Shape::rect_filled(rect, r, if p.dark { p.raised } else { Color32::WHITE }));
+    v.push(Shape::rect_stroke(rect.shrink(0.5), r, Stroke::new(1.0_f32, p.line)));
+    Shape::Vec(v)
+}
+

@@ -675,11 +675,11 @@ fn a_shortcut_of_your_own_is_kept_and_reset_puts_back_the_default() {
 
     t.app.debug_close_popover();
     t.frames(2);
-    let before = t.app.settings().show_details;
+    let before = t.app.debug_title_sheet_open();
     t.press(Key::D, Modifiers::COMMAND | Modifiers::ALT);
-    assert_eq!(t.app.settings().show_details, !before);
+    assert_eq!(t.app.debug_title_sheet_open(), !before);
     t.press(Key::I, Modifiers::COMMAND);
-    assert_eq!(t.app.settings().show_details, !before, "Ctrl+I is free now");
+    assert_eq!(t.app.debug_title_sheet_open(), !before, "Ctrl+I is free now");
 
     t.app.debug_open_settings(8);
     t.frames(2);

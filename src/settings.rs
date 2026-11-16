@@ -83,6 +83,8 @@ pub struct Settings {
     pub pdf_tint: bool,
     pub dismissed_update: String,
     pub onboarded: String,
+    pub inspector_tab: usize,
+    pub cards_columns: bool,
     pub fresh: bool,
     pub page_px: f32,
     pub page_breaks: bool,
@@ -129,6 +131,8 @@ impl Default for Settings {
             pdf_tint: false,
             dismissed_update: String::new(),
             onboarded: String::new(),
+            inspector_tab: 0,
+            cards_columns: true,
             fresh: true,
             page_px: 16.0,
             page_breaks: true,
@@ -194,7 +198,9 @@ impl Settings {
              beat_guides = {}\n\
              pdf_tint = {}\n\
              dismissed_update = {}\n\
-             onboarded = {}\n",
+             onboarded = {}\n\
+             inspector_tab = {}\n\
+             cards_view = {}\n",
             self.appearance.slug(),
             b(self.appearance.light_mode()),
             b(self.animations),
@@ -228,6 +234,8 @@ impl Settings {
             b(self.pdf_tint),
             self.dismissed_update.trim(),
             self.onboarded.trim(),
+            self.inspector_tab.min(3),
+            if self.cards_columns { "columns" } else { "grid" },
         ) + if self.custom_colors {
             "character_colors_mode = custom\n"
         } else {
@@ -279,6 +287,8 @@ impl Settings {
                 "pdf_tint" => s.pdf_tint = yes(v),
                 "dismissed_update" => s.dismissed_update = v.trim().to_string(),
                 "onboarded" => s.onboarded = v.trim().to_string(),
+                "inspector_tab" => s.inspector_tab = v.trim().parse::<usize>().unwrap_or(0).min(3),
+                "cards_view" => s.cards_columns = v.trim() != "grid",
                 "page_px" => s.page_px = v.parse::<f32>().unwrap_or(16.0).clamp(11.0, 26.0),
                 "page_breaks" => s.page_breaks = yes(v),
                 "scene_numbers" => s.scene_numbers = yes(v),

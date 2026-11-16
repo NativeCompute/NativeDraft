@@ -134,7 +134,6 @@ impl App {
             });
         });
         ui.add_space(14.0);
-        self.sources_bar(ui, w);
 
         // search here---
         let search = ui.add(
@@ -168,6 +167,9 @@ impl App {
             .cloned()
             .collect();
         list.sort_by_key(|a| std::cmp::Reverse(a.modified));
+        if self.home_starred {
+            list.retain(|e| e.starred);
+        }
 
         if self.entries.is_empty() {
             self.home_empty(ui);
@@ -810,7 +812,7 @@ fn greeting() -> &'static str {
     }
 }
 
-fn local_name() -> Option<String> {
+pub(super) fn local_name() -> Option<String> {
     if crate::WEB {
         return None;
     }

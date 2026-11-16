@@ -26,9 +26,6 @@ impl App {
             .team()
             .map(|t| (t.me.clone(), t.role, t.name.clone()))
         else {
-            if !self.home && ui::icon_button(ui, Icon::Home, "All scripts", 28.0) {
-                self.go_home();
-            }
             return;
         };
         let p = pal();
@@ -46,9 +43,6 @@ impl App {
             self.toggle_popover(Popover::Account);
         }
 
-        if !self.home && ui::icon_button(ui, Icon::Home, "All scripts", 28.0) {
-            self.go_home();
-        }
         ui.add_space(4.0);
         ui.label(
             egui::RichText::new(team_name)
@@ -217,7 +211,7 @@ impl App {
             .order(egui::Order::Foreground)
             .fixed_pos(Pos2::new(
                 (anchor.right() - 320.0).max(screen.left() + 8.0),
-                theme::TOPBAR_H + 4.0,
+                anchor.bottom() + 6.0,
             ))
             .show(ctx, |ui| {
                 ui::popover_frame()

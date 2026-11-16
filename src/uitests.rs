@@ -647,35 +647,39 @@ fn nothing_is_drawn_outside_the_block_being_typed_into() {
 }
 
 #[test]
-fn the_left_panel_foot_ends_level_with_the_other_islands() {
-    let mut h = Harness::with(1320.0, 900.0, "show_details = yes\n");
-    let foot = h.app.debug_foot_rect();
+fn the_sidebar_page_and_tabs_line_up_with_the_status_pill() {
+    let mut h = Harness::with(1320.0, 900.0, "show_scenes = yes\n");
+    let side = h.app.debug_side_rect();
+    let status = h.app.debug_status_rect();
     let page = h.app.debug_page_rect();
-    assert!(
-        (foot.bottom() + 14.0 - page.bottom()).abs() < 1.5,
-        "foot ends at {}, page island at {}",
-        foot.bottom(),
-        page.bottom()
-    );
+    let foot = h.app.debug_foot_rect();
+    assert!(side.contains_rect(foot), "your name sits inside the sidebar: {foot:?} in {side:?}");
+    assert!((side.bottom() - status.bottom()).abs() < 1.5, "sidebar ends at {}, status pill at {}", side.bottom(), status.bottom());
+    assert!((page.bottom() + 10.0 - status.top()).abs() < 1.5, "page ends at {}, status pill starts at {}", page.bottom(), status.top());
+    assert!(status.left() > side.right(), "the status pill sits right of the sidebar");
     let aside = h.app.debug_aside_rect();
     assert!((aside.bottom() - page.bottom()).abs() < 1.5);
+    assert!(aside.left() >= page.right() + 10.0, "a gap between the page and the tabs");
     h.app.debug_set_light(true);
     h.frames(2);
     assert!(!theme::pal().dark);
 }
 
 #[test]
-fn ctrl_i_shows_the_details_and_ctrl_shift_i_the_scenes() {
+fn ctrl_i_opens_the_title_page_and_ctrl_shift_i_the_tabs() {
     let mut h = Harness::new();
-    assert!(!h.app.settings().show_details);
+    assert!(!h.app.debug_title_sheet_open());
     let scenes = h.app.settings().show_scenes;
     h.press(Key::I, Modifiers::COMMAND);
-    assert!(h.app.settings().show_details);
-    assert_eq!(h.app.settings().show_scenes, scenes, "only the details moved");
+    assert!(h.app.debug_title_sheet_open());
+    assert_eq!(h.app.settings().show_scenes, scenes, "only the title page opened");
+    h.press(Key::Escape, Modifiers::NONE);
+    h.frames(2);
+    assert!(!h.app.debug_title_sheet_open(), "Esc puts it away");
     h.press(Key::I, Modifiers::COMMAND | Modifiers::SHIFT);
     assert_eq!(h.app.settings().show_scenes, !scenes);
-    assert!(h.app.settings().show_details, "and only the scenes moved");
-    assert!(storage::read_settings().show_details, "remembered");
+    assert!(!h.app.debug_title_sheet_open(), "and only the tabs moved");
+    assert_eq!(storage::read_settings().show_scenes, !scenes, "remembered");
 }
 
 #[test]
@@ -733,7 +737,7 @@ fn no_island_on_the_right_ever_runs_past_the_page() {
             hh.frames(3);
             let page = hh.app.debug_page_rect();
             let islands = hh.app.debug_aside_islands();
-            assert!(!islands.is_empty());
+            assert_eq!(islands.is_empty(), !scenes, "the tabs show exactly when they are switched on");
             for r in islands {
                 assert!(
                     r.bottom() <= page.bottom() + 0.5,
@@ -1007,6 +1011,7 @@ fn a_note_in_the_left_panel_jumps_to_its_line() {
     doc.blocks[2].remark = "softer".into();
     doc.blocks[5].remark = "hold the silence".into();
     h.load(doc);
+    h.app.debug_left_tab(0);
     h.frames(3);
     let noted: Vec<u64> = h.app.doc().blocks.iter().filter(|b| !b.remark.is_empty()).map(|b| b.id).collect();
     let rows = h.app.debug_left_rows();
