@@ -133,7 +133,31 @@ pub fn set_palette(dark: bool) {
 
 pub fn glass_surface(painter: &egui::Painter, rect: Rect, radius: f32, opacity: f32) {
     let _ = opacity;
-    ncf::theme::panel_rounded(painter, rect, radius);
+    ncf::theme::surface(painter, rect, radius, ncf::theme::Lift::Flat);
+}
+
+pub fn scrim(t: f32) -> Color32 {
+    let s = ncf::theme::pal().scrim();
+    wash(s, (s.a() as f32 * t.clamp(0.0, 1.0)) as u8)
+}
+
+pub fn window_edge() -> Color32 {
+    let p = pal();
+    if p.dark {
+        p.line
+    } else {
+        Color32::TRANSPARENT
+    }
+}
+
+pub fn pill_shape(rect: Rect) -> Shape {
+    let p = ncf::theme::pal();
+    let r = Rounding::same(rect.height() * 0.5);
+    Shape::Vec(vec![
+        Shape::Rect(ncf::theme::shadow_of(ncf::theme::Lift::Float).as_shape(rect, r)),
+        Shape::rect_filled(rect, r, p.glass),
+        Shape::rect_stroke(rect.shrink(0.5), r, Stroke::new(1.0_f32, p.glass_line)),
+    ])
 }
 
 pub fn install_fonts(ctx: &egui::Context) {
@@ -161,6 +185,7 @@ pub const R_ISLAND: f32 = ncf::theme::R_MD;
 pub const R_PANEL: f32 = ncf::theme::R_MD;
 pub const R_PILL: f32 = ncf::theme::R_PILL;
 pub const R_SHEET: f32 = ncf::theme::R_LG;
+pub const R_ROW: f32 = 8.0;
 
 pub const RAIL_W: f32 = 268.0;
 pub const OUTLINE_W: f32 = 246.0;

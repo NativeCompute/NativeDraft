@@ -211,6 +211,9 @@ pub fn show(
     let mut jump = None;
     {
         let painter = ui.painter();
+        if fade > 0.99 {
+            ncf::theme::shadow(painter, sheet, theme::R_SM, ncf::theme::Lift::Rest);
+        }
         painter.rect_filled(sheet, egui::Rounding::same(theme::R_SM), a(paper));
         painter.rect_stroke(sheet.shrink(0.5), egui::Rounding::same(theme::R_SM), egui::Stroke::new(1.0_f32, a(p.line)));
     }
@@ -276,7 +279,7 @@ pub fn show(
                     if hot > 0.01 {
                         ui.painter().rect_filled(
                             hit.expand2(Vec2::new(3.0, 0.0)),
-                            egui::Rounding::ZERO,
+                            egui::Rounding::same(theme::R_ROW),
                             theme::wash(p.primary, (40.0 * hot) as u8),
                         );
                     }

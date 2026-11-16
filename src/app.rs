@@ -1171,6 +1171,8 @@ impl App {
 
     fn ribbon_row(&mut self, ui: &mut egui::Ui) {
         let p = pal();
+        let left_pill = ui.painter().add(egui::Shape::Noop);
+        let right_pill = ui.painter().add(egui::Shape::Noop);
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 8.0;
 
@@ -1179,7 +1181,8 @@ impl App {
                 self.go_home();
             }
             self.library_button = ui.min_rect();
-            ui::rule(ui, 22.0);
+            ui.add_space(10.0);
+            let pill_start = ui.cursor().min.x;
 
             if let Some(picked) = ui::segmented(
                 ui,
@@ -1197,10 +1200,10 @@ impl App {
             }
 
             ui.add_space(6.0);
-            ui::rule(ui, 22.0);
+            ui::rule(ui, 20.0);
             ui.add_space(6.0);
 
-            let right_w = 247.0 + if self.saved_label().is_some() { 96.0 } else { 0.0 };
+            let right_w = 262.0 + if self.saved_label().is_some() { 96.0 } else { 0.0 };
             let room = (ui.available_width() - right_w).max(0.0);
             let tools = Rect::from_min_size(ui.cursor().min, Vec2::new(room, 30.0));
             let mut child = ui.new_child(
@@ -1214,8 +1217,16 @@ impl App {
                 Mode::Cards => self.cards_tools(&mut child, room),
                 Mode::Read => self.read_tools(&mut child, room),
             }
+            let used = child.min_rect();
+            let row = ui.min_rect();
+            let tools_end = if used.width() > 1.0 { used.right().min(tools.right()) } else { tools.left() - 12.0 };
+            let left = egui::Rect::from_min_max(
+                egui::pos2(pill_start - 4.0, row.center().y - 21.0),
+                egui::pos2(tools_end + 10.0, row.center().y + 21.0),
+            );
+            ui.painter().set(left_pill, theme::pill_shape(left));
 
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let right_side = ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x = 3.0;
 
                 let (rect, menu) = ui.allocate_exact_size(Vec2::new(30.0, 30.0), Sense::click());
@@ -1249,9 +1260,7 @@ impl App {
                     self.toggle_popover(Popover::Settings);
                 }
 
-                ui.add_space(4.0);
-                ui::rule(ui, 20.0);
-                ui.add_space(4.0);
+                ui.add_space(2.0);
 
                 let tip = format!("Reports — characters, scenes, locations · {}", self.keys_for(keys::Command::Reports));
                 if ui::ribbon_button(ui, Icon::Graph, "", &tip, self.popover == Some(Popover::Reports)) {
@@ -1290,6 +1299,14 @@ impl App {
                     );
                 }
             });
+            let r = right_side.response.rect;
+            if r.width() > 1.0 {
+                let right = egui::Rect::from_min_max(
+                    egui::pos2(r.left() - 12.0, row.center().y - 21.0),
+                    egui::pos2(r.right() + 6.0, row.center().y + 21.0),
+                );
+                ui.painter().set(right_pill, theme::pill_shape(right));
+            }
         });
     }
 
@@ -1338,11 +1355,11 @@ impl App {
         if goal > 0 && room > bar_w + 20.0 {
             let (rect, resp) = ui.allocate_exact_size(Vec2::new(46.0, 14.0), Sense::hover());
             let t = (self.session_words.max(0) as f32 / goal as f32).clamp(0.0, 1.0);
-            let track = Rect::from_center_size(rect.center(), Vec2::new(46.0, 2.0));
-            ui.painter().rect_filled(track, egui::Rounding::ZERO, p.line_strong);
+            let track = Rect::from_center_size(rect.center(), Vec2::new(46.0, 4.0));
+            ui.painter().rect_filled(track, egui::Rounding::same(2.0), p.line_strong);
             if t > 0.0 {
-                let fill = Rect::from_min_max(track.min, Pos2::new(track.left() + track.width() * t, track.bottom()));
-                ui.painter().rect_filled(fill, egui::Rounding::ZERO, p.primary_light);
+                let fill = Rect::from_min_max(track.min, Pos2::new(track.left() + (track.width() * t).max(4.0), track.bottom()));
+                ui.painter().rect_filled(fill, egui::Rounding::same(2.0), p.primary);
             }
             resp.on_hover_text(format!(
                 "Session goal: {} of {goal} words",
@@ -1808,14 +1825,14 @@ impl App {
                     let slot = rect.shrink2(Vec2::new(0.0, 2.0));
                     let fill = if p.dark { p.raised } else { p.sunken };
                     if is_live {
-                        ui.painter().rect_filled(slot, egui::Rounding::ZERO, fill);
+                        ui.painter().rect_filled(slot, egui::Rounding::same(theme::R_ROW), fill);
                         ui.painter().rect_filled(
                             Rect::from_min_size(slot.left_top(), Vec2::new(2.0, slot.height())),
-                            egui::Rounding::ZERO,
+                            egui::Rounding::same(theme::R_ROW),
                             p.primary_light,
                         );
                     } else if hot > 0.02 {
-                        ui.painter().rect_filled(slot, egui::Rounding::ZERO, theme::wash(fill, (255.0 * hot) as u8));
+                        ui.painter().rect_filled(slot, egui::Rounding::same(theme::R_ROW), theme::wash(fill, (255.0 * hot) as u8));
                     }
 
                     let cy = rect.center().y;
@@ -1923,13 +1940,13 @@ impl App {
         if hot > 0.01 {
             ui.painter().rect_filled(
                 rect.shrink2(Vec2::new(0.0, 2.0)),
-                egui::Rounding::ZERO,
+                egui::Rounding::same(theme::R_ROW),
                 theme::wash(if p.dark { p.raised } else { p.sunken }, (255.0 * hot) as u8),
             );
         }
         ui.painter().rect_filled(
             Rect::from_center_size(Pos2::new(left, cy), Vec2::splat(7.0)),
-            egui::Rounding::ZERO,
+            egui::Rounding::same(theme::R_ROW),
             p.primary_light,
         );
         let title = if a.title.trim().is_empty() { act_title(a.number) } else { a.title.trim().to_string() };
@@ -2111,7 +2128,7 @@ impl App {
         egui::CentralPanel::default()
             .frame(egui::Frame::none().inner_margin(egui::Margin::same(theme::GAP)))
             .show(ctx, |ui| {
-                theme::island_frame(theme::R_ISLAND)
+                theme::sheet_frame()
                     .inner_margin(egui::Margin::ZERO)
                     .show(ui, |ui| {
                         ui.set_min_size(ui.available_size());
@@ -2876,7 +2893,7 @@ impl App {
                 ui.painter().rect_filled(
                     rect,
                     egui::Rounding::same(chrome::window_radius(ctx, theme::R_WINDOW)),
-                    Color32::from_black_alpha((120.0 * veil) as u8),
+                    theme::scrim(veil),
                 );
                 if resp.clicked() && self.frame_no > self.popover_frame + 1 {
                     close = true;
@@ -2902,7 +2919,7 @@ impl App {
                 ui.painter().rect_stroke(
                     win.shrink(0.5),
                     egui::Rounding::same(theme::R_ISLAND),
-                    Stroke::new(1.0_f32, theme::wash(Color32::WHITE, if p.dark { 18 } else { 120 })),
+                    Stroke::new(1.0_f32, theme::window_edge()),
                 );
                 let mut ui = ui.new_child(
                     egui::UiBuilder::new()
@@ -3173,7 +3190,7 @@ impl App {
                 ui.painter().rect_filled(
                     rect,
                     egui::Rounding::same(chrome::window_radius(ctx, theme::R_WINDOW)),
-                    Color32::from_black_alpha((120.0 * veil) as u8),
+                    theme::scrim(veil),
                 );
                 if resp.clicked() && self.frame_no > self.popover_frame + 1 {
                     close = true;
@@ -3259,7 +3276,7 @@ impl App {
                     }
                     ui.painter().rect_stroke(
                         Rect::from_min_max(first.min, last.max).shrink(0.5),
-                        egui::Rounding::ZERO,
+                        egui::Rounding::same(theme::R_ROW),
                         Stroke::new(1.0_f32, p.line_strong),
                     );
                 }
@@ -4402,7 +4419,7 @@ fn element_chip(ui: &mut egui::Ui, e: Element, on: bool, chord: &str) -> bool {
     theme::hover_surface(ui.painter(), rect, theme::R_SM, p.primary, hot, on);
     ui.painter().rect_filled(
         Rect::from_center_size(Pos2::new(rect.left() + 10.0, rect.center().y), Vec2::splat(5.0)),
-        egui::Rounding::ZERO,
+        egui::Rounding::same(theme::R_ROW),
         theme::wash(theme::element_color(e), if on { 255 } else { (150.0 + 100.0 * hot) as u8 }),
     );
     let ink = if on { p.primary_light } else { theme::mix(p.text_dim, p.text, hot) };
@@ -4429,7 +4446,7 @@ const BANNER_H: f32 = 86.0;
 fn banner_shape(rect: Rect) -> egui::Shape {
     let p = pal();
     egui::Shape::Vec(vec![
-        egui::Shape::rect_filled(rect, egui::Rounding::ZERO, p.solid),
+        egui::Shape::rect_filled(rect, egui::Rounding::same(theme::R_ROW), p.solid),
         egui::Shape::line_segment(
             [rect.left_bottom(), rect.right_bottom()],
             Stroke::new(1.0_f32, p.line),
@@ -4591,11 +4608,11 @@ fn settings_tab_row(ui: &mut egui::Ui, label: &str, icon: Icon, on: bool) -> (bo
     let lit = anim::ease(ui.ctx(), resp.id.with("on"), on, 0.15);
     if lit > 0.005 {
         ui.painter()
-            .rect_filled(rect, egui::Rounding::ZERO, theme::wash(p.text, (255.0 * lit) as u8));
+            .rect_filled(rect, egui::Rounding::same(theme::R_ROW), theme::wash(p.text, (255.0 * lit) as u8));
     } else if hot > 0.01 {
         ui.painter().rect_filled(
             rect,
-            egui::Rounding::ZERO,
+            egui::Rounding::same(theme::R_ROW),
             theme::wash(if p.dark { p.raised } else { p.sunken }, (255.0 * hot) as u8),
         );
     }

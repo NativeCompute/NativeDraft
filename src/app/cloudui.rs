@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use eframe::egui::{self, Align, Color32, Layout, Pos2, Rect, Sense, Stroke, Vec2};
+use eframe::egui::{self, Align, Layout, Pos2, Rect, Sense, Stroke, Vec2};
 
 use super::{App, Ask, Popover};
 use crate::alerts::Tone;
@@ -59,10 +59,10 @@ fn tick_box(ui: &mut egui::Ui, on: bool, label: &str, w: f32) -> bool {
     }
     let b = Rect::from_center_size(Pos2::new(rect.left() + 14.0, rect.center().y), Vec2::splat(14.0));
     if on {
-        ui.painter().rect_filled(b, egui::Rounding::same(2.0), p.primary);
-        icons::draw(ui.painter(), b.shrink(2.0), Icon::Check, Color32::WHITE);
+        ui.painter().rect_filled(b, egui::Rounding::same(4.0), p.primary);
+        icons::draw(ui.painter(), b.shrink(2.0), Icon::Check, p.ink);
     } else {
-        ui.painter().rect_stroke(b, egui::Rounding::same(2.0), Stroke::new(1.0_f32, p.text_faint));
+        ui.painter().rect_stroke(b, egui::Rounding::same(4.0), Stroke::new(1.0_f32, p.text_faint));
     }
     ui.painter().text(
         Pos2::new(rect.left() + 32.0, rect.center().y),
@@ -183,7 +183,7 @@ impl App {
         let mut done: Option<bool> = None;
         egui::Area::new(egui::Id::new("bl-cloud-scrim")).order(egui::Order::Middle).fixed_pos(screen.min).show(ctx, |ui| {
             ui.allocate_exact_size(screen.size(), Sense::click());
-            ui.painter().rect_filled(screen, egui::Rounding::ZERO, Color32::from_black_alpha(120));
+            ui.painter().rect_filled(screen, egui::Rounding::ZERO, theme::scrim(1.0));
         });
         egui::Area::new(egui::Id::new("bl-cloud-picker")).order(egui::Order::Foreground).fixed_pos(rect.min).show(ctx, |ui| {
             let (win, _) = ui.allocate_exact_size(rect.size(), Sense::hover());

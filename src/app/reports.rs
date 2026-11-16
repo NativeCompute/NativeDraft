@@ -1,4 +1,4 @@
-use eframe::egui::{self, Align, Color32, Layout, Pos2, Rect, Sense, Stroke, Vec2};
+use eframe::egui::{self, Align, Layout, Pos2, Rect, Sense, Stroke, Vec2};
 
 use super::{App, Mode, Popover};
 use crate::anim;
@@ -44,7 +44,7 @@ impl App {
                 ui.painter().rect_filled(
                     rect,
                     egui::Rounding::same(chrome::window_radius(ctx, theme::R_WINDOW)),
-                    Color32::from_black_alpha((120.0 * veil) as u8),
+                    theme::scrim(veil),
                 );
                 if resp.clicked() && self.frame_no > self.popover_frame + 1 {
                     close = true;
@@ -67,7 +67,7 @@ impl App {
                 ui.painter().rect_stroke(
                     win.shrink(0.5),
                     egui::Rounding::same(theme::R_ISLAND),
-                    Stroke::new(1.0_f32, theme::wash(Color32::WHITE, if p.dark { 18 } else { 120 })),
+                    Stroke::new(1.0_f32, theme::window_edge()),
                 );
                 let mut ui = ui.new_child(
                     egui::UiBuilder::new()
@@ -234,7 +234,7 @@ fn table(ui: &mut egui::Ui, r: &Report, tab: usize, width: f32, seen: &mut Vec<(
                 let sense = if id.is_some() { Sense::click() } else { Sense::hover() };
                 let (row, resp) = ui.allocate_exact_size(Vec2::new(width, 30.0), sense);
                 if k % 2 == 1 {
-                    ui.painter().rect_filled(row, egui::Rounding::ZERO, theme::mix(p.solid, p.solid_hi, 0.55));
+                    ui.painter().rect_filled(row, egui::Rounding::same(theme::R_ROW), theme::mix(p.solid, p.solid_hi, 0.55));
                 }
                 if let Some(id) = id {
                     seen.push((*id, row));

@@ -855,7 +855,7 @@ fn act_row(
     };
     painter.rect_filled(
         Rect::from_center_size(Pos2::new(left + 3.0, hud_y), Vec2::splat(6.0)),
-        egui::Rounding::ZERO,
+        egui::Rounding::same(theme::R_ROW),
         a(theme::mix(p.text_faint, p.primary_light, 0.6 + 0.4 * lit), 1.0),
     );
     theme::tracked_text(
@@ -933,7 +933,7 @@ fn scene_star(ui: &egui::Ui, c: Pos2, bid: u64, live: bool, dimmed: bool) {
     let r = Rect::from_center_size(c, Vec2::splat(side));
     ui.painter().rect_filled(
         r,
-        egui::Rounding::ZERO,
+        egui::Rounding::same(theme::R_ROW),
         theme::wash(theme::mix(p.text_faint, p.primary_light, lit), (255.0 * fade) as u8),
     );
 }

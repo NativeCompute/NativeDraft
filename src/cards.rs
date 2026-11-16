@@ -196,12 +196,13 @@ pub fn show(
         let fade: f32 = if being_dragged { 0.35 } else if outside { 0.22 } else { 1.0 };
 
         draw_card(ui, r, sc, accent, tint, lift, selected, fade, lengths);
-        for (_, name) in beat_tags.iter().filter(|(b, _)| *b == k) {
+        let here: Vec<&str> = beat_tags.iter().filter(|(b, _)| *b == k).map(|(_, n)| *n).collect();
+        if let Some(first) = here.first() {
             let font = theme::font_hud(theme::T_MICRO);
-            let up = name.to_uppercase();
+            let up = if here.len() > 1 { format!("{} +{}", first.to_uppercase(), here.len() - 1) } else { first.to_uppercase() };
             let w = theme::tracked_width(ui.ctx(), &up, font.clone(), 0.8);
             let at = Pos2::new(r.right() - w - 4.0, r.top() - 8.0);
-            ui.painter().rect_filled(Rect::from_center_size(Pos2::new(at.x - 8.0, at.y), Vec2::splat(5.0)), egui::Rounding::ZERO, theme::wash(p.primary_light, (255.0 * fade) as u8));
+            ui.painter().rect_filled(Rect::from_center_size(Pos2::new(at.x - 8.0, at.y), Vec2::splat(5.0)), egui::Rounding::same(theme::R_ROW), theme::wash(p.primary_light, (255.0 * fade) as u8));
             theme::tracked_text(ui.painter(), at, &up, font, theme::wash(p.primary_light, (255.0 * fade) as u8), 0.8);
         }
 
@@ -328,7 +329,7 @@ pub fn show(
             );
             let moving = at != from && at != from + 1;
             if moving {
-                ui.painter().rect_filled(bar, egui::Rounding::ZERO, p.primary_light);
+                ui.painter().rect_filled(bar, egui::Rounding::same(theme::R_ROW), p.primary_light);
             }
 
             if let Some(sc) = scenes.get(from) {
@@ -343,7 +344,7 @@ pub fn show(
                         ui.painter().rect_stroke(r.shrink(0.5), egui::Rounding::same(theme::R_CARD), egui::Stroke::new(1.0_f32, p.primary_light));
                         ui.painter().rect_filled(
                             Rect::from_center_size(Pos2::new(r.left() + 20.0, r.center().y), Vec2::splat(7.0)),
-                            egui::Rounding::ZERO,
+                            egui::Rounding::same(theme::R_ROW),
                             p.primary_light,
                         );
                         ui.painter().text(
@@ -488,7 +489,7 @@ fn beat_bar(
         let dim = !st.only.is_empty() && !on;
         ui.painter().rect_filled(
             Rect::from_center_size(Pos2::new(chip.left() + 12.0, chip.center().y), Vec2::splat(8.0)),
-            egui::Rounding::ZERO,
+            egui::Rounding::same(theme::R_ROW),
             if dim { theme::wash(p.group(*t), 90) } else { p.group(*t) },
         );
         ui.painter().text(
@@ -518,7 +519,7 @@ fn beat_bar(
             let cell = Rect::from_min_size(Pos2::new(left + (t % per) as f32 * cell_w, y + (t / per) as f32 * 34.0), Vec2::new(cell_w - 12.0, 30.0));
             ui.painter().rect_filled(
                 Rect::from_center_size(Pos2::new(cell.left() + 6.0, cell.center().y), Vec2::splat(9.0)),
-                egui::Rounding::ZERO,
+                egui::Rounding::same(theme::R_ROW),
                 p.group(t),
             );
             let mut field = ui.new_child(egui::UiBuilder::new().max_rect(cell.with_min_x(cell.left() + 18.0)).layout(egui::Layout::left_to_right(egui::Align::Center)));
@@ -552,9 +553,9 @@ fn beat_bar(
         let base = sc.tint.map(|t| p.group(t)).unwrap_or(if p.dark { p.line_strong } else { p.line });
         let outside = !st.only.is_empty() && !sc.tint.map(|t| st.only.contains(&t)).unwrap_or(false);
         let col = if outside { theme::wash(base, 50) } else { theme::mix(base, p.text, 0.25 * hot) };
-        ui.painter().rect_filled(inner, egui::Rounding::ZERO, col);
+        ui.painter().rect_filled(inner, egui::Rounding::same(theme::R_ROW), col);
         if live == Some(sc.id) {
-            ui.painter().rect_stroke(inner.expand(1.0), egui::Rounding::ZERO, egui::Stroke::new(1.5_f32, p.text));
+            ui.painter().rect_stroke(inner.expand(1.0), egui::Rounding::same(theme::R_ROW), egui::Stroke::new(1.5_f32, p.text));
         }
         st.segments.push((k, seg));
         if resp.hovered() {
@@ -618,7 +619,7 @@ fn act_ribbon(ui: &mut egui::Ui, rect: Rect, a: &ActSpan, note: &str) -> bool {
     let cy = rect.center().y;
     ui.painter().rect_filled(
         Rect::from_center_size(Pos2::new(rect.left() + 10.0, cy), Vec2::splat(7.0)),
-        egui::Rounding::ZERO,
+        egui::Rounding::same(theme::R_ROW),
         theme::mix(p.primary_light, p.text, hot),
     );
     let title = if a.title.trim().is_empty() { act_title(a.number) } else { a.title.trim().to_string() };
@@ -687,7 +688,7 @@ fn draw_card(
     if let Some(t) = tint {
         painter.rect_filled(
             Rect::from_min_size(r.min + Vec2::new(1.0, 1.0), Vec2::new(3.0, r.height() - 2.0)),
-            egui::Rounding::ZERO,
+            egui::Rounding::same(theme::R_ROW),
             w(t),
         );
     }

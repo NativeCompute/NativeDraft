@@ -9,13 +9,7 @@ pub fn colour_of(person: &Person) -> Color32 {
         h ^= b as u32;
         h = h.wrapping_mul(0x0100_0193);
     }
-    let hue = (h % 3600) as f32 / 3600.0;
-    let p = pal();
-    if p.dark {
-        theme::hsl(hue, 0.42, 0.42)
-    } else {
-        theme::hsl(hue, 0.48, 0.58)
-    }
+    pal().bright((h % 6) as usize)
 }
 
 pub fn avatar(ui: &egui::Ui, rect: Rect, person: &Person) {
@@ -35,16 +29,14 @@ pub fn avatar(ui: &egui::Ui, rect: Rect, person: &Person) {
                 c,
                 egui::Align2::CENTER_CENTER,
                 person.initials(),
-                theme::font_semi((r * 0.92).max(7.0)),
-                Color32::from_white_alpha(235),
+                theme::font_bold((r * 0.88).max(7.0)),
+                pal().on_tile,
             );
         }
     }
-    ui.painter().circle_stroke(
-        c,
-        r - 0.5,
-        Stroke::new(1.0_f32, theme::wash(if p.dark { Color32::WHITE } else { Color32::BLACK }, 28)),
-    );
+    if p.dark {
+        ui.painter().circle_stroke(c, r - 0.5, Stroke::new(1.0_f32, p.line));
+    }
 }
 
 pub fn face(ui: &mut egui::Ui, person: &Person, size: f32) -> egui::Response {

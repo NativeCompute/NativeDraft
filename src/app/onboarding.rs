@@ -290,7 +290,7 @@ fn page(painter: &egui::Painter, r: Rect, fade: &dyn Fn(Color32) -> Color32) -> 
 }
 
 fn bar(painter: &egui::Painter, x: f32, y: f32, w: f32, c: Color32) {
-    painter.rect_filled(Rect::from_min_size(Pos2::new(x, y), Vec2::new(w.max(2.0), 3.0)), egui::Rounding::ZERO, c);
+    painter.rect_filled(Rect::from_min_size(Pos2::new(x, y), Vec2::new(w.max(2.0), 3.0)), egui::Rounding::same(theme::R_ROW), c);
 }
 
 fn tag(painter: &egui::Painter, at: Pos2, text: &str, c: Color32) {
@@ -310,7 +310,7 @@ fn sketch(painter: &egui::Painter, area: Rect, kind: Sketch, fade: &dyn Fn(Color
             painter.text(c - Vec2::new(0.0, 24.0), Align2::CENTER_CENTER, "FADE IN:", theme::font_page_bold(15.0), strong);
             bar(painter, inner.left(), c.y + 6.0, inner.width() * 0.9, ink);
             bar(painter, inner.left(), c.y + 14.0, inner.width() * 0.6, ink);
-            painter.rect_filled(Rect::from_min_size(Pos2::new(inner.left() + inner.width() * 0.6 + 4.0, c.y + 12.0), Vec2::new(2.0, 9.0)), egui::Rounding::ZERO, blue);
+            painter.rect_filled(Rect::from_min_size(Pos2::new(inner.left() + inner.width() * 0.6 + 4.0, c.y + 12.0), Vec2::new(2.0, 9.0)), egui::Rounding::same(theme::R_ROW), blue);
         }
         Sketch::Writing => {
             let room = 84.0;
@@ -342,7 +342,7 @@ fn sketch(painter: &egui::Painter, area: Rect, kind: Sketch, fade: &dyn Fn(Color
                     1 => (0..4).for_each(|i| {
                         let c = Rect::from_min_size(Pos2::new(inner.left() + (i % 2) as f32 * inner.width() * 0.52, inner.top() + (i / 2) as f32 * inner.height() * 0.5), Vec2::new(inner.width() * 0.46, inner.height() * 0.44));
                         painter.rect_stroke(c, egui::Rounding::same(1.0), Stroke::new(1.0_f32, ink));
-                        painter.rect_filled(Rect::from_min_size(c.min, Vec2::new(2.0, c.height())), egui::Rounding::ZERO, fade(p.group(i)));
+                        painter.rect_filled(Rect::from_min_size(c.min, Vec2::new(2.0, c.height())), egui::Rounding::same(theme::R_ROW), fade(p.group(i)));
                     }),
                     _ => (0..7).for_each(|i| bar(painter, inner.left() + if i % 3 == 1 { inner.width() * 0.3 } else { 0.0 }, inner.top() + i as f32 * 8.0, inner.width() * 0.6, ink)),
                 }
@@ -357,7 +357,7 @@ fn sketch(painter: &egui::Painter, area: Rect, kind: Sketch, fade: &dyn Fn(Color
             let mut x = strip.left();
             for (k, l) in lens.iter().enumerate() {
                 let w = strip.width() * l / total;
-                painter.rect_filled(Rect::from_min_size(Pos2::new(x, strip.top()), Vec2::new(w - 1.5, strip.height())), egui::Rounding::ZERO, fade(p.group(k % 3)));
+                painter.rect_filled(Rect::from_min_size(Pos2::new(x, strip.top()), Vec2::new(w - 1.5, strip.height())), egui::Rounding::same(theme::R_ROW), fade(p.group(k % 3)));
                 x += w;
             }
             let mid = strip.left() + strip.width() * 0.5;
@@ -368,7 +368,7 @@ fn sketch(painter: &egui::Painter, area: Rect, kind: Sketch, fade: &dyn Fn(Color
                 let r = Rect::from_min_size(Pos2::new(area.left() + (k % 2) as f32 * (cw + 12.0), strip.bottom() + 22.0 + (k / 2) as f32 * 86.0), Vec2::new(cw, 74.0));
                 painter.rect_filled(r, egui::Rounding::same(theme::R_SM), fade(p.solid_hi));
                 painter.rect_stroke(r.shrink(0.5), egui::Rounding::same(theme::R_SM), Stroke::new(1.0_f32, fade(p.line)));
-                painter.rect_filled(Rect::from_min_size(r.min, Vec2::new(3.0, r.height())), egui::Rounding::ZERO, fade(p.group(k % 3)));
+                painter.rect_filled(Rect::from_min_size(r.min, Vec2::new(3.0, r.height())), egui::Rounding::same(theme::R_ROW), fade(p.group(k % 3)));
                 bar(painter, r.left() + 12.0, r.top() + 14.0, r.width() * 0.6, strong);
                 bar(painter, r.left() + 12.0, r.top() + 30.0, r.width() * 0.75, ink);
                 bar(painter, r.left() + 12.0, r.top() + 40.0, r.width() * 0.5, ink);
