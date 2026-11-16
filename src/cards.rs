@@ -905,7 +905,7 @@ pub fn columns(
     let lanes = lanes_of(doc, &scenes, &st.extra_lanes);
     st.extra_lanes.retain(|t| !scenes.iter().any(|s| s.tint == Some(*t)) && doc.meta.storyline(*t).is_none());
     let avail = ui.available_width();
-    let left = ui.min_rect().left() + 2.0;
+    let left = ui.min_rect().left();
     let n = lanes.len().max(1) as f32;
     let lane_w = ((avail - 4.0 - (n - 1.0) * LANE_GAP) / n).clamp(LANE_MIN, LANE_MAX.max(LANE_MIN));
     let full_w = n * lane_w + (n - 1.0) * LANE_GAP;
@@ -932,7 +932,7 @@ pub fn columns(
         }
         tallest = tallest.max(y - top);
     }
-    let floor = (ui.clip_rect().bottom() - top - 12.0).max(200.0);
+    let floor = (ui.clip_rect().bottom() - top - 1.0).max(200.0);
     let lane_h = (tallest + LANE_PAD).max(floor);
     let (_whole, _) = ui.allocate_exact_size(Vec2::new(full_w + 4.0, (top - top0) + lane_h + 16.0), Sense::hover());
 

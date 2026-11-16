@@ -746,11 +746,12 @@ fn the_sidebar_page_and_tabs_line_up_with_the_status_pill() {
     let foot = h.app.debug_foot_rect();
     assert!(side.contains_rect(foot), "your name sits inside the sidebar: {foot:?} in {side:?}");
     assert!((side.bottom() - status.bottom()).abs() < 1.5, "sidebar ends at {}, status pill at {}", side.bottom(), status.bottom());
-    assert!((page.bottom() + 10.0 - status.top()).abs() < 1.5, "page ends at {}, status pill starts at {}", page.bottom(), status.top());
+    assert!((page.bottom() + crate::theme::GAP - status.top()).abs() < 1.5, "page ends at {}, status pill starts at {}", page.bottom(), status.top());
+    assert!((status.left() - side.right() - crate::theme::GAP).abs() < 1.5, "the same gap beside the sidebar");
     assert!(status.left() > side.right(), "the status pill sits right of the sidebar");
     let aside = h.app.debug_aside_rect();
     assert!((aside.bottom() - page.bottom()).abs() < 1.5);
-    assert!(aside.left() >= page.right() + 10.0, "a gap between the page and the tabs");
+    assert!((aside.left() - page.right() - crate::theme::GAP).abs() < 1.5, "one gap between the page and the tabs: {} to {}", page.right(), aside.left());
     h.app.debug_set_light(true);
     h.frames(2);
     assert!(!theme::pal().dark);

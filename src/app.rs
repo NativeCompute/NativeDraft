@@ -231,6 +231,8 @@ pub struct App {
     title_sheet: bool,
     title_sheet_rect: Rect,
     palette: Option<palette::Palette>,
+    shadows: Vec<(Rect, f32, ncf::theme::Lift)>,
+    shadows_drawn: Vec<(Rect, f32, ncf::theme::Lift)>,
     palette_rect: Rect,
     palette_rows_drawn: Vec<Rect>,
     home_starred: bool,
@@ -406,6 +408,8 @@ impl App {
             title_sheet: false,
             title_sheet_rect: Rect::NOTHING,
             palette: None,
+            shadows: Vec::new(),
+            shadows_drawn: Vec::new(),
             palette_rect: Rect::NOTHING,
             palette_rows_drawn: Vec::new(),
             home_starred: false,
@@ -1519,11 +1523,11 @@ impl App {
                         }
                         next_act += 1;
                     }
-                    let w = ui.available_width() - 4.0;
+                    let w = ui.available_width();
                     let (rect, resp) = ui.allocate_exact_size(Vec2::new(w, 54.0), Sense::click());
                     let is_live = live == Some(i);
                     let hot = anim::ease(ui.ctx(), resp.id, resp.hovered(), anim::HOVER);
-                    let round = egui::Rounding::same(ncf::theme::R_SM);
+                    let round = egui::Rounding::same(theme::ISLAND_ROW_R);
                     if is_live {
                         ui.painter().rect_filled(rect, round, ncf::theme::css_rgba(p.primary.r(), p.primary.g(), p.primary.b(), if p.dark { 40 } else { 36 }));
                     } else if hot > 0.02 {
@@ -1795,6 +1799,15 @@ impl App {
         egui::CentralPanel::default()
             .frame(egui::Frame::none().inner_margin(egui::Margin { left: theme::GAP, right, top: theme::GAP, bottom: 0.0 }))
             .show(ctx, |ui| {
+                if mode == Mode::Cards && self.settings.cards_columns {
+                    let island = ui.max_rect();
+                    self.page_rect = island;
+                    let mut ui = slide_in(ui, island, arrive, 24.0);
+                    self.cards_page(&mut ui);
+                    return;
+                }
+                let stage = ui.max_rect();
+                self.cast_shadow(stage, theme::R_SHEET, theme::sheet_lift());
                 theme::sheet_frame()
                     .inner_margin(egui::Margin::ZERO)
                     .show(ui, |ui| {
@@ -1818,17 +1831,28 @@ impl App {
         let labels = std::mem::take(&mut self.layout.labels);
         let changes = std::mem::take(&mut self.layout.changes);
         let voices = self.voices();
+        let inner = ui.max_rect().shrink(theme::STAGE_PAD);
+        let col_w = editor::column_width(ui, self.ed.font_px).min(inner.width() - 16.0);
+        let pad_w = ((inner.width() - col_w) * 0.5).max(8.0);
+        let paper = Rect::from_min_max(
+            Pos2::new(inner.left() + (pad_w - 76.0).max(0.0), inner.top()),
+            Pos2::new(inner.left() + (pad_w + col_w + 56.0).min(inner.width()), inner.bottom()),
+        );
+        ui.painter().add(theme::paper_sheet(paper));
+        let mut stage = ui.new_child(egui::UiBuilder::new().max_rect(inner).layout(egui::Layout::top_down(egui::Align::Min)));
+        let ui = &mut stage;
         egui::ScrollArea::vertical()
             .id_salt("ns-write")
             .auto_shrink([false; 2])
             .show(ui, |ui| {
+                let view_clip = ui.clip_rect();
+                let lip = theme::PAPER_R * 0.35;
+                ui.set_clip_rect(Rect::from_min_max(Pos2::new(view_clip.left(), view_clip.top().max(paper.top() + lip)), Pos2::new(view_clip.right(), view_clip.bottom().min(paper.bottom() - lip))));
                 let avail = ui.available_width();
                 let col = editor::column_width(ui, self.ed.font_px).min(avail - 16.0);
                 let pad = ((avail - col) * 0.5).max(8.0);
 
-                let sheet = ui.painter().add(egui::Shape::Noop);
-                let top = ui.cursor().min.y + 18.0;
-                ui.add_space(18.0);
+                ui.add_space(4.0);
                 changed |= self.banner(ui, avail, pad);
                 ui.add_space(14.0);
 
@@ -1863,12 +1887,6 @@ impl App {
                         ui.add_space(60.0);
                     });
                 });
-                let left = ui.max_rect().left();
-                let r = Rect::from_min_max(
-                    Pos2::new(left + (pad - 76.0).max(10.0), top),
-                    Pos2::new(left + (pad + col + 56.0).min(avail - 10.0), ui.cursor().min.y),
-                );
-                ui.painter().set(sheet, theme::paper_sheet(r));
                 ui.add_space(28.0);
             });
         self.layout.page_starts = starts;
@@ -3641,6 +3659,7 @@ impl App {
         }
 
         chrome::backdrop(ctx, self.window_ground());
+        self.paint_shadows(ctx);
         self.launch(ctx);
 
         if self.tour.is_some() {
@@ -3697,6 +3716,7 @@ impl App {
         self.popovers(ctx);
         self.title_sheet(ctx);
         self.palette_overlay(ctx);
+        self.settle_shadows(ctx);
         self.tour_overlay(ctx);
         self.debug_panel(ctx);
         chrome::resize_handles(ctx);

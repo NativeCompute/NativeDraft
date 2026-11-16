@@ -15,7 +15,7 @@ pub const RAIL_W: f32 = 64.0;
 pub const FOLD_BELOW: f32 = 1180.0;
 pub const INSPECTOR_W: f32 = 318.0;
 pub const TOOLBAR_H: f32 = 58.0;
-pub const STATUS_H: f32 = 58.0;
+pub const STATUS_H: f32 = 34.0 + 2.0 * theme::GAP;
 pub const TABS: [&str; 4] = ["Scenes", "Notes", "Changes", "Cast"];
 
 impl App {
@@ -39,7 +39,8 @@ impl App {
             .show(ctx, |ui| {
                 let rect = ui.max_rect();
                 self.side_rect = rect;
-                ncf::theme::glass(ui.painter(), rect, ncf::theme::R_LG);
+                self.cast_shadow(rect, ncf::theme::R_LG, ncf::theme::Lift::Float);
+                theme::glass_flat(ui.painter(), rect, ncf::theme::R_LG);
                 let inner = rect.shrink2(Vec2::new(if folded { 10.0 } else { 12.0 }, 14.0));
                 let mut ui = ui.new_child(egui::UiBuilder::new().max_rect(inner).layout(Layout::top_down(Align::Min)));
                 ui.spacing_mut().item_spacing.y = 2.0;
@@ -246,7 +247,8 @@ impl App {
             .frame(egui::Frame::none().inner_margin(egui::Margin { left: theme::GAP, right: theme::GAP, top: 6.0, bottom: 0.0 }))
             .show(ctx, |ui| {
                 let rect = ui.max_rect();
-                ncf::theme::glass(ui.painter(), rect, rect.height() * 0.5);
+                self.cast_shadow(rect, rect.height() * 0.5, ncf::theme::Lift::Float);
+                theme::glass_flat(ui.painter(), rect, rect.height() * 0.5);
                 let inner = rect.shrink2(Vec2::new(8.0, 6.0));
                 let mut ui = ui.new_child(egui::UiBuilder::new().max_rect(inner).layout(Layout::left_to_right(Align::Center)));
                 self.toolbar_row(&mut ui);
@@ -380,11 +382,12 @@ impl App {
         egui::TopBottomPanel::bottom("ns-status")
             .exact_height(STATUS_H)
             .show_separator_line(false)
-            .frame(egui::Frame::none().inner_margin(egui::Margin { left: theme::GAP, right: theme::GAP, top: 10.0, bottom: theme::GAP }))
+            .frame(egui::Frame::none().inner_margin(egui::Margin::same(theme::GAP)))
             .show(ctx, |ui| {
                 let rect = ui.max_rect();
                 self.status_rect = rect;
-                ncf::theme::glass(ui.painter(), rect, rect.height() * 0.5);
+                self.cast_shadow(rect, rect.height() * 0.5, ncf::theme::Lift::Float);
+                theme::glass_flat(ui.painter(), rect, rect.height() * 0.5);
                 let inner = rect.shrink2(Vec2::new(10.0, 0.0));
                 let mut ui = ui.new_child(egui::UiBuilder::new().max_rect(inner).layout(Layout::left_to_right(Align::Center)));
                 self.status_row(&mut ui);
@@ -452,6 +455,27 @@ impl App {
         }
     }
 
+    pub(super) fn cast_shadow(&mut self, rect: Rect, radius: f32, lift: ncf::theme::Lift) {
+        if lift != ncf::theme::Lift::Flat && rect.is_positive() {
+            self.shadows.push((rect, radius, lift));
+        }
+    }
+
+    pub(super) fn paint_shadows(&mut self, ctx: &egui::Context) {
+        let painter = ctx.layer_painter(egui::LayerId::background());
+        for (rect, radius, lift) in &self.shadows_drawn {
+            ncf::theme::shadow(&painter, *rect, *radius, *lift);
+        }
+    }
+
+    pub(super) fn settle_shadows(&mut self, ctx: &egui::Context) {
+        let now = std::mem::take(&mut self.shadows);
+        if now != self.shadows_drawn {
+            self.shadows_drawn = now;
+            ctx.request_repaint();
+        }
+    }
+
     // inspector here---
     pub(super) fn inspector(&mut self, ctx: &egui::Context) {
         if !self.settings.show_scenes || self.focus_mode {
@@ -481,10 +505,12 @@ impl App {
                         self.save_settings();
                     }
                 }
-                self.aside_islands.push(Rect::from_min_max(top, Pos2::new(ui.max_rect().right(), ui.cursor().min.y)));
-                ui.add_space(10.0);
+                let tabs_rect = Rect::from_min_max(top, Pos2::new(ui.max_rect().right(), ui.cursor().min.y));
+                self.cast_shadow(tabs_rect, tabs_rect.height() * 0.5, ncf::theme::Lift::Float);
+                self.aside_islands.push(tabs_rect);
+                ui.add_space(theme::GAP - 4.0);
                 let r = theme::island_frame(ncf::theme::R_LG)
-                    .inner_margin(egui::Margin::symmetric(10.0, 12.0))
+                    .inner_margin(egui::Margin::same(theme::ISLAND_PAD))
                     .show(ui, |ui| {
                         ui.set_min_size(ui.available_size());
                         let room = Rect::from_min_size(ui.cursor().min, ui.available_size());
@@ -507,6 +533,7 @@ impl App {
                         ui.allocate_rect(room, Sense::hover());
                     });
                 self.left_rect = r.response.rect;
+                self.cast_shadow(r.response.rect, ncf::theme::R_LG, theme::island_lift());
                 self.aside_islands.push(r.response.rect);
             });
     }

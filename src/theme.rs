@@ -460,15 +460,33 @@ pub fn glass_plate(painter: &egui::Painter, rect: Rect, radius: f32, opacity: f3
     ncf::theme::glass(painter, rect, radius);
 }
 
+pub const STAGE_PAD: f32 = 12.0;
+pub const ISLAND_PAD: f32 = 16.0;
+pub const ISLAND_ROW_R: f32 = ncf::theme::R_LG - ISLAND_PAD;
+pub const PAPER_R: f32 = R_SHEET - STAGE_PAD;
+
+pub fn island_lift() -> ncf::theme::Lift {
+    if pal().dark { ncf::theme::Lift::Flat } else { ncf::theme::Lift::Rest }
+}
+
 pub fn island_frame(radius: f32) -> egui::Frame {
-    let lift = if pal().dark { ncf::theme::Lift::Flat } else { ncf::theme::Lift::Rest };
-    ncf::theme::surface_frame(radius, lift)
+    ncf::theme::surface_frame(radius, ncf::theme::Lift::Flat)
+}
+
+pub fn sheet_lift() -> ncf::theme::Lift {
+    if pal().dark { ncf::theme::Lift::Rest } else { ncf::theme::Lift::Float }
 }
 
 pub fn sheet_frame() -> egui::Frame {
     let p = pal();
-    let lift = if p.dark { ncf::theme::Lift::Rest } else { ncf::theme::Lift::Float };
-    ncf::theme::surface_frame(R_SHEET, lift).fill(if p.dark { p.solid } else { p.raised })
+    ncf::theme::surface_frame(R_SHEET, ncf::theme::Lift::Flat).fill(if p.dark { p.solid } else { p.raised })
+}
+
+pub fn glass_flat(painter: &egui::Painter, rect: Rect, radius: f32) {
+    let p = ncf::theme::pal();
+    painter.rect_filled(rect, Rounding::same(radius), p.glass);
+    painter.rect_stroke(rect.shrink(0.5), Rounding::same(radius), Stroke::new(1.0_f32, p.glass_line));
+    ncf::theme::glass_highlight(painter, rect, radius);
 }
 
 pub fn lift_shadow(painter: &egui::Painter, rect: Rect, radius: f32, lift: f32) {
@@ -628,7 +646,7 @@ pub fn font_page_bold(size: f32) -> egui::FontId {
 
 pub fn paper_sheet(rect: Rect) -> Shape {
     let p = pal();
-    let r = Rounding::same(ncf::theme::R_MD);
+    let r = Rounding::same(PAPER_R);
     let mut v = Vec::new();
     if !p.dark {
         v.push(Shape::Rect(ncf::theme::shadow_of(ncf::theme::Lift::Rest).as_shape(rect, r)));
