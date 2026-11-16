@@ -41,8 +41,10 @@ On Linux, `./install.sh` builds and installs it for your user.
 5. **The design language is NativeCompute's.** Colours, type and controls come
    from [NCF](https://github.com/NativeCompute/ncf) through `src/theme.rs` and
    `src/ui.rs`; do not hard-code a colour or draw a one-off control. A control
-   Blackline needs that NCF lacks belongs in NCF. Void black, chrome, one signal blue, hairlines, 2px
-   corners, no glows or shadows.
+   Blackline needs that NCF lacks belongs in NCF. Rounded surfaces from NCF's
+   radius scale, NCF's shadows, one coral accent with ink text on it, the
+   bright tiles only where something is worth a glance, and both light and dark
+   checked (`--smoke` takes shots of each).
 6. **Keep it small.** One change per pull request, described in plain words:
    what it does for a writer, and how you checked it.
 

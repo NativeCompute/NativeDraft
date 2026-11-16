@@ -120,6 +120,7 @@ enum Step {
     Settings,
     Import,
     Revision,
+    Find,
     LightHome,
     LightWrite,
     LightCards,
@@ -128,7 +129,7 @@ enum Step {
     Quit,
 }
 
-const STEPS: [Step; 17] = [
+const STEPS: [Step; 18] = [
     Step::Splash,
     Step::Tour,
     Step::Home,
@@ -140,6 +141,7 @@ const STEPS: [Step; 17] = [
     Step::Settings,
     Step::Import,
     Step::Revision,
+    Step::Find,
     Step::LightHome,
     Step::LightWrite,
     Step::LightCards,
@@ -283,10 +285,14 @@ impl Smoke {
                 app.debug_left_tab(1);
                 app.debug_start_revision();
             }
-            Step::LightHome => {
+            Step::Find => {
                 app.debug_close_popover();
-                app.debug_set_appearance(ncf::settings::Appearance::Light);
                 app.debug_go_home();
+                app.debug_home_search("kettle");
+            }
+            Step::LightHome => {
+                app.debug_home_search("");
+                app.debug_set_appearance(ncf::settings::Appearance::Light);
             }
             Step::LightWrite => {
                 let lib = library(&self.dir);

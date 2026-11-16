@@ -207,12 +207,17 @@ impl App {
                 ui.set_width(w);
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 10.0;
-                    ui.label(
-                        egui::RichText::new(if team.is_some() { "Team scripts" } else { "Your scripts" })
-                            .font(ncf::theme::font_heading(theme::T_H + 1.0))
-                            .color(p.text),
-                    );
-                    ui::hud(ui, &format!("{shown:02}"), Some(p.text_faint));
+                    let heading = if !needle.is_empty() {
+                        "Search"
+                    } else if team.is_some() {
+                        "Team scripts"
+                    } else {
+                        "Your scripts"
+                    };
+                    ui.label(egui::RichText::new(heading).font(ncf::theme::font_heading(theme::T_H + 1.0)).color(p.text));
+                    if needle.is_empty() {
+                        ui::hud(ui, &format!("{shown:02}"), Some(p.text_faint));
+                    }
                 });
                 ui.add_space(12.0);
                 let both = !starred.is_empty() && !rest.is_empty();

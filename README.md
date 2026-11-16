@@ -13,16 +13,47 @@ on Linux, `~/Library/Application Support/Blackline/scripts` on a Mac,
 diffable, and yours.
 
 Blackline is drawn in NativeCompute's design language, the same one as
-[NativeCompute's own website](https://nativecompute.net): void black, chrome
-and one signal blue; Anybody for display type and JetBrains Mono for HUD
-readouts; hairline borders, square corners and no glass or glows. There is one
-look, in a dark cast and a light one.
+[NativeCompute's own website](https://nativecompute.net): rounded tiles on a
+soft wallpaper, one coral accent with ink text on it, and four bright tiles
+(coral, lilac, sun and sky) for the things worth a glance. Bricolage Grotesque
+sets the display type, Plus Jakarta Sans the interface and JetBrains Mono the
+readouts. It follows your computer's light or dark setting; dark is ink with a
+coral glow in the corner, light is pastel with white tiles.
 
-![Writing: notes on the left, dual dialogue side by side, the scene navigator on the right](docs/blackline-write.png)
+![Writing: notes on the left, the page in the middle, the scene navigator on the right, under a floating toolbar](docs/blackline-write.png)
 
-![Home: your library as cards](docs/blackline-home.png)
+![Home: where you left off, this session, your library, and every script with its cover](docs/blackline-home.png)
+
+![Home in light](docs/blackline-home-light.png)
 
 ![Cards: storylines, the timeline with beat guides, and the scenes as index cards](docs/blackline-cards.png)
+
+---
+
+## Coming next: a new look
+
+Not released yet; this is what the next version brings.
+
+- **A new look.** Rounded pages and panels with soft shadows, a toolbar that
+  floats in two pills above your work, pill buttons and switches, and the
+  NativeCompute website's type and colours.
+- **Light, dark, or your system.** Settings → Appearance has System, Light and
+  Dark. System follows your computer and changes when it does. When the
+  computer says nothing (some Linux desktops), Blackline goes dark.
+- **A new Home.** A coral tile takes you back to the script you were in, with
+  the page and scene you left off on during this session. Next to it: the
+  words you've written since you opened Blackline (and how far along your
+  session goal you are), and your whole library in pages and scenes.
+- **Covers.** Every script has a cover colour: coral, lilac, sun or sky. Pick
+  one from the script's menu on Home or from the Details panel. A script with
+  no cover picked gets one from its file name, so it doesn't move.
+- **Characters in colour.** The first six speakers get the six bright colours,
+  on screen and in the PDF; the rest still get a colour each.
+- **A new icon.** The ribbon mark on an ink tile with a coral glow, for the
+  window, the dock and the installer.
+- **Reports** opens on four tiles: pages, scenes, speaking parts and locations.
+
+![Reports: the four figures, then characters, scenes, locations, day and night](docs/blackline-reports.png)
 
 ---
 
@@ -219,8 +250,9 @@ in your library is moved or changed. Delete old copies whenever you like.
 folder you unpacked. Your scripts stay in
 `~/.local/share/blackline`.
 
-Fonts need nothing extra: Anybody (the interface), JetBrains Mono (readouts)
-and Courier Prime (the page) ship inside the binary.
+Fonts need nothing extra: Bricolage Grotesque (display), Plus Jakarta Sans
+(the interface), JetBrains Mono (readouts) and Courier Prime (the page) ship
+inside the binary.
 
 ---
 
@@ -234,11 +266,12 @@ On a Mac, Blackline uses the Mac's own window frame instead: the red, yellow
 and green buttons sit at the top left over the title strip, and resizing,
 full screen and window tiling are the system's.
 
-The window is void black with the website's faint column guides drawn across
-it. Anything you *work in* — the notes panel, the page, the scene navigator — is a
-panel on it: opaque, with a 1px hairline and 2px corners. The Write | Cards |
-Read switch is the site's tab strip; buttons fill from the left when you reach
-for them; counts, pages and timings are mono HUD readouts.
+The window is the website's wallpaper: pastel corners in light, ink with a
+coral glow at the top left in dark. Anything you *work in* — the notes panel,
+the page, the scene navigator — is a rounded panel on it with a soft shadow.
+The toolbar floats above them in two pills: Library, the Write | Cards | Read
+switch and the tools for the view on the left, the panels, menu and settings
+on the right. Counts, pages and timings are mono readouts.
 
 ---
 
@@ -249,13 +282,13 @@ it, **Library** goes back to Home and all your scripts.
 
 **Write** — the script, one typed block per paragraph, at industry indents in
 Courier Prime. The block you are in gets a wash of the accent; every scene
-heading carries a small square in the gutter that turns signal blue while you
+heading carries a small dot in the gutter that turns coral while you
 are in its scene. A faint rule marks where each printed page will begin, numbered the
 way the PDF numbers it.
 
 Each element is signalled by a whisper of a band under its words and a thin
 tick at its left edge, in its own colour — scene headings in chrome, cues in
-the signal blue, dialogue, parentheticals, transitions and shots in
+coral, dialogue, parentheticals, transitions and shots in
 four more of its hues, and action left neutral. Settings → **Element colours**
 turns it off. None of it ever reaches Reading mode or the page.
 
@@ -418,8 +451,10 @@ Rain hammers the corrugated roof.
 
 A scene's index card — its synopsis and colour — rides directly under its
 heading as an HTML comment, which markdown viewers hide. A starred script has
-`starred: yes` in its front matter. Both are only written when used, so a
-script without them is byte-for-byte what the first Blackline wrote.
+`starred: yes` in its front matter, and a picked cover `cover: sky` (coral,
+lilac, sun or sky). They are only written when used, so a script without them
+is byte-for-byte what the first Blackline wrote. Older versions ignore
+`cover:` and drop it the next time they save.
 
 Blue Pages adds a few more, on the same terms:
 
@@ -497,12 +532,17 @@ own over the app, in seven categories — Appearance, The page, Colour, Panels,
 Writing & saving, YouTrack, About. `Esc`, the close button or a click outside
 puts it away.
 
-Dark or light, animations, interface size, page text size, page breaks in the editor, scene
+System, light or dark, animations, interface size, page text size, page breaks in the editor, scene
 numbers, SmartType, typewriter scrolling, element colours, character colours
 (and whether Reading mode shows them), which panels are open, the **View on
 YouTrack** link, how the library sorts, a session word
 goal (shown as a track in the ribbon), the splash screen, what Quick Export does
 with the PDF, and how long the app waits before saving.
+
+The look is saved as `appearance = system`, `light` or `dark`. Older versions
+read `light_mode`, so Blackline writes that too; a settings file with only
+`light_mode` in it is read as the look it chose, and one with neither follows
+the system.
 
 A settings file from an older version still opens: the keys for themes, window
 blur, glass and following Tesseract are read and ignored, and everything else
@@ -510,12 +550,14 @@ in it is kept.
 
 ---
 
-## One blue, used sparingly
+## Colour, used with care
 
-The signal blue is kept for things that matter: the primary button, the scene
-you are in, the place a dragged card will land, the open script and the act
-markers. Nothing glows and nothing casts a shadow; panels are told apart by
-their hairlines, and motion stays within the site's 100–300 ms.
+Coral is the accent: the primary button, the scene you are in, the place a
+dragged card will land, the open script and the act markers. Text on coral and
+on the bright tiles is always ink, never white. The bright tiles are kept for
+Home's figures, Reports, covers and avatars. Selected things turn into an
+inverted pill. Panels sit on soft shadows instead of hairlines, and motion
+stays within the site's 100–300 ms.
 
 ---
 
@@ -653,7 +695,7 @@ the dark and light casts are all exercised for real.
 | `src/editor.rs` | The page: block rendering and every structural keystroke |
 | `src/cards.rs` / `src/pages.rs` | Cards, and Reading mode |
 | `src/app.rs` | Shell — ribbon, navigator, popovers, autosave, undo |
-| `src/app/home.rs` | Home: the script picker the app opens on, and search inside every script |
+| `src/app/home.rs` | Home: the tiles, the scripts with their covers, and search inside every script |
 | `src/app/notes.rs` | The note window, the Notes and Changes panel, starting and ending a revision |
 | `src/app/reports.rs` `src/report.rs` | The Reports window, and the figures behind it |
 | `src/app/imported.rs` | The window listing what an import could not keep |
@@ -662,7 +704,7 @@ the dark and light casts are all exercised for real.
 | `src/app/team.rs` `src/people.rs` | Screens for a shared library: read-only scripts, history, members, avatars. Not shown for a library on disk |
 | `src/app/voices.rs` | Choosing character colours: Random or Custom, the colour picker |
 | `src/keys.rs` `src/app/keyboard.rs` | Every shortcut and its default chords, the ones you choose instead, and Settings → Keyboard |
-| `src/theme.rs` | Blackline's own colours on top of NCF: element and character colours, the page font, the older palette names |
+| `src/theme.rs` | Blackline's own colours on top of NCF: element and character colours, the floating toolbar and sheets, the page font, the older palette names |
 | `src/ui.rs` `chrome.rs` `splash.rs` `logo.rs` | Blackline's name and mark handed to NCF's controls, title bar, splash and icons |
 
 The look, the controls, notices, icons, the update check and the text cursor
@@ -671,8 +713,9 @@ Framework, pinned in `Cargo.toml`. Blackline is pinned to `eframe`/`egui` 0.29
 through it.
 
 MIT licensed. Courier Prime is bundled under the SIL Open Font License; see
-`assets/fonts/`. Anybody and JetBrains Mono come with NCF under the same
-licence. printpdf 0.7.0 is vendored (MIT) with a
+`assets/fonts/`. Bricolage Grotesque, Plus Jakarta Sans and JetBrains Mono
+come with NCF under the same licence. The icon's ribbon is
+`assets/icon/mark.png`; NCF draws it on the tile. printpdf 0.7.0 is vendored (MIT) with a
 two-line fix so it also builds for WebAssembly; see
 `vendor/printpdf/VENDORED.md`.
 
