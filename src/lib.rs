@@ -8,6 +8,7 @@ mod uitests;
 mod cloudtests;
 
 pub mod app;
+pub mod art;
 pub mod backend;
 pub mod cards;
 pub mod chrome;
@@ -27,6 +28,7 @@ pub mod settings;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod smoke;
 pub mod splash;
+pub mod stats;
 pub mod storage;
 pub mod theme;
 pub mod ui;

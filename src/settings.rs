@@ -85,6 +85,8 @@ pub struct Settings {
     pub onboarded: String,
     pub inspector_tab: usize,
     pub cards_columns: bool,
+    pub words: Vec<(String, i64)>,
+    pub places: Vec<crate::stats::Place>,
     pub fresh: bool,
     pub page_px: f32,
     pub page_breaks: bool,
@@ -133,6 +135,8 @@ impl Default for Settings {
             onboarded: String::new(),
             inspector_tab: 0,
             cards_columns: true,
+            words: Vec::new(),
+            places: Vec::new(),
             fresh: true,
             page_px: 16.0,
             page_breaks: true,
@@ -244,6 +248,8 @@ impl Settings {
             + if self.debug { "debug = yes\n" } else { "" }
             + if self.cloud_sync { "cloud_sync_settings = yes\n" } else { "" }
             + if self.cloud_asked { "cloud_asked = yes\n" } else { "" }
+            + &if self.words.is_empty() { String::new() } else { format!("words = {}\n", crate::stats::write_words(&self.words)) }
+            + &self.places.iter().map(|p| format!("left_off = {}\n", crate::stats::write_place(p))).collect::<String>()
     }
 
     pub fn parse(text: &str) -> Settings {
@@ -289,6 +295,14 @@ impl Settings {
                 "onboarded" => s.onboarded = v.trim().to_string(),
                 "inspector_tab" => s.inspector_tab = v.trim().parse::<usize>().unwrap_or(0).min(3),
                 "cards_view" => s.cards_columns = v.trim() != "grid",
+                "words" => s.words = crate::stats::read_words(v),
+                "left_off" => {
+                    if let Some(p) = crate::stats::read_place(v) {
+                        if s.places.len() < crate::stats::KEEP_PLACES {
+                            s.places.push(p);
+                        }
+                    }
+                }
                 "page_px" => s.page_px = v.parse::<f32>().unwrap_or(16.0).clamp(11.0, 26.0),
                 "page_breaks" => s.page_breaks = yes(v),
                 "scene_numbers" => s.scene_numbers = yes(v),

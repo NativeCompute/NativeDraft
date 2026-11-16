@@ -154,7 +154,6 @@ pub struct App {
     focus_home_search: bool,
     home_sel: usize,
     home_order: Vec<PathBuf>,
-    left_off: Option<(PathBuf, usize, String)>,
     home_keyed: bool,
     home_hits: Option<(String, Vec<storage::Found>)>,
     hit_rows: Vec<(PathBuf, usize, Rect)>,
@@ -231,6 +230,8 @@ pub struct App {
     title_sheet: bool,
     title_sheet_rect: Rect,
     home_starred: bool,
+    home_all: bool,
+    words_dirty: bool,
     rev_base: Option<(String, Document)>,
 
     frame_no: u64,
@@ -333,7 +334,6 @@ impl App {
             focus_home_search: false,
             home_sel: 0,
             home_order: Vec::new(),
-            left_off: None,
             home_keyed: false,
             home_hits: None,
             hit_rows: Vec::new(),
@@ -402,6 +402,8 @@ impl App {
             title_sheet: false,
             title_sheet_rect: Rect::NOTHING,
             home_starred: false,
+            home_all: false,
+            words_dirty: false,
             rev_base: None,
             frame_no: 0,
             page_key: String::new(),
@@ -525,6 +527,10 @@ impl App {
                 self.path = Some(path);
                 self.dirty = false;
                 self.saved_at = Some(Instant::now());
+                if self.words_dirty {
+                    self.words_dirty = false;
+                    self.save_settings();
+                }
                 self.refresh_entries();
             }
             Err(e) => self.deck.say("Could not save", &e, Tone::Danger),
@@ -754,7 +760,12 @@ impl App {
         if let Some(path) = self.path.clone() {
             match &self.words_seen {
                 Some((p, before)) if *p == path => {
-                    self.session_words += self.layout.words as i64 - *before as i64;
+                    let delta = self.layout.words as i64 - *before as i64;
+                    self.session_words += delta;
+                    if delta != 0 {
+                        crate::stats::add_words(&mut self.settings.words, crate::stats::today(), delta);
+                        self.words_dirty = true;
+                    }
                 }
                 _ => {}
             }
@@ -1374,6 +1385,66 @@ impl App {
             if let Some(path) = self.path.clone() {
                 self.set_cover(&path, c);
             }
+        }
+
+        // deadline here---
+        ui.add_space(6.0);
+        ui::section(ui, "Deadline");
+        let today = crate::stats::today();
+        let mut deadline = self.doc.meta.deadline.clone();
+        let before = deadline.clone();
+        match deadline.as_mut() {
+            Some((d, label)) => {
+                ui.label(
+                    egui::RichText::new(format!("{} · {}", d.format("%A %-d %B %Y"), crate::stats::when(crate::stats::days_left(*d, today)).to_lowercase()))
+                        .font(theme::font_med(theme::T_SM))
+                        .color(p.text),
+                );
+                ui.add_space(4.0);
+                ui.add_enabled(
+                    can_edit,
+                    egui::TextEdit::singleline(label)
+                        .desired_width(f32::INFINITY)
+                        .margin(egui::Margin::symmetric(10.0, 6.0))
+                        .hint_text("What's due, like Pilot draft"),
+                );
+                if can_edit {
+                    ui.add_space(4.0);
+                    ui.horizontal_wrapped(|ui| {
+                        ui.spacing_mut().item_spacing = Vec2::new(5.0, 5.0);
+                        if ui::chip_button(ui, "a day earlier") {
+                            *d -= chrono::Duration::days(1);
+                        }
+                        if ui::chip_button(ui, "a day later") {
+                            *d += chrono::Duration::days(1);
+                        }
+                        if ui::chip_button(ui, "a week later") {
+                            *d += chrono::Duration::days(7);
+                        }
+                    });
+                }
+            }
+            None => {
+                ui.label(egui::RichText::new("None yet. Home counts down to the nearest one.").font(theme::font(theme::T_SM)).color(p.text_faint));
+            }
+        }
+        if can_edit {
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing = Vec2::new(5.0, 5.0);
+                let label = deadline.as_ref().map(|(_, l)| l.clone()).unwrap_or_default();
+                for (name, days) in [("in a week", 7), ("in two weeks", 14), ("in a month", 30)] {
+                    if ui::chip_button(ui, name) {
+                        deadline = Some((today + chrono::Duration::days(days), label.clone()));
+                    }
+                }
+                if deadline.is_some() && ui::chip_button(ui, "clear") {
+                    deadline = None;
+                }
+            });
+        }
+        if deadline != before {
+            self.doc.meta.deadline = deadline;
+            self.mark_changed();
         }
 
         ui.add_space(6.0);
@@ -3904,8 +3975,14 @@ impl App {
     pub fn debug_set_cover(&mut self, path: &Path, cover: usize) {
         self.set_cover(path, cover);
     }
-    pub fn debug_left_off(&self) -> Option<(PathBuf, usize, String)> {
-        self.left_off.clone()
+    pub fn debug_left_off_at(&self, path: &Path) -> Option<(usize, String)> {
+        self.place_of(path).map(|p| (p.page, p.heading))
+    }
+    pub fn debug_open_from_home_where_you_were(&mut self, path: PathBuf) {
+        if let Some(pl) = self.place_of(&path) {
+            self.pending_jump = Some((path.clone(), pl.block));
+        }
+        self.open_from_home(path);
     }
     pub fn debug_capture_keys(&mut self, cmd: keys::Command) {
         self.key_capture = Some(cmd);

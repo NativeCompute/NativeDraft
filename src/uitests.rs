@@ -1046,7 +1046,7 @@ fn a_revision_lists_each_changed_line_and_ends_clean() {
 }
 
 #[test]
-fn home_remembers_where_you_left_off_for_this_session_only() {
+fn home_remembers_where_you_left_off_and_takes_you_back_there() {
     let mut h = Harness::new();
     h.load(three_scenes());
     let path = h.app.path().unwrap();
@@ -1055,9 +1055,14 @@ fn home_remembers_where_you_left_off_for_this_session_only() {
     h.frames(2);
     h.app.debug_go_home();
     h.frames(3);
-    assert_eq!(h.app.debug_left_off(), Some((path.clone(), 1, "EXT. TWO - NIGHT".to_string())));
+    assert_eq!(h.app.debug_left_off_at(&path), Some((1, "EXT. TWO - NIGHT".to_string())));
     let saved = std::fs::read_to_string(&path).unwrap();
-    assert!(!saved.contains("left_off") && !saved.contains("EXT. TWO - NIGHT\n1"), "the place is never written into the script");
+    assert!(!saved.contains("left_off") && !saved.contains("EXT. TWO - NIGHT|"), "the place is never written into the script");
+    let settings = storage::read_settings();
+    assert_eq!(settings.places.first().map(|p| (p.page, p.scene, p.block)), Some((1, 2, 4)), "kept with your settings, not the script");
+    h.app.debug_open_from_home_where_you_were(path.clone());
+    h.frames(3);
+    assert_eq!(h.app.focus_block(), Some(two), "the caret is back on the line");
 }
 
 #[test]

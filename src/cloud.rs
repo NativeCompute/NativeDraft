@@ -94,7 +94,8 @@ pub fn meta_of(doc: &Document) -> Value {
     let body = storage::to_markdown(doc);
     let preview = storage::entry_from_text(PathBuf::new(), &body, SystemTime::UNIX_EPOCH).preview;
     let cover = doc.meta.cover.map(|c| storage::COVERS[c % storage::COVERS.len()]);
-    json!({"pages": crate::export::page_count(doc), "scenes": doc.scene_count(), "preview": preview, "author": doc.meta.author, "cover": cover})
+    let deadline = doc.meta.deadline.as_ref().map(|(d, l)| crate::stats::write_deadline(*d, l));
+    json!({"pages": crate::export::page_count(doc), "scenes": doc.scene_count(), "preview": preview, "author": doc.meta.author, "cover": cover, "deadline": deadline})
 }
 
 impl CloudStore {
@@ -353,6 +354,9 @@ impl CloudStore {
         }
         if e.cover.is_none() {
             e.cover = p.and_then(|p| p.meta.get("cover")).and_then(Value::as_str).and_then(storage::cover_named);
+        }
+        if e.deadline.is_none() {
+            e.deadline = p.and_then(|p| p.meta.get("deadline")).and_then(Value::as_str).and_then(crate::stats::read_deadline);
         }
         e.starred = self.stars.contains(id);
         e.editing = self.leases.get(id).filter(|l| l.user.as_ref().map(|u| u.id != me).unwrap_or(true)).and_then(|l| l.user.as_ref()).map(person);

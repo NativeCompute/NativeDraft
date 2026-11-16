@@ -85,6 +85,10 @@ pub struct Entry {
     pub cloud: Option<String>,
     pub waiting: bool,
     pub cover: Option<usize>,
+    pub deadline: Option<(chrono::NaiveDate, String)>,
+    pub draft: String,
+    pub revision: Option<usize>,
+    pub notes: Vec<(String, String)>,
 }
 
 impl Default for Entry {
@@ -103,6 +107,10 @@ impl Default for Entry {
             cloud: None,
             waiting: false,
             cover: None,
+            deadline: None,
+            draft: String::new(),
+            revision: None,
+            notes: Vec::new(),
         }
     }
 }
@@ -157,6 +165,10 @@ pub fn entry_from_text(path: PathBuf, text: &str, modified: SystemTime) -> Entry
         preview,
         starred: meta.starred,
         cover: meta.cover,
+        deadline: meta.deadline.clone(),
+        draft: meta.draft.trim().to_string(),
+        revision: meta.revision,
+        notes: notes_of(&doc),
         pages: export::page_count(&doc),
         scenes: doc.scene_count(),
         author: meta.author.clone(),
@@ -180,6 +192,27 @@ pub fn stem_cover(path: &Path) -> usize {
         h = h.wrapping_mul(0x0100_0193);
     }
     (h % COVERS.len() as u32) as usize
+}
+
+pub const NOTES_KEPT: usize = 6;
+
+pub fn notes_of(doc: &Document) -> Vec<(String, String)> {
+    let scenes = doc.scenes();
+    doc.blocks
+        .iter()
+        .filter(|b| !b.remark.trim().is_empty())
+        .take(NOTES_KEPT)
+        .map(|b| {
+            let at = doc
+                .scene_of(b.id)
+                .map(|k| match scenes.get(k) {
+                    Some(sc) if !sc.heading.trim().is_empty() => format!("scene {}", k + 1),
+                    _ => String::new(),
+                })
+                .unwrap_or_default();
+            (b.remark.trim().to_string(), at)
+        })
+        .collect()
 }
 
 pub fn cover_of(e: &Entry) -> usize {
@@ -242,6 +275,9 @@ pub fn to_markdown(doc: &Document) -> String {
     }
     if let Some(c) = doc.meta.cover {
         s.push_str(&format!("cover: {}\n", COVERS[c % COVERS.len()]));
+    }
+    if let Some((d, label)) = &doc.meta.deadline {
+        s.push_str(&format!("deadline: {}\n", crate::stats::write_deadline(*d, label)));
     }
     let voices: Vec<String> = doc
         .meta
@@ -438,6 +474,7 @@ fn split_front_matter(text: &str) -> (Meta, &str) {
                 "draft" => meta.draft = v,
                 "starred" => meta.starred = matches!(v.as_str(), "yes" | "true" | "1"),
                 "cover" => meta.cover = cover_named(&v),
+                "deadline" => meta.deadline = crate::stats::read_deadline(&v),
                 "voices" => meta.voices = parse_voices(&v),
                 "storylines" => meta.storylines = parse_storylines(&v),
                 "revision" => meta.revision = crate::revision::from_slug(&v),

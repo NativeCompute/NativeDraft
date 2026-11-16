@@ -146,6 +146,7 @@ pub struct Meta {
     pub draft: String,
     pub starred: bool,
     pub cover: Option<usize>,
+    pub deadline: Option<(chrono::NaiveDate, String)>,
     pub voices: Vec<(String, u16)>,
     pub storylines: Vec<(usize, String)>,
     pub revision: Option<usize>,

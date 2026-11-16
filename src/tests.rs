@@ -1818,3 +1818,78 @@ fn the_cloud_carries_the_cover_in_its_metadata() {
     assert!(crate::cloud::meta_of(&d)["cover"].is_null());
 }
 
+#[test]
+fn the_word_log_adds_up_the_week_and_the_streak() {
+    use crate::stats;
+    use chrono::NaiveDate;
+    let wed = NaiveDate::from_ymd_opt(2026, 11, 18).unwrap();
+    let mut log = Vec::new();
+    stats::add_words(&mut log, wed - chrono::Duration::days(3), 900);
+    stats::add_words(&mut log, wed - chrono::Duration::days(2), 300);
+    stats::add_words(&mut log, wed - chrono::Duration::days(1), 120);
+    stats::add_words(&mut log, wed, 50);
+    stats::add_words(&mut log, wed, -20);
+    assert_eq!(stats::on(&log, wed), 30, "deletes count against the day");
+    assert_eq!(stats::week(&log, wed), 300 + 120 + 30, "the week starts on Monday, so Sunday's 900 is last week");
+    assert_eq!(stats::streak(&log, wed), 4);
+    assert_eq!(stats::streak(&log, wed + chrono::Duration::days(1)), 4, "today without words yet keeps yesterday's streak");
+    assert_eq!(stats::streak(&log, wed + chrono::Duration::days(3)), 0);
+    stats::add_words(&mut log, wed + chrono::Duration::days(90), 5);
+    assert_eq!(log.len(), 1, "old days fall away");
+    let text = stats::write_words(&log);
+    assert_eq!(stats::read_words(&text), log);
+    assert!(stats::read_words("2026-13-40=5; nonsense; 2026-11-18=x").is_empty());
+}
+
+#[test]
+fn settings_keep_the_word_log_and_places_without_losing_anything_else() {
+    use crate::stats::{remember, Place};
+    let mut s = crate::settings::Settings::parse("session_goal = 750\n");
+    crate::stats::add_words(&mut s.words, crate::stats::today(), 42);
+    for k in 0..30 {
+        remember(&mut s.places, Place { path: format!("/x/{k}.md"), page: k, scene: 1, block: 3, heading: "INT. A | B - DAY".into() });
+    }
+    assert_eq!(s.places.len(), crate::stats::KEEP_PLACES);
+    assert_eq!(s.places[0].path, "/x/29.md", "the latest first");
+    let back = crate::settings::Settings::parse(&s.serialize());
+    assert_eq!(back.session_goal, 750);
+    assert_eq!(back.words, s.words);
+    assert_eq!(back.places.len(), crate::stats::KEEP_PLACES);
+    assert_eq!(back.places[0].heading, "INT. A / B - DAY", "a bar in a heading cannot break the line");
+    assert_eq!(back.places[0].block, 3);
+    assert!(!crate::settings::Settings::default().serialize().contains("words ="), "nothing is written before anything is typed");
+}
+
+#[test]
+fn a_deadline_round_trips_and_an_old_file_is_untouched() {
+    let mut d = Document::default();
+    d.meta.title = "Pilot".into();
+    let plain = storage::to_markdown(&d);
+    assert!(!plain.contains("deadline"));
+    d.meta.deadline = Some((chrono::NaiveDate::from_ymd_opt(2026, 11, 20).unwrap(), "Pilot draft due".into()));
+    let text = storage::to_markdown(&d);
+    assert!(text.contains("deadline: 2026-11-20 Pilot draft due\n"), "{text}");
+    assert_eq!(storage::from_markdown(&text).meta.deadline, d.meta.deadline);
+    let e = storage::entry_from_text(std::path::PathBuf::from("pilot.md"), &text, std::time::SystemTime::UNIX_EPOCH);
+    assert_eq!(e.deadline, d.meta.deadline);
+    assert_eq!(storage::from_markdown(&plain.replacen("title: Pilot", "title: Pilot\ndeadline: someday", 1)).meta.deadline, None);
+    assert_eq!(crate::cloud::meta_of(&d)["deadline"], "2026-11-20 Pilot draft due");
+    for out in [export::to_fountain(&d), export::to_fdx(&d)] {
+        assert!(!out.contains("2026-11-20"), "a deadline never prints");
+    }
+    use crate::stats::when;
+    assert_eq!((when(0), when(1), when(4), when(-1), when(-3)), ("Today".into(), "Tomorrow".into(), "4 days".into(), "A day late".into(), "3 days late".into()));
+}
+
+#[test]
+fn time_of_day_tags_read_the_heading() {
+    use crate::app::{sentence, time_tone};
+    assert_eq!(time_tone("NIGHT"), Some(1));
+    assert_eq!(time_tone("LATE NIGHT"), Some(1));
+    assert_eq!(time_tone("DAWN"), Some(0));
+    assert_eq!(time_tone("DAY"), Some(2));
+    assert_eq!(time_tone("CONTINUOUS"), None);
+    assert_eq!(time_tone("DAYS LATER"), None, "a word inside another word is not the time");
+    assert_eq!(sentence("LATE NIGHT"), "Late night");
+}
+

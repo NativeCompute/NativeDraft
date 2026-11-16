@@ -444,7 +444,7 @@ impl App {
             .show(ctx, |ui| {
                 self.aside_rect = ui.max_rect();
                 self.aside_islands.clear();
-                let notes = self.doc.blocks.iter().filter(|b| !b.note.trim().is_empty()).count();
+                let notes = self.doc.blocks.iter().filter(|b| !b.remark.trim().is_empty()).count();
                 let tabs = [
                     ui::SegTab { label: TABS[0], icon: None, count: None, dot: false },
                     ui::SegTab { label: TABS[1], icon: None, count: (notes > 0).then_some(notes), dot: false },
