@@ -1908,3 +1908,22 @@ fn the_hero_art_decodes_and_blends_into_its_tile() {
         }
     }
 }
+
+#[test]
+fn storyline_columns_cover_every_scene_and_find_the_next_free_colour() {
+    let mut d = Document::default();
+    d.blocks.clear();
+    d.push(Element::SceneHeading, "INT. A - DAY");
+    d.push(Element::SceneHeading, "INT. B - NIGHT");
+    d.reseed_ids();
+    let scenes = d.scenes();
+    assert_eq!(crate::cards::lanes_of(&d, &scenes, &[]), vec![None], "nothing tinted is one column");
+    assert_eq!(crate::cards::next_storyline(&d, &scenes, &[]), Some(0));
+    let i = d.index_of(scenes[1].id).unwrap();
+    d.blocks[i].tint = Some(2);
+    d.meta.set_storyline(4, "Flashbacks");
+    let scenes = d.scenes();
+    assert_eq!(crate::cards::lanes_of(&d, &scenes, &[]), vec![Some(2), Some(4), None]);
+    assert_eq!(crate::cards::lanes_of(&d, &scenes, &[0]), vec![Some(0), Some(2), Some(4), None], "an empty new storyline still gets a column");
+    assert_eq!(crate::cards::next_storyline(&d, &scenes, &[0]), Some(1));
+}

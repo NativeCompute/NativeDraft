@@ -3,6 +3,7 @@ use eframe::egui::{self, Align, Layout, Pos2, Rect, Sense, Stroke, Vec2};
 use super::{App, Mode, Popover};
 use crate::anim;
 use crate::backend::Source;
+use crate::cards;
 use crate::icons::{self, Icon};
 use crate::keys;
 use crate::model::Element;
@@ -330,10 +331,29 @@ impl App {
             self.new_scene();
             self.mode = Mode::Cards;
         }
-        let tip = "Beat guides on the timeline: inciting incident, the act breaks, midpoint and climax";
+        if self.settings.cards_columns && self.can_write() {
+            let scenes = self.doc.scenes();
+            let next = cards::next_storyline(&self.doc, &scenes, &self.cards.extra_lanes);
+            let tip = if next.is_some() { "A new storyline column: drag cards into it" } else { "Every storyline colour is in use" };
+            let resp = ui.add_enabled_ui(next.is_some(), |ui| ui::button_response(ui, "Storyline", Some(Icon::Plus), false, None)).inner;
+            if resp.on_hover_text(tip).clicked() {
+                if let Some(t) = next {
+                    self.cards.extra_lanes.push(t);
+                }
+            }
+        }
+        let tip = "Beat guides: inciting incident, the act breaks, midpoint and climax";
         if ui::ribbon_button(ui, Icon::Timeline, "Beats", tip, self.settings.beat_guides) {
             self.settings.beat_guides = !self.settings.beat_guides;
             self.save_settings();
+        }
+        if let Some(k) = ui::segmented(ui, &[("Columns", Icon::List), ("Grid", Icon::Grid)], if self.settings.cards_columns { 0 } else { 1 }) {
+            let want = k == 0;
+            if want != self.settings.cards_columns {
+                self.settings.cards_columns = want;
+                self.cards.dragging = None;
+                self.save_settings();
+            }
         }
         let hint = ui::pick_that_fits(ui, &["Drag cards to reorder scenes", "Drag to reorder"], ui.available_width() - 20.0);
         if !hint.is_empty() {

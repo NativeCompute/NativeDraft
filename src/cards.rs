@@ -25,9 +25,22 @@ pub struct CardsState {
     pub scroll_to: Option<usize>,
     pub segments: Vec<(usize, Rect)>,
     pub chips: Vec<(usize, Rect)>,
+    pub lanes: Vec<(Option<usize>, Rect)>,
+    pub extra_lanes: Vec<usize>,
+    pub beat_chips: Vec<(String, Rect)>,
 }
 
 pub const STORYLINES: usize = 6;
+
+const LANE_MIN: f32 = 248.0;
+const LANE_MAX: f32 = 440.0;
+const LANE_GAP: f32 = 16.0;
+const LANE_HEAD: f32 = 44.0;
+const LANE_PAD: f32 = 10.0;
+const CARD_PAD: f32 = 14.0;
+const CARD_GAP: f32 = 10.0;
+const GRIP_H: f32 = 52.0;
+const SYN_LINE: f32 = 18.0;
 
 pub const BEATS: [(&str, f32); 5] = [
     ("Inciting incident", 0.10),
@@ -72,6 +85,7 @@ pub enum Act {
 pub struct Out {
     pub changed: bool,
     pub act: Option<Act>,
+    pub rename: Option<(usize, String)>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -91,6 +105,7 @@ pub fn show(
     let mut out = Out {
         changed: false,
         act: None,
+        rename: None,
     };
 
     let avail = ui.available_width();
@@ -368,7 +383,14 @@ pub fn show(
         }
     }
 
-    // card's menu here---
+    card_menu(ui, doc, st, &scenes, frame_no, &mut out);
+
+    out
+}
+
+// card's menu here---
+fn card_menu(ui: &mut egui::Ui, doc: &Document, st: &mut CardsState, scenes: &[Scene], frame_no: u64, out: &mut Out) {
+    let p = pal();
     if let Some((k, at, opened)) = st.menu {
         if let Some(sc) = scenes.get(k) {
             let mut close = false;
@@ -418,7 +440,6 @@ pub fn show(
         }
     }
 
-    out
 }
 
 fn storyline_label(doc: &Document, t: usize) -> String {
@@ -732,4 +753,356 @@ fn draw_card(
         theme::wash(p.text_faint, (255.0 * fade) as u8),
         0.6,
     );
+}
+
+pub fn lanes_of(doc: &Document, scenes: &[Scene], extra: &[usize]) -> Vec<Option<usize>> {
+    let mut out: Vec<Option<usize>> = (0..STORYLINES)
+        .filter(|t| scenes.iter().any(|s| s.tint == Some(*t)) || doc.meta.storyline(*t).is_some() || extra.contains(t))
+        .map(Some)
+        .collect();
+    if out.is_empty() || scenes.iter().any(|s| s.tint.is_none()) {
+        out.push(None);
+    }
+    out
+}
+
+pub fn next_storyline(doc: &Document, scenes: &[Scene], extra: &[usize]) -> Option<usize> {
+    let lanes = lanes_of(doc, scenes, extra);
+    (0..STORYLINES).find(|t| !lanes.contains(&Some(*t)))
+}
+
+fn lane_label(doc: &Document, t: Option<usize>) -> String {
+    match t {
+        Some(t) => storyline_label(doc, t),
+        None => "No storyline".to_string(),
+    }
+}
+
+fn synopsis_rows(ui: &egui::Ui, text: &str, w: f32) -> usize {
+    if text.trim().is_empty() {
+        return 1;
+    }
+    let g = ui.painter().layout(text.to_string(), theme::font(theme::T_SM), pal().text, w);
+    g.rows.len().clamp(1, 6)
+}
+
+fn card_height(ui: &egui::Ui, doc: &Document, sc: &Scene, w: f32) -> f32 {
+    let note = doc.index_of(sc.id).map(|i| doc.blocks[i].note.as_str()).unwrap_or("");
+    let rows = synopsis_rows(ui, note, w - 2.0 * CARD_PAD);
+    let tag = if time_of(sc).is_some() { 30.0 } else { 0.0 };
+    GRIP_H + rows as f32 * SYN_LINE + tag + CARD_PAD
+}
+
+fn time_of(sc: &Scene) -> Option<(String, Option<usize>)> {
+    let (_, _, time) = crate::report::split_heading(&sc.heading);
+    crate::app::time_tone(&time).map(|t| (crate::app::sentence(&time), Some(t)))
+}
+
+struct Mark {
+    at: f32,
+    label: String,
+    beat: bool,
+    act: Option<u64>,
+    scene: Option<usize>,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn beat_row(ui: &mut egui::Ui, doc: &Document, st: &mut CardsState, scenes: &[Scene], spans: &[(usize, usize)], total: usize, guides: bool, frame: Rect, out: &mut Out) -> f32 {
+    let p = pal();
+    let acts = doc.acts();
+    let mut items: Vec<Mark> = Vec::new();
+    let total_f = total.max(1) as f32;
+    for a in &acts {
+        let at = scenes.iter().position(|s| s.start > a.start).and_then(|k| spans.get(k)).map(|s| s.0 as f32 / total_f).unwrap_or(1.0);
+        let title = if a.title.trim().is_empty() { act_title(a.number) } else { a.title.trim().to_string() };
+        items.push(Mark { at: at - 0.0001, label: crate::app::sentence(&title), beat: false, act: Some(a.id), scene: None });
+    }
+    if guides {
+        for (name, f) in BEATS {
+            items.push(Mark { at: f, label: name.to_string(), beat: true, act: None, scene: beat_scene(spans, total, f) });
+        }
+    }
+    items.sort_by(|a, b| a.at.partial_cmp(&b.at).unwrap_or(std::cmp::Ordering::Equal));
+    st.beat_chips.clear();
+    let row = Rect::from_min_size(frame.min, Vec2::new(frame.width(), 26.0));
+    let mut right = ui.new_child(egui::UiBuilder::new().max_rect(row).layout(egui::Layout::right_to_left(egui::Align::Center)));
+    let naming = st.naming.is_some();
+    if ui::quiet_button(&mut right, if naming { "Done" } else { "Name storylines" }, Some(if naming { Icon::Check } else { Icon::Pencil })) {
+        st.naming = if naming { None } else { Some(std::array::from_fn(|t| doc.meta.storyline(t).unwrap_or("").to_string())) };
+    }
+    let stop = right.min_rect().left() - 12.0;
+    let mut x = row.left();
+    let font = theme::font_semi(theme::T_CAP);
+    if items.is_empty() {
+        ui.painter().text(Pos2::new(x, row.center().y), egui::Align2::LEFT_CENTER, "Turn on Beats to see the story's turning points here.", theme::font(theme::T_CAP), p.text_faint);
+    }
+    for Mark { label, beat, act, scene, .. } in items {
+        let tw = if beat { ui::tag_size(ui.ctx(), &label, false).x } else { ui.painter().layout_no_wrap(label.clone(), font.clone(), p.text).rect.width() + 8.0 };
+        let chip = Rect::from_min_size(Pos2::new(x, row.top() + 1.0), Vec2::new(tw, 24.0));
+        if chip.right() > stop {
+            break;
+        }
+        let resp = ui.interact(chip, egui::Id::new(("ns-beat-chip", label.as_str())), Sense::click());
+        let hot = anim::ease(ui.ctx(), resp.id, resp.hovered(), anim::HOVER);
+        if beat {
+            ui::tag_at(ui.painter(), chip.shrink2(Vec2::new(0.0, 1.0 - hot)), &label, Some(0), false);
+        } else {
+            ui.painter().text(Pos2::new(chip.left() + 4.0, chip.center().y), egui::Align2::LEFT_CENTER, &label, font.clone(), theme::mix(p.text_faint, p.text, hot));
+        }
+        if resp.hovered() {
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+        }
+        let tip = if beat { "Show the scene this beat lands in" } else { "Go to this act in the script" };
+        if resp.on_hover_text(tip).clicked() {
+            if let Some(id) = act {
+                out.act = Some(Act::OpenAct(id));
+            } else if let Some(k) = scene {
+                st.scroll_to = Some(k);
+            }
+        }
+        st.beat_chips.push((label, chip));
+        x = chip.right() + 6.0;
+    }
+    let mut y = row.bottom() + 8.0;
+    if let Some(names) = st.naming.as_mut() {
+        let per = 3usize;
+        let cell_w = (frame.width() / per as f32).floor();
+        for (t, name) in names.iter_mut().enumerate() {
+            let cell = Rect::from_min_size(Pos2::new(frame.left() + (t % per) as f32 * cell_w, y + (t / per) as f32 * 34.0), Vec2::new(cell_w - 12.0, 30.0));
+            ui.painter().rect_filled(Rect::from_center_size(Pos2::new(cell.left() + 6.0, cell.center().y), Vec2::splat(9.0)), egui::Rounding::same(theme::R_ROW), p.group(t));
+            let mut field = ui.new_child(egui::UiBuilder::new().max_rect(cell.with_min_x(cell.left() + 18.0)).layout(egui::Layout::left_to_right(egui::Align::Center)));
+            let resp = field.add(
+                egui::TextEdit::singleline(name)
+                    .id(egui::Id::new(("ns-storyline-name", t)))
+                    .hint_text(format!("{} story", (b'A' + t as u8) as char))
+                    .desired_width(cell.width() - 18.0)
+                    .margin(egui::Margin::symmetric(8.0, 5.0)),
+            );
+            if resp.changed() {
+                out.rename = Some((t, name.clone()));
+            }
+        }
+        y += 2.0 * 34.0 + 8.0;
+    }
+    y - frame.top()
+}
+
+// columns here---
+#[allow(clippy::too_many_arguments)]
+pub fn columns(
+    ui: &mut egui::Ui,
+    doc: &mut Document,
+    st: &mut CardsState,
+    lengths: &std::collections::HashMap<u64, (usize, usize)>,
+    live: Option<u64>,
+    frame_no: u64,
+    guides: bool,
+) -> Out {
+    let p = pal();
+    let scenes = doc.scenes();
+    let mut out = Out { changed: false, act: None, rename: None };
+    let (spans, total) = spans(&scenes, lengths);
+    let lanes = lanes_of(doc, &scenes, &st.extra_lanes);
+    st.extra_lanes.retain(|t| !scenes.iter().any(|s| s.tint == Some(*t)) && doc.meta.storyline(*t).is_none());
+    let avail = ui.available_width();
+    let left = ui.min_rect().left() + 2.0;
+    let n = lanes.len().max(1) as f32;
+    let lane_w = ((avail - 4.0 - (n - 1.0) * LANE_GAP) / n).clamp(LANE_MIN, LANE_MAX.max(LANE_MIN));
+    let full_w = n * lane_w + (n - 1.0) * LANE_GAP;
+    let top0 = ui.cursor().top() + 2.0;
+    let beat_h = beat_row(ui, doc, st, &scenes, &spans, total, guides, Rect::from_min_size(Pos2::new(left, top0), Vec2::new((avail - 4.0).max(full_w), 0.0)), &mut out);
+    if let Some((t, name)) = out.rename.take() {
+        doc.meta.set_storyline(t, &name);
+        out.changed = true;
+    }
+    let top = top0 + beat_h + 4.0;
+    let card_w = lane_w - 2.0 * LANE_PAD;
+
+    let mut rects: Vec<Rect> = vec![Rect::NOTHING; scenes.len()];
+    let mut lane_cards: Vec<Vec<usize>> = vec![Vec::new(); lanes.len()];
+    let mut tallest = 0.0f32;
+    for (li, t) in lanes.iter().enumerate() {
+        let x = left + li as f32 * (lane_w + LANE_GAP) + LANE_PAD;
+        let mut y = top + LANE_HEAD;
+        for (k, sc) in scenes.iter().enumerate().filter(|(_, sc)| sc.tint == *t) {
+            let h = card_height(ui, doc, sc, card_w);
+            rects[k] = Rect::from_min_size(Pos2::new(x, y), Vec2::new(card_w, h));
+            lane_cards[li].push(k);
+            y += h + CARD_GAP;
+        }
+        tallest = tallest.max(y - top);
+    }
+    let floor = (ui.clip_rect().bottom() - top - 12.0).max(200.0);
+    let lane_h = (tallest + LANE_PAD).max(floor);
+    let (_whole, _) = ui.allocate_exact_size(Vec2::new(full_w + 4.0, (top - top0) + lane_h + 16.0), Sense::hover());
+
+    st.lanes.clear();
+    let dragging_tint = st.dragging.and_then(|k| scenes.get(k)).map(|s| s.tint);
+    let pointer = ui.ctx().pointer_latest_pos();
+    let mut target_lane: Option<usize> = None;
+    for (li, t) in lanes.iter().enumerate() {
+        let lane = Rect::from_min_size(Pos2::new(left + li as f32 * (lane_w + LANE_GAP), top), Vec2::new(lane_w, lane_h));
+        st.lanes.push((*t, lane));
+        let over = st.dragging.is_some() && pointer.map(|q| lane.expand2(Vec2::new(LANE_GAP * 0.5, 4000.0)).contains(q)).unwrap_or(false);
+        if over {
+            target_lane = Some(li);
+        }
+        ncf::theme::surface(ui.painter(), lane, ncf::theme::R_LG, ncf::theme::Lift::Flat);
+        if over && dragging_tint != Some(*t) {
+            ui.painter().rect_stroke(lane.shrink(1.0), egui::Rounding::same(ncf::theme::R_LG), egui::Stroke::new(2.0_f32, p.primary));
+        }
+        let hy = lane.top() + LANE_HEAD * 0.5 + 2.0;
+        let dot = t.map(|t| p.group(t)).unwrap_or(p.text_faint);
+        ui.painter().circle_filled(Pos2::new(lane.left() + 20.0, hy), 5.0, dot);
+        let count = lane_cards[li].len();
+        let count_s = if count == 1 { "1 scene".to_string() } else { format!("{count} scenes") };
+        let cf = theme::font_med(theme::T_CAP);
+        let cw = ui.painter().layout_no_wrap(count_s.clone(), cf.clone(), p.text).rect.width();
+        ui.painter().text(Pos2::new(lane.right() - 16.0, hy), egui::Align2::RIGHT_CENTER, count_s, cf, p.text_faint);
+        let nf = theme::font_bold(theme::T_SM + 1.0);
+        let name = ui::elide_to_width(ui.ctx(), &lane_label(doc, *t), nf.clone(), 0.0, lane.width() - 52.0 - cw);
+        ui.painter().text(Pos2::new(lane.left() + 32.0, hy), egui::Align2::LEFT_CENTER, name, nf, p.text);
+        if count == 0 {
+            let hint = if t.is_some() { "Drag a card here" } else { "Every scene has a storyline" };
+            ui.painter().text(Pos2::new(lane.center().x, lane.top() + LANE_HEAD + 40.0), egui::Align2::CENTER_CENTER, hint, theme::font(theme::T_CAP), p.text_faint);
+        }
+    }
+
+    if let Some(k) = st.scroll_to.take() {
+        if let Some(r) = rects.get(k) {
+            ui.scroll_to_rect(r.expand(LANE_GAP), Some(egui::Align::Center));
+        }
+    }
+
+    st.last_rects = rects.clone();
+    st.new_card_rect = None;
+    st.chips.clear();
+    st.segments.clear();
+    let mut drag_started: Option<usize> = None;
+    for (k, sc) in scenes.iter().enumerate() {
+        let rect = rects[k];
+        let grip = Rect::from_min_size(rect.min, Vec2::new(rect.width(), GRIP_H - 6.0));
+        let body = ui.interact(rect, egui::Id::new(("ns-card", sc.id)), Sense::click());
+        let head = ui.interact(grip, egui::Id::new(("ns-card-head", sc.id)), Sense::click_and_drag());
+        let hovered = body.hovered() || head.hovered();
+        let selected = live == Some(sc.id);
+        let lift = anim::ease(ui.ctx(), ("ns-card-lift", sc.id), hovered || selected, 0.20);
+        let fade: f32 = if st.dragging == Some(k) { 0.4 } else { 1.0 };
+        let w = |c: egui::Color32| theme::wash(c, (c.a() as f32 * fade) as u8);
+        let fill = if p.dark { theme::mix(p.raised, p.solid_hi, 0.5 * lift) } else { theme::mix(p.raised, p.sunken, 0.5 * lift) };
+        ui.painter().rect_filled(rect, egui::Rounding::same(ncf::theme::R_MD), w(fill));
+        if selected {
+            ui.painter().rect_stroke(rect.shrink(0.5), egui::Rounding::same(ncf::theme::R_MD), egui::Stroke::new(1.5_f32, w(p.primary)));
+        }
+        let clip = ui.painter().with_clip_rect(rect.intersect(ui.clip_rect()));
+        clip.text(Pos2::new(rect.left() + CARD_PAD, rect.top() + CARD_PAD + 5.0), egui::Align2::LEFT_CENTER, format!("{:02}", sc.number), theme::font_semi(theme::T_MICRO + 1.0), w(p.text_faint));
+        let heading = if sc.heading.trim().is_empty() { "UNTITLED SCENE".to_string() } else { sc.heading.trim().to_uppercase() };
+        let hf = egui::FontId::new(13.0, theme::page_bold());
+        clip.text(
+            Pos2::new(rect.left() + CARD_PAD, rect.top() + CARD_PAD + 24.0),
+            egui::Align2::LEFT_CENTER,
+            ui::elide_to_width(ui.ctx(), &heading, hf.clone(), 0.0, rect.width() - 2.0 * CARD_PAD),
+            hf,
+            w(p.text),
+        );
+        let syn = Rect::from_min_max(Pos2::new(rect.left() + CARD_PAD, rect.top() + GRIP_H - 6.0), Pos2::new(rect.right() - CARD_PAD, rect.bottom() - CARD_PAD - if time_of(sc).is_some() { 30.0 } else { 0.0 }));
+        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(syn).layout(egui::Layout::top_down(egui::Align::Min)));
+        child.set_clip_rect(syn.expand(2.0).intersect(ui.clip_rect()));
+        if let Some(i) = doc.index_of(sc.id) {
+            let resp = child.add(
+                egui::TextEdit::multiline(&mut doc.blocks[i].note)
+                    .id(egui::Id::new(("ns-card-synopsis", sc.id)))
+                    .frame(false)
+                    .font(theme::font(theme::T_SM))
+                    .text_color(w(p.text_dim))
+                    .desired_width(syn.width())
+                    .desired_rows(1)
+                    .margin(egui::Margin::ZERO)
+                    .hint_text(egui::RichText::new("What happens in this scene?").color(theme::wash(p.text_faint, 150))),
+            );
+            if resp.changed() {
+                let b = &mut doc.blocks[i];
+                if b.note.contains('\n') {
+                    b.note = b.note.replace('\n', " ");
+                }
+                out.changed = true;
+            }
+        }
+        if let Some((label, tone)) = time_of(sc) {
+            let size = ui::tag_size(ui.ctx(), &label, false);
+            let at = Rect::from_min_size(Pos2::new(rect.left() + CARD_PAD, rect.bottom() - CARD_PAD - size.y), size);
+            ui::tag_at(&clip, at, &label, tone, false);
+        }
+        if head.hovered() {
+            ui.ctx().set_cursor_icon(if st.dragging.is_some() { egui::CursorIcon::Grabbing } else { egui::CursorIcon::Grab });
+        }
+        if head.drag_started() {
+            drag_started = Some(k);
+        }
+        if head.clicked() {
+            out.act = Some(Act::Open(sc.id));
+        }
+        let _ = head.on_hover_text("Click to open · drag to another storyline or a new place");
+        if body.secondary_clicked() {
+            if let Some(q) = pointer {
+                st.menu = Some((k, q, frame_no));
+            }
+        }
+    }
+
+    // dragging between lanes here---
+    if let Some(k) = drag_started {
+        st.dragging = Some(k);
+    }
+    let still_down = ui.input(|i| i.pointer.primary_down());
+    if let Some(from) = st.dragging {
+        let mut drop: Option<Act> = None;
+        if let (Some(q), Some(li)) = (pointer, target_lane) {
+            let t = lanes[li];
+            let lane = st.lanes[li].1;
+            if scenes.get(from).map(|s| s.tint) == Some(t) {
+                let list = &lane_cards[li];
+                let slot = list.iter().position(|k| q.y < rects[*k].center().y).unwrap_or(list.len());
+                let to = list.get(slot).copied().unwrap_or_else(|| list.last().map(|k| k + 1).unwrap_or(from));
+                let y = match (slot.checked_sub(1).and_then(|s| list.get(s)), list.get(slot)) {
+                    (Some(a), Some(b)) => (rects[*a].bottom() + rects[*b].top()) * 0.5,
+                    (None, Some(b)) => rects[*b].top() - CARD_GAP * 0.5,
+                    (Some(a), None) => rects[*a].bottom() + CARD_GAP * 0.5,
+                    (None, None) => lane.top() + LANE_HEAD,
+                };
+                if to != from && to != from + 1 {
+                    ui.painter().rect_filled(Rect::from_center_size(Pos2::new(lane.center().x, y), Vec2::new(card_w - 24.0, 3.0)), egui::Rounding::same(2.0), p.primary);
+                    drop = Some(Act::Move(from, to));
+                }
+            } else if let Some(sc) = scenes.get(from) {
+                drop = Some(Act::Tint(sc.id, t));
+            }
+        }
+        if let (Some(q), Some(sc)) = (pointer, scenes.get(from)) {
+            let ghost = Rect::from_min_size(q - Vec2::new(40.0, 18.0), Vec2::new(card_w.min(260.0), 44.0));
+            egui::Area::new(egui::Id::new("ns-card-ghost"))
+                .order(egui::Order::Tooltip)
+                .fixed_pos(ghost.min)
+                .interactable(false)
+                .show(ui.ctx(), |ui| {
+                    let (r, _) = ui.allocate_exact_size(ghost.size(), Sense::hover());
+                    ncf::theme::surface(ui.painter(), r, ncf::theme::R_MD, ncf::theme::Lift::Lift);
+                    let dot = sc.tint.map(|t| p.group(t)).unwrap_or(p.text_faint);
+                    ui.painter().circle_filled(Pos2::new(r.left() + 18.0, r.center().y), 4.5, dot);
+                    let hf = egui::FontId::new(13.0, theme::page_bold());
+                    ui.painter().text(Pos2::new(r.left() + 32.0, r.center().y), egui::Align2::LEFT_CENTER, ui::elide_to_width(ui.ctx(), &sc.heading.to_uppercase(), hf.clone(), 0.0, r.width() - 44.0), hf, p.text);
+                });
+            anim::keep_going(ui.ctx());
+        }
+        if !still_down {
+            if drop.is_some() {
+                out.act = drop;
+            }
+            st.dragging = None;
+            st.drop_at = None;
+        }
+    }
+
+    card_menu(ui, doc, st, &scenes, frame_no, &mut out);
+    out
 }

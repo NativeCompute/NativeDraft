@@ -1960,13 +1960,22 @@ impl App {
             .and_then(|k| self.doc.scenes().get(k).map(|s| s.id));
         let lengths = self.layout.lengths.clone();
         let act_notes = self.layout.acts.clone();
-        let mut out = cards::Out { changed: false, act: None };
-        egui::ScrollArea::vertical()
-            .id_salt("ns-cards")
-            .auto_shrink([false; 2])
-            .show(ui, |ui| {
-                out = cards::show(ui, &mut self.doc, &mut self.cards, &lengths, &act_notes, live, self.frame_no, self.settings.beat_guides);
-            });
+        let mut out = cards::Out { changed: false, act: None, rename: None };
+        if self.settings.cards_columns {
+            egui::ScrollArea::both()
+                .id_salt("ns-cards-columns")
+                .auto_shrink([false; 2])
+                .show(ui, |ui| {
+                    out = cards::columns(ui, &mut self.doc, &mut self.cards, &lengths, live, self.frame_no, self.settings.beat_guides);
+                });
+        } else {
+            egui::ScrollArea::vertical()
+                .id_salt("ns-cards")
+                .auto_shrink([false; 2])
+                .show(ui, |ui| {
+                    out = cards::show(ui, &mut self.doc, &mut self.cards, &lengths, &act_notes, live, self.frame_no, self.settings.beat_guides);
+                });
+        }
         if out.changed {
             self.mark_changed();
         }

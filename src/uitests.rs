@@ -1222,7 +1222,7 @@ fn storylines() -> Document {
 
 #[test]
 fn a_storyline_filters_the_cards_and_the_timeline_scrolls_to_a_card() {
-    let mut h = Harness::with(1320.0, 900.0, "");
+    let mut h = Harness::with(1320.0, 900.0, "cards_view = grid\n");
     h.load(storylines());
     h.app.set_mode(Mode::Cards);
     h.frames(3);
@@ -1244,6 +1244,58 @@ fn a_storyline_filters_the_cards_and_the_timeline_scrolls_to_a_card() {
     h.frames(40);
     let last = h.app.debug_card_rect(23).unwrap();
     assert!(last.top() > 0.0 && last.bottom() < 900.0, "scrolled into view: {last:?}");
+}
+
+#[test]
+fn columns_hold_one_storyline_each_and_a_drag_across_changes_it() {
+    let mut h = Harness::with(1320.0, 900.0, "");
+    h.load(storylines());
+    h.app.set_mode(Mode::Cards);
+    h.frames(3);
+    let lanes = h.app.debug_cards().lanes.clone();
+    assert_eq!(lanes.iter().map(|l| l.0).collect::<Vec<_>>(), vec![Some(0), Some(1), Some(2)]);
+    assert!(lanes.windows(2).all(|w| w[0].1.right() < w[1].1.left()), "side by side: {lanes:?}");
+    let first = h.app.debug_card_rect(0).unwrap();
+    assert!(lanes[0].1.contains(first.center()), "scene one sits in its storyline");
+    assert!(h.app.debug_card_rect(1).map(|r| lanes[1].1.contains(r.center())).unwrap_or(false));
+    let id = h.app.doc().scenes()[0].id;
+    h.drag(first.center_top() + vec2(0.0, 14.0), lanes[1].1.center());
+    assert_eq!(h.app.doc().scenes()[0].tint, Some(1), "it joined the heist");
+    assert_eq!(h.app.doc().scenes()[0].id, id, "and kept its place in the script");
+    h.press(Key::Z, Modifiers::COMMAND);
+    assert_eq!(h.app.doc().scenes()[0].tint, Some(0), "Ctrl+Z puts it back");
+}
+
+#[test]
+fn a_drag_within_a_column_moves_the_scene_in_the_script() {
+    let mut h = Harness::with(1320.0, 900.0, "");
+    h.load(storylines());
+    h.app.set_mode(Mode::Cards);
+    h.frames(3);
+    let heading = h.app.doc().scenes()[3].heading.clone();
+    let top = h.app.debug_card_rect(0).unwrap();
+    let second = h.app.debug_card_rect(3).unwrap();
+    h.drag(second.center_top() + vec2(0.0, 14.0), top.center_top() + vec2(0.0, 6.0));
+    let scenes = h.app.doc().scenes();
+    assert_eq!(scenes[0].heading, heading, "it went before the first card of its column");
+    assert_eq!(scenes[0].tint, Some(0));
+    assert_eq!(scenes.len(), 24);
+}
+
+#[test]
+fn the_cards_view_switches_to_the_grid_and_remembers_it() {
+    let mut h = Harness::with(1320.0, 900.0, "");
+    h.load(storylines());
+    h.app.set_mode(Mode::Cards);
+    h.frames(3);
+    assert!(h.app.settings().cards_columns, "columns by default");
+    assert_eq!(h.app.debug_cards().lanes.len(), 3);
+    h.app.settings_mut().cards_columns = false;
+    h.frames(3);
+    assert_eq!(h.app.debug_cards().segments.len(), 24, "the grid has its timeline");
+    let a = h.app.debug_card_rect(0).unwrap();
+    let b = h.app.debug_card_rect(1).unwrap();
+    assert!((a.top() - b.top()).abs() < 1.0, "cards run along a row");
 }
 
 #[test]
