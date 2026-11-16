@@ -14,6 +14,12 @@ impl App {
         false
     }
 
+    pub(super) fn signed_in(&self) -> bool {
+        false
+    }
+
+    pub(super) fn open_settings_tab(&mut self, _tab: usize) {}
+
     pub(super) fn cloud_frame(&mut self) {}
 
     pub(super) fn push_settings(&mut self) {}
