@@ -1893,3 +1893,18 @@ fn time_of_day_tags_read_the_heading() {
     assert_eq!(sentence("LATE NIGHT"), "Late night");
 }
 
+
+#[test]
+fn the_hero_art_decodes_and_blends_into_its_tile() {
+    for (bytes, edge) in [(include_bytes!("../assets/art/hero-dark.png").as_slice(), [26u8, 27, 33]), (include_bytes!("../assets/art/hero-light.png").as_slice(), [255, 255, 255])] {
+        let img = ncf::icon::decode_png(bytes).expect("a PNG");
+        assert!((img.width as f32 / img.height as f32 - crate::art::ASPECT).abs() < 0.01);
+        let to8 = |v: f32| (v * 255.0).round() as i32;
+        for (x, y) in [(2, 2), (img.width / 2, 1), (1, img.height / 2), (img.width - 2, img.height - 2)] {
+            let p = img.px[y * img.width + x];
+            for k in 0..3 {
+                assert!((to8(p[k]) - edge[k] as i32).abs() <= 3, "the edge at {x},{y} matches the tile so no box shows");
+            }
+        }
+    }
+}
