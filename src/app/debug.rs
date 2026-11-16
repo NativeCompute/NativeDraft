@@ -147,7 +147,12 @@ impl App {
                 self.save_settings();
             }
             Request::Light(light) => {
-                self.settings.light_mode = *light;
+                self.settings.appearance = ncf::settings::Appearance::from_light_mode(*light);
+                self.theme_dirty = true;
+                self.save_settings();
+            }
+            Request::Appearance(a) => {
+                self.settings.appearance = *a;
                 self.theme_dirty = true;
                 self.save_settings();
             }

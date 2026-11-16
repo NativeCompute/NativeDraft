@@ -12,6 +12,10 @@ pub fn rgba(size: u32) -> Vec<u8> {
     crate::MARK.rgba(size)
 }
 
+pub fn png(size: u32) -> Vec<u8> {
+    crate::MARK.png(size)
+}
+
 pub fn ico() -> Vec<u8> {
     crate::MARK.ico()
 }

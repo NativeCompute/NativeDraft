@@ -34,10 +34,7 @@ pub mod ui;
 pub use eframe;
 pub use ncf::{alerts, anim, caret, icons, update};
 
-pub const MARK: ncf::mark::AppMark = ncf::mark::AppMark {
-    name: "Blackline",
-    parts: &[ncf::mark::slab((0.27, 0.83), (0.49, 0.17)), ncf::mark::line((0.585, 0.83), (0.805, 0.17))],
-};
+pub const MARK: ncf::mark::AppMark = ncf::mark::AppMark::raster("Blackline", include_bytes!("../assets/icon/mark.png"));
 
 pub const INFO: ncf::AppInfo = ncf::AppInfo {
     name: "Blackline",

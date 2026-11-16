@@ -67,7 +67,7 @@ impl AfterExport {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Settings {
     // look here---
-    pub light_mode: bool,
+    pub appearance: ncf::settings::Appearance,
     pub animations: bool,
     pub font_scale: f32,
     pub splash: bool,
@@ -115,7 +115,7 @@ pub const DEFAULT_YOUTRACK: &str = "";
 impl Default for Settings {
     fn default() -> Self {
         Settings {
-            light_mode: false,
+            appearance: ncf::settings::Appearance::System,
             animations: true,
             font_scale: 1.0,
             splash: true,
@@ -162,6 +162,7 @@ impl Settings {
         let b = |v: bool| if v { "yes" } else { "no" };
         format!(
             "# Blackline settings.\n\
+             appearance = {}\n\
              light_mode = {}\n\
              animations = {}\n\
              font_scale = {:.2}\n\
@@ -194,7 +195,8 @@ impl Settings {
              pdf_tint = {}\n\
              dismissed_update = {}\n\
              onboarded = {}\n",
-            b(self.light_mode),
+            self.appearance.slug(),
+            b(self.appearance.light_mode()),
             b(self.animations),
             self.font_scale,
             b(self.splash),
@@ -240,6 +242,7 @@ impl Settings {
         let mut s = Settings { fresh: false, ..Default::default() };
         let yes = |v: &str| matches!(v, "yes" | "true" | "1" | "on");
         let mut pdf_numbers_said = false;
+        let mut appearance_said = false;
         for line in text.lines() {
             let line = line.trim();
             if line.is_empty() || line.starts_with('#') {
@@ -250,7 +253,17 @@ impl Settings {
             };
             let (k, v) = (k.trim(), v.trim());
             match k {
-                "light_mode" => s.light_mode = yes(v),
+                "appearance" => {
+                    if let Some(a) = ncf::settings::Appearance::from_slug(v) {
+                        s.appearance = a;
+                        appearance_said = true;
+                    }
+                }
+                "light_mode" => {
+                    if !appearance_said {
+                        s.appearance = ncf::settings::Appearance::from_light_mode(yes(v));
+                    }
+                }
                 "animations" => s.animations = yes(v),
                 "font_scale" => s.font_scale = v.parse::<f32>().unwrap_or(1.0).clamp(0.8, 1.4),
                 "splash" => s.splash = yes(v),

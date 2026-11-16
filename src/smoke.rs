@@ -15,7 +15,7 @@ pub const ODD_FOUNTAIN: &str = "Title: Odd Bits\nCopyright: 2026 Somebody\n\nINT
 
 pub const UNSAVED: &str = " SMOKE-UNSAVED-EDIT";
 
-const SETTINGS: &str = "splash = yes\nanimations = yes\ncheck_updates = no\nautosave_ms = 10000\nafter_export = nothing\n";
+const SETTINGS: &str = "appearance = dark\nsplash = yes\nanimations = yes\ncheck_updates = no\nautosave_ms = 10000\nafter_export = nothing\n";
 
 static NOTES: Mutex<Vec<String>> = Mutex::new(Vec::new());
 

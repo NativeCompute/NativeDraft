@@ -280,7 +280,7 @@ impl App {
     pub fn with_store(ctx: &egui::Context, mut store: Box<dyn Store>) -> Self {
         let settings = store.read_settings();
         let debug = ncf::debug::Debug::new(settings.debug);
-        theme::set_palette(!settings.light_mode);
+        theme::set_palette(ncf::theme::wants_dark(ctx, settings.appearance));
         anim::set_enabled(settings.animations);
         theme::apply(ctx);
         theme::install_fonts(ctx);
@@ -3289,11 +3289,7 @@ impl App {
                         .layout(Layout::top_down(Align::Min)),
                 );
                 let name = tabs.iter().find(|t| t.2 == tab).map(|t| t.0).unwrap_or("");
-                pane_ui.label(
-                    egui::RichText::new(name.to_uppercase())
-                        .font(theme::font_display(theme::T_H + 1.0))
-                        .color(p.text),
-                );
+                pane_ui.add(egui::Label::new(ui::display_text(name, theme::T_H + 3.0, p.text)));
                 pane_ui.add_space(4.0);
                 egui::ScrollArea::vertical()
                     .id_salt(("ns-settings-pane", tab))
@@ -3319,17 +3315,14 @@ impl App {
         let p = pal();
         match tab {
             0 => {
-            ui::section(ui, "Mode");
-            let dark = !self.settings.light_mode;
-            if let Some(k) = ui::segmented(ui, &[("Dark", Icon::Moon), ("Light", Icon::Sun)], if dark { 0 } else { 1 }) {
-                self.settings.light_mode = k == 1;
+            ui::section(ui, "Appearance");
+            let all = ncf::settings::Appearance::ALL;
+            let now = all.iter().position(|a| *a == self.settings.appearance).unwrap_or(0);
+            if let Some(k) = ui::segmented(ui, &[("System", Icon::Settings), ("Light", Icon::Sun), ("Dark", Icon::Moon)], now) {
+                self.settings.appearance = all[k];
             }
             ui.add_space(4.0);
-            ui.label(
-                egui::RichText::new("Dark is the house look: void black and one signal blue. Light is the same language on paper white.")
-                    .font(theme::font(theme::T_CAP))
-                    .color(p.text_faint),
-            );
+            ui.label(egui::RichText::new(ncf::settings::APPEARANCE_NOTE).font(theme::font(theme::T_CAP)).color(p.text_faint));
 
             ui::separator(ui);
             ui::section(ui, "Motion");
@@ -4007,8 +4000,9 @@ impl App {
 
         self.watch_library();
         self.take_update_answer();
+        ncf::theme::follow(ctx, self.settings.appearance);
         if self.theme_dirty {
-            theme::set_palette(!self.settings.light_mode);
+            theme::set_palette(ncf::theme::wants_dark(ctx, self.settings.appearance));
             anim::set_enabled(self.settings.animations);
             theme::apply(ctx);
             ctx.set_zoom_factor(self.settings.font_scale);
@@ -4250,7 +4244,10 @@ impl App {
         self.layout.page_starts.iter().map(|(a, b)| (*a, *b)).collect()
     }
     pub fn debug_set_light(&mut self, light: bool) {
-        self.settings.light_mode = light;
+        self.debug_set_appearance(ncf::settings::Appearance::from_light_mode(light));
+    }
+    pub fn debug_set_appearance(&mut self, a: ncf::settings::Appearance) {
+        self.settings.appearance = a;
         self.theme_dirty = true;
     }
     pub fn debug_focus_mode(&mut self, on: bool) {

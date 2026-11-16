@@ -20,6 +20,19 @@ fn emit(args: &[String], flag: &str, default: &str, bytes: impl FnOnce() -> Vec<
     true
 }
 
+fn emit_png(args: &[String]) -> bool {
+    let Some(i) = args.iter().position(|a| a == "--emit-png") else {
+        return false;
+    };
+    let size = args.get(i + 1).and_then(|s| s.parse::<u32>().ok()).unwrap_or(512).clamp(16, 1024);
+    let path = args.get(i + 2).cloned().unwrap_or_else(|| "blackline.png".to_string());
+    if let Err(e) = std::fs::write(&path, logo::png(size)) {
+        eprintln!("could not write {path}: {e}");
+        std::process::exit(1);
+    }
+    true
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if emit(&args, "--emit-icon", "blackline.svg", || {
@@ -28,6 +41,7 @@ fn main() {
     }) || emit(&args, "--emit-ico", "blackline.ico", logo::ico)
         || emit(&args, "--emit-icns", "Blackline.icns", logo::icns)
         || emit(&args, "--emit-info-plist", "Info.plist", || logo::info_plist().into_bytes())
+        || emit_png(&args)
     {
         return;
     }

@@ -228,7 +228,12 @@ impl App {
                 ui::hud(&mut col, &label.to_uppercase(), Some(p.primary_light));
                 col.add_space(14.0);
                 let size_t = 28.0;
-                let galley = col.painter().layout(here.title.to_uppercase(), theme::font_display(size_t), p.text, text.width());
+                let mut job = egui::text::LayoutJob::single_section(
+                    here.title.to_string(),
+                    egui::TextFormat { font_id: theme::font_display(size_t), color: p.text, extra_letter_spacing: ncf::theme::display_tracking(size_t), ..Default::default() },
+                );
+                job.wrap.max_width = text.width();
+                let galley = col.ctx().fonts(|f| f.layout_job(job));
                 let (r, _) = col.allocate_exact_size(Vec2::new(text.width(), galley.rect.height()), Sense::hover());
                 col.painter().galley(r.min, galley, p.text);
                 col.add_space(14.0);

@@ -388,9 +388,10 @@ fn the_pdf_can_carry_scene_numbers() {
 
 #[test]
 fn settings_round_trip_and_old_look_keys_are_ignored() {
+    use ncf::settings::Appearance;
     let mut s = Settings { fresh: false, ..Default::default() };
-    assert!(!s.light_mode, "dark by default");
-    s.light_mode = true;
+    assert_eq!(s.appearance, Appearance::System, "follows the computer by default");
+    s.appearance = Appearance::Light;
     s.sort_by = SortBy::Length;
     s.after_export = AfterExport::Reveal;
     s.session_goal = 750;
@@ -415,7 +416,11 @@ fn settings_round_trip_and_old_look_keys_are_ignored() {
 
     let old = "theme = frostbite\nlight_mode = yes\nanimations = no\nblur = always\nglass_opacity = 0.80\nmatch_tesseract = yes\npage_px = 18\n";
     let o = Settings::parse(old);
-    assert!(o.light_mode && !o.animations);
+    assert!(o.appearance == Appearance::Light && !o.animations, "an old light choice is kept");
+    assert_eq!(Settings::parse("light_mode = no\n").appearance, Appearance::Dark, "and so is an old dark one");
+    assert_eq!(Settings::parse("appearance = system\nlight_mode = yes\n").appearance, Appearance::System);
+    assert_eq!(Settings::parse("light_mode = yes\nappearance = system\n").appearance, Appearance::System, "the new key wins either way");
+    assert!(Settings { appearance: Appearance::Light, ..Default::default() }.serialize().contains("light_mode = yes"), "older builds still read the choice");
     assert_eq!(o.page_px, 18.0);
     let again = o.serialize();
     for gone in ["theme", "blur", "glass_opacity", "match_tesseract"] {
@@ -508,11 +513,33 @@ fn the_palette_is_complete_in_both_casts() {
 }
 
 #[test]
-fn the_icon_is_an_svg_drawn_from_the_mark() {
+fn the_icon_is_the_ribbon_on_the_bento_tile() {
     let s = crate::logo::svg();
     assert!(s.starts_with("<svg"));
-    assert_eq!(s.matches("<polygon").count(), 2, "the slab and the line");
-    assert!(s.contains("#3B4CFF"), "the line is the signal blue");
+    assert!(s.contains("data:image/png;base64,"), "the ribbon is a picture, so the SVG carries the composed tile");
+    let n = 256u32;
+    let px = crate::logo::rgba(n);
+    let at = |x: u32, y: u32| {
+        let i = ((y * n + x) * 4) as usize;
+        [px[i], px[i + 1], px[i + 2], px[i + 3]]
+    };
+    assert_eq!(at(0, 0)[3], 0, "the tile's corner is rounded off");
+    let warm = at(24, 24);
+    assert!(warm[0] > 150 && warm[0] > warm[1] && warm[1] > warm[2], "a coral glow in the top-left: {warm:?}");
+    let ink = at(236, 236);
+    assert!(ink.iter().take(3).zip([0x13u8, 0x13, 0x18]).all(|(a, b)| (*a as i32 - b as i32).abs() <= 6), "an ink tile: {ink:?}");
+    let mid = at(n / 2 - 40, n / 2 - 14);
+    let lum = 0.2126 * mid[0] as f32 + 0.7152 * mid[1] as f32 + 0.0722 * mid[2] as f32;
+    assert!(lum > 180.0, "the ribbon is light: {mid:?}");
+}
+
+#[test]
+fn the_packaged_icons_are_the_ones_the_app_draws() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let ico = std::fs::read(root.join("packaging/blackline.ico")).unwrap();
+    assert!(ico == crate::logo::ico(), "run `cargo run --release -- --emit-ico packaging/blackline.ico`");
+    let svg = std::fs::read_to_string(root.join("packaging/blackline.svg")).unwrap();
+    assert!(svg == crate::logo::svg(), "run `cargo run --release -- --emit-icon packaging/blackline.svg`");
 }
 
 #[test]
@@ -561,16 +588,32 @@ fn every_speaker_gets_a_colour_of_their_own_that_does_not_move() {
 }
 
 #[test]
-fn the_palette_is_nativecomputes() {
+fn the_palette_is_bento() {
+    use eframe::egui::Color32;
     let p = crate::theme::palette(true);
-    assert_eq!(p.backdrop, eframe::egui::Color32::BLACK);
-    assert_eq!(p.text, eframe::egui::Color32::from_rgb(0xF2, 0xF3, 0xF7));
-    assert_eq!(p.primary, eframe::egui::Color32::from_rgb(0x3B, 0x4C, 0xFF));
-    assert_eq!(p.primary_light, eframe::egui::Color32::from_rgb(0x6E, 0x7B, 0xFF));
-    assert_eq!(crate::theme::palette(false).primary, p.primary);
+    assert_eq!(p.backdrop, Color32::from_rgb(0x0E, 0x0F, 0x13));
+    assert_eq!(p.text, Color32::from_rgb(0xF3, 0xF3, 0xF6));
+    assert_eq!(p.primary, Color32::from_rgb(0xFF, 0x6A, 0x3D));
+    let l = crate::theme::palette(false);
+    assert_eq!(l.backdrop, Color32::from_rgb(0xE9, 0xEB, 0xF0));
+    assert_eq!(l.primary, p.primary, "one coral accent in both casts");
+    assert_eq!(l.brights, p.brights);
+    assert_eq!(crate::theme::R_PILL, ncf::theme::R_PILL);
+    assert_eq!(crate::theme::R_ISLAND, ncf::theme::R_MD);
 }
 
-const _: () = assert!(crate::theme::R_PILL <= 2.0 && crate::theme::R_ISLAND <= 2.0);
+#[test]
+fn the_first_six_speakers_get_the_bento_hues() {
+    let names: Vec<String> = ["A", "B", "C", "D", "E", "F", "G"].iter().map(|s| s.to_string()).collect();
+    let hues = crate::theme::hues(&names, 0);
+    let mut first: Vec<i32> = hues.iter().take(6).map(|h| (h * 360.0).round() as i32).collect();
+    first.sort();
+    let mut bento: Vec<i32> = crate::theme::BENTO_HUES.iter().map(|h| *h as i32).collect();
+    bento.sort();
+    assert_eq!(first, bento);
+    let turned: Vec<i32> = crate::theme::hues(&names, 1).iter().take(6).map(|h| (h * 360.0).round() as i32).collect();
+    assert_ne!(turned[0], (hues[0] * 360.0).round() as i32, "the seed turns the wheel");
+}
 
 #[test]
 fn a_tint_is_exactly_as_strong_as_asked() {
@@ -1097,9 +1140,9 @@ fn the_app_icon_is_drawn_from_the_mark() {
         [px[i], px[i + 1], px[i + 2], px[i + 3]]
     };
     assert_eq!(at(0, 0)[3], 0, "the tile's corner is rounded off");
-    assert_eq!(at(4, n / 2), [0, 0, 0, 255], "the tile is black");
-    assert_eq!(at(26, 32), [0xF2, 0xF3, 0xF7, 255], "the slab is white");
-    assert_eq!(at(42, 32), [0x3B, 0x4C, 0xFF, 255], "the line is the signal blue");
+    let ink = at(58, 58);
+    assert!(ink.iter().take(3).zip([0x13u8, 0x13, 0x18]).all(|(a, b)| (*a as i32 - b as i32).abs() <= 8), "an ink tile: {ink:?}");
+    assert!(at(6, 6)[0] > at(6, 6)[2], "warm in the top-left corner");
     let ico = crate::logo::ico();
     assert_eq!(&ico[..4], &[0, 0, 1, 0]);
     assert_eq!(u16::from_le_bytes([ico[4], ico[5]]), 6, "six sizes");

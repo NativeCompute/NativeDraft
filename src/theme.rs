@@ -51,6 +51,10 @@ pub struct Palette {
     pub ok: Color32,
 
     pub groups: [Color32; 6],
+    pub brights: [Color32; 6],
+    pub on_tile: Color32,
+    pub focus: Color32,
+    pub frost: Color32,
 }
 
 const fn c(r: u8, g: u8, b: u8) -> Color32 {
@@ -60,6 +64,14 @@ const fn c(r: u8, g: u8, b: u8) -> Color32 {
 impl Palette {
     pub fn group(&self, hue: usize) -> Color32 {
         self.groups[hue % self.groups.len()]
+    }
+
+    pub fn bright(&self, i: usize) -> Color32 {
+        self.brights[i % self.brights.len()]
+    }
+
+    pub fn tile(&self, i: usize) -> Color32 {
+        self.brights[i % 4]
     }
 }
 
@@ -76,11 +88,11 @@ pub fn palette(dark: bool) -> Palette {
         dark,
         backdrop: t.void,
         glass: t.deep,
-        glass_hi: if dark { t.panel_2 } else { t.sunken },
+        glass_hi: t.panel_2,
         glass_line: t.line,
         glass_edge: t.line_strong,
         solid: t.deep,
-        solid_hi: t.panel,
+        solid_hi: t.panel_2,
         sunken: t.sunken,
         raised: t.panel_2,
         line: t.line,
@@ -98,12 +110,16 @@ pub fn palette(dark: bool) -> Palette {
         sec: t.chrome,
         sec_light: t.chrome_hi,
         sec_deep: t.chrome_lo,
-        sec_grad: if dark { (t.chrome_lo, t.chrome_hi) } else { (t.chrome_shade, c(0x3A, 0x3E, 0x4E)) },
+        sec_grad: if dark { (t.chrome_lo, t.chrome_hi) } else { (t.chrome_shade, t.chrome) },
         danger: t.danger,
         danger_light: t.danger_hi,
         warn: t.warn,
         ok: t.ok,
         groups: t.groups,
+        brights: t.brights,
+        on_tile: t.on_tile,
+        focus: t.focus,
+        frost: t.glass,
     }
 }
 
@@ -136,14 +152,15 @@ pub fn install_fonts(ctx: &egui::Context) {
 
 // metrics here---
 
-pub const R_WINDOW: f32 = 2.0;
-pub const R_SM: f32 = 2.0;
-pub const R_MD: f32 = 2.0;
-pub const R_CTRL: f32 = 2.0;
-pub const R_CARD: f32 = 2.0;
-pub const R_ISLAND: f32 = 2.0;
-pub const R_PANEL: f32 = 2.0;
-pub const R_PILL: f32 = 2.0;
+pub const R_WINDOW: f32 = ncf::theme::R_SM;
+pub const R_SM: f32 = ncf::theme::R_SM;
+pub const R_MD: f32 = ncf::theme::R_MD;
+pub const R_CTRL: f32 = ncf::theme::R_SM;
+pub const R_CARD: f32 = ncf::theme::R_MD;
+pub const R_ISLAND: f32 = ncf::theme::R_MD;
+pub const R_PANEL: f32 = ncf::theme::R_MD;
+pub const R_PILL: f32 = ncf::theme::R_PILL;
+pub const R_SHEET: f32 = ncf::theme::R_LG;
 
 pub const RAIL_W: f32 = 268.0;
 pub const OUTLINE_W: f32 = 246.0;
@@ -356,8 +373,7 @@ pub fn grad_star(painter: &egui::Painter, centre: Pos2, r: f32, _a: Color32, b: 
 }
 
 pub fn marker(centre: Pos2, r: f32, color: Color32) -> Shape {
-    let side = (r * 1.1).round().max(4.0);
-    Shape::rect_filled(Rect::from_center_size(centre, Vec2::splat(side)), Rounding::ZERO, color)
+    Shape::circle_filled(centre, (r * 0.6).max(2.0), color)
 }
 
 pub fn star_shapes(centre: Pos2, r: f32, _waist: f32, _a: Color32, b: Color32) -> Vec<Shape> {
@@ -416,22 +432,23 @@ pub fn glass_body(opacity: f32) -> Color32 {
 
 pub fn glass_plate(painter: &egui::Painter, rect: Rect, radius: f32, opacity: f32) {
     let _ = opacity;
-    let p = pal();
-    painter.rect_filled(rect, Rounding::same(radius), p.glass);
-    painter.rect_stroke(rect.shrink(0.5), Rounding::same(radius), Stroke::new(1.0_f32, p.line));
+    ncf::theme::glass(painter, rect, radius);
 }
 
 pub fn island_frame(radius: f32) -> egui::Frame {
-    let p = pal();
-    egui::Frame::none()
-        .fill(p.solid)
-        .rounding(Rounding::same(radius))
-        .stroke(Stroke::new(1.0_f32, p.line))
+    let lift = if pal().dark { ncf::theme::Lift::Flat } else { ncf::theme::Lift::Rest };
+    ncf::theme::surface_frame(radius, lift)
+}
+
+pub fn sheet_frame() -> egui::Frame {
+    let lift = if pal().dark { ncf::theme::Lift::Rest } else { ncf::theme::Lift::Float };
+    ncf::theme::surface_frame(R_SHEET, lift)
 }
 
 pub fn lift_shadow(painter: &egui::Painter, rect: Rect, radius: f32, lift: f32) {
     if !GLOWS {
-        let _ = (painter, rect, radius, lift);
+        let level = if lift > 0.5 { ncf::theme::Lift::Float } else if lift > 0.01 { ncf::theme::Lift::Rest } else { ncf::theme::Lift::Flat };
+        ncf::theme::shadow(painter, rect, radius, level);
         return;
     }
     let p = pal();
@@ -486,10 +503,26 @@ pub fn character_colors(names: &[String], seed: u32) -> std::collections::HashMa
 
 fn voice_sl() -> (f32, f32) {
     if pal().dark {
-        (0.62, 0.72)
+        (0.86, 0.72)
     } else {
-        (0.66, 0.36)
+        (0.70, 0.36)
     }
+}
+
+pub const BENTO_HUES: [f32; 6] = [14.0, 208.0, 253.0, 41.0, 150.0, 340.0];
+
+pub fn hues(names: &[String], seed: u32) -> Vec<f32> {
+    let turn = seed as usize % BENTO_HUES.len();
+    let start = (seed as f32 * 0.137_5).fract();
+    (0..names.len())
+        .map(|k| {
+            if k < BENTO_HUES.len() {
+                BENTO_HUES[(k + turn) % BENTO_HUES.len()] / 360.0
+            } else {
+                (start + k as f32 * 0.618_034).fract()
+            }
+        })
+        .collect()
 }
 
 pub fn voice_colors(names: &[String], seed: u32, chosen: &[(String, u16)]) -> std::collections::HashMap<String, Color32> {
@@ -528,15 +561,7 @@ pub fn character_inks(names: &[String], seed: u32) -> std::collections::HashMap<
 }
 
 fn voices_at(names: &[String], seed: u32, s: f32, l: f32) -> std::collections::HashMap<String, Color32> {
-    let start = (seed as f32 * 0.137_5).fract();
-    names
-        .iter()
-        .enumerate()
-        .map(|(k, n)| {
-            let h = (start + k as f32 * 0.618_034).fract();
-            (n.clone(), hsl(h, s, l))
-        })
-        .collect()
+    names.iter().zip(hues(names, seed)).map(|(n, h)| (n.clone(), hsl(h, s, l))).collect()
 }
 
 fn c3(r: u8, g: u8, b: u8) -> Color32 {

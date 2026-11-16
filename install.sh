@@ -21,6 +21,7 @@ say() { printf '\033[1;31m::\033[0m %s\n' "$*"; }
 BIN_DIR="$HOME/.local/bin"
 APP_DIR="$HOME/.local/share/applications"
 ICON_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
+PNG_DIR="$HOME/.local/share/icons/hicolor"
 
 refresh_desktop() {
   command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$APP_DIR" || true
@@ -40,7 +41,7 @@ remove_northstar() {
 }
 
 if [ "${1:-}" = "--uninstall" ]; then
-  rm -f "$BIN_DIR/blackline" "$APP_DIR/blackline.desktop" "$ICON_DIR/blackline.svg"
+  rm -f "$BIN_DIR/blackline" "$APP_DIR/blackline.desktop" "$ICON_DIR/blackline.svg" "$PNG_DIR/256x256/apps/blackline.png" "$PNG_DIR/512x512/apps/blackline.png"
   remove_northstar
   refresh_desktop
   say "Blackline removed. Your scripts are still in $DATA_DIR"
@@ -106,6 +107,10 @@ install -m 644 packaging/blackline.desktop "$APP_DIR/blackline.desktop"
 
 say "Drawing the icon"
 "$BIN_DIR/blackline" --emit-icon "$ICON_DIR/blackline.svg" >/dev/null
+for px in 256 512; do
+  mkdir -p "$PNG_DIR/${px}x${px}/apps"
+  "$BIN_DIR/blackline" --emit-png "$px" "$PNG_DIR/${px}x${px}/apps/blackline.png" >/dev/null
+done
 install -m 644 "$ICON_DIR/blackline.svg" packaging/blackline.svg
 
 refresh_desktop

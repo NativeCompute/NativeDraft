@@ -1311,7 +1311,7 @@ fn debug_mode_draws_its_panel_and_every_display_button_runs() {
     }
     assert!(matches!(h.app.update_status(), crate::update::Status::Newer(_)), "the pretend release is offered");
     assert!((h.app.settings().font_scale - 1.1).abs() < 1e-3);
-    assert!(h.app.settings().light_mode);
+    assert_eq!(h.app.settings().appearance, ncf::settings::Appearance::Light);
 
     let ctx = h.ctx.clone();
     h.app.apply_debug(&ctx, &Request::Confirm);
