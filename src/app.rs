@@ -1623,12 +1623,12 @@ impl App {
             .get(&a.id)
             .and_then(|n| n.rsplit(" \u{2014} ").next())
             .unwrap_or("")
-            .to_uppercase();
+            .to_string();
         let font = theme::font_hud(theme::T_MICRO + 0.5);
         let pages_w = theme::tracked_width(ui.ctx(), &pages, font.clone(), 0.8);
         let show_pages = !pages.is_empty() && room > pages_w + 70.0;
         let title_room = if show_pages { room - pages_w - 12.0 } else { room };
-        let shown = ui::elide_to_width(ui.ctx(), &title.to_uppercase(), font.clone(), 0.8, title_room);
+        let shown = ui::elide_to_width(ui.ctx(), &title, font.clone(), 0.8, title_room);
         theme::tracked_text(
             ui.painter(),
             Pos2::new(text_left, cy),
@@ -2901,7 +2901,7 @@ impl App {
                 theme::tracked_text(
                     ui.painter(),
                     foot - Vec2::new(0.0, 6.0),
-                    concat!("BLACKLINE V", env!("CARGO_PKG_VERSION")),
+                    concat!("Blackline ", env!("CARGO_PKG_VERSION")),
                     theme::font_hud(theme::T_MICRO),
                     p.text_faint,
                     0.8,

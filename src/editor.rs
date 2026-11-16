@@ -861,7 +861,7 @@ fn act_row(
     theme::tracked_text(
         &painter,
         Pos2::new(left + 14.0, hud_y),
-        &readout.to_uppercase(),
+        &readout,
         theme::font_hud(theme::T_MICRO + 0.5),
         a(theme::mix(p.text_faint, p.text_dim, lit), 1.0),
         0.8,

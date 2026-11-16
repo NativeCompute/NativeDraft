@@ -156,10 +156,10 @@ impl App {
 fn table(ui: &mut egui::Ui, r: &Report, tab: usize, width: f32, seen: &mut Vec<(u64, Rect)>) -> Option<u64> {
     let p = pal();
     let cols: Vec<Col> = match tab {
-        0 => vec![col("CHARACTER", 0.0, false), col("CUES", 60.0, true), col("LINES", 60.0, true), col("WORDS", 70.0, true), col("SHARE", 130.0, false), col("SCENES", 66.0, true), col("FIRST", 120.0, true)],
-        1 => vec![col("#", 36.0, true), col("HEADING", 0.0, false), col("PAGE", 54.0, true), col("LENGTH", 74.0, true), col("CAST", 230.0, false)],
-        2 => vec![col("LOCATION", 0.0, false), col("INT/EXT", 130.0, false), col("SCENES", 70.0, true), col("LENGTH", 80.0, true), col("FIRST PAGE", 96.0, true)],
-        _ => vec![col("TIME", 0.0, false), col("SCENES", 80.0, true), col("LENGTH", 90.0, true), col("", 260.0, false)],
+        0 => vec![col("Character", 0.0, false), col("Cues", 60.0, true), col("Lines", 60.0, true), col("Words", 70.0, true), col("Share", 130.0, false), col("Scenes", 66.0, true), col("First", 120.0, true)],
+        1 => vec![col("#", 36.0, true), col("Heading", 0.0, false), col("Page", 54.0, true), col("Length", 74.0, true), col("Cast", 230.0, false)],
+        2 => vec![col("Location", 0.0, false), col("Int/ext", 130.0, false), col("Scenes", 70.0, true), col("Length", 80.0, true), col("First page", 96.0, true)],
+        _ => vec![col("Time", 0.0, false), col("Scenes", 80.0, true), col("Length", 90.0, true), col("", 260.0, false)],
     };
     let fixed: f32 = cols.iter().map(|c| c.w).sum();
     let flex = (width - fixed - 16.0).max(120.0);

@@ -37,6 +37,8 @@ enum Sketch {
     Panel,
     Reports,
     Look,
+    Palette,
+    Week,
     Appearance,
     Covers,
 }
@@ -79,27 +81,32 @@ impl App {
                 },
                 Step {
                     title: "Three ways to see a script",
-                    body: format!("Write is where you type. Cards shows each scene as a card you can drag. Read shows the printed pages. Switch with the tabs at the top, or {}.", k(Command::NextView)),
+                    body: format!("Write is where you type. Cards shows each scene as a card you can drag. Read shows the printed pages. Switch in the toolbar, or with {}.", k(Command::NextView)),
                     sketch: Sketch::Views,
                 },
                 Step {
+                    title: "Search or jump to anything",
+                    body: format!("{} opens one search for your scripts, the scenes in this one, lines in every script and every command, with its shortcut.", k(Command::Palette)),
+                    sketch: Sketch::Palette,
+                },
+                Step {
                     title: "Cards and storylines",
-                    body: "Give each storyline a colour and a name. The timeline above the cards shows the whole script to scale, with guides at the usual turning points.".into(),
+                    body: "Each storyline gets a column. Drag a card into another column to change its storyline, or up and down to move the scene. The grid shows the whole script to scale.".into(),
                     sketch: Sketch::Cards,
                 },
                 Step {
                     title: "Notes in the margin",
-                    body: format!("Put the cursor on a line and press {} to leave yourself a note. Every note is listed in the panel on the left, and none of them print unless you ask.", k(Command::AddNote)),
+                    body: format!("Put the cursor on a line and press {} to leave yourself a note. Every note is listed under Notes on the right, and none of them print unless you ask.", k(Command::AddNote)),
                     sketch: Sketch::Notes,
                 },
                 Step {
                     title: "Revisions and export",
-                    body: "When the script goes out, start a revision from the Changes tab. Every change is marked with an asterisk, and each round takes the next colour. Export a PDF, Fountain or Final Draft file from the ribbon.".into(),
+                    body: "When the script goes out, start a revision from the Changes tab. Every change is marked with an asterisk, and each round takes the next colour. Export a PDF, Fountain or Final Draft file from the toolbar.".into(),
                     sketch: Sketch::Revisions,
                 },
                 Step {
                     title: "Your scripts stay yours",
-                    body: "Each script is a plain text file in your library folder, with snapshots kept beside it. The Library button at the top left takes you back to all of them.".into(),
+                    body: "Each script is a plain text file in your library folder, with snapshots kept beside it. The sidebar on the left takes you back to all of them.".into(),
                     sketch: Sketch::Files,
                 },
             ],
@@ -107,8 +114,23 @@ impl App {
                 let mut steps = vec![
                     Step {
                         title: "A new look",
-                        body: "Rounded pages, softer surfaces and a toolbar that floats above your work. Home opens on where you left off, the words you've written this session and your whole library at a glance.".into(),
+                        body: "Your library sits in the sidebar, the tools float above the page, and Scenes, Notes, Changes and Cast share the tabs on the right. Click the title on the page for the title page.".into(),
                         sketch: Sketch::Look,
+                    },
+                    Step {
+                        title: "Search or jump to anything",
+                        body: format!("{} finds scripts, scenes, lines and commands in one place. Adding a note stays on {}.", k(Command::Palette), k(Command::AddNote)),
+                        sketch: Sketch::Palette,
+                    },
+                    Step {
+                        title: "Storylines in columns",
+                        body: "Cards now sit in a column per storyline. Drag a card across to change its storyline, or up and down to move the scene. The grid and its timeline are a click away.".into(),
+                        sketch: Sketch::Cards,
+                    },
+                    Step {
+                        title: "Your week, and what's due",
+                        body: "Home counts the words you write each day and remembers where you were in every script. Set a deadline on a script's title page and the nearest one shows on Home.".into(),
+                        sketch: Sketch::Week,
                     },
                     Step {
                         title: "Light, dark, or your system",
@@ -117,7 +139,7 @@ impl App {
                     },
                     Step {
                         title: "A cover for every script",
-                        body: "Each script gets a cover colour so you can find it at a glance. Change it from the script's menu on Home or from the Details panel. A cloud script changes its cover while it's open.".into(),
+                        body: "Each script gets a cover colour so you can find it at a glance. Change it from the script's menu on Home or on its title page. A cloud script changes its cover while it's open.".into(),
                         sketch: Sketch::Covers,
                     },
                 ];
@@ -138,8 +160,8 @@ impl App {
                 sketch: Sketch::Dual,
             },
             Step {
-                title: "Notes, and a new left panel",
-                body: format!("Leave a note on any line with {}. The left panel now lists your notes and changes. Your scripts are one click away, under Library at the top left.", k(Command::AddNote)),
+                title: "Notes in the margin",
+                body: format!("Leave a note on any line with {}. Your notes and changes are listed in the tabs on the right.", k(Command::AddNote)),
                 sketch: Sketch::Panel,
             },
             Step {
@@ -149,7 +171,7 @@ impl App {
             },
             Step {
                 title: "Reports, and find everywhere",
-                body: format!("{} opens reports on characters, scenes, locations and time of day. {} searches inside every script from Home.", k(Command::Reports), k(Command::FindScripts)),
+                body: format!("{} opens reports on characters, scenes, locations and time of day. {} searches inside every script.", k(Command::Reports), k(Command::Palette)),
                 sketch: Sketch::Reports,
             },
         ]
@@ -252,10 +274,10 @@ impl App {
                 let mut col = ui.new_child(egui::UiBuilder::new().max_rect(text.translate(Vec2::new(shift * 0.6, 0.0))).layout(egui::Layout::top_down(egui::Align::Min)));
                 col.set_opacity(0.15 + 0.85 * e);
                 let label = match kind {
-                    Kind::Full => format!("Tour / {:02} of {:02}", step + 1, steps.len()),
-                    Kind::New => format!("What's new / {:02} of {:02}", step + 1, steps.len()),
+                    Kind::Full => format!("Tour · {} of {}", step + 1, steps.len()),
+                    Kind::New => format!("What's new · {} of {}", step + 1, steps.len()),
                 };
-                ui::hud(&mut col, &label.to_uppercase(), Some(p.primary_light));
+                ui::hud(&mut col, &label, Some(p.primary_light));
                 col.add_space(14.0);
                 let size_t = 28.0;
                 let mut job = egui::text::LayoutJob::single_section(
@@ -301,6 +323,12 @@ impl App {
         }
     }
 
+    pub fn debug_tour_at(&mut self, kind: Kind, step: usize) {
+        self.start_tour(kind);
+        if let Some(t) = self.tour.as_mut() {
+            t.step = step;
+        }
+    }
     pub fn debug_tour(&self) -> Option<(Kind, usize)> {
         self.tour.as_ref().map(|t| (t.kind, t.step))
     }
@@ -324,7 +352,11 @@ fn bar(painter: &egui::Painter, x: f32, y: f32, w: f32, c: Color32) {
 }
 
 fn tag(painter: &egui::Painter, at: Pos2, text: &str, c: Color32) {
-    theme::tracked_text(painter, at, text, theme::font_hud(theme::T_MICRO), c, 0.8);
+    painter.text(at, Align2::LEFT_CENTER, text, theme::font_semi(theme::T_MICRO + 1.0), c);
+}
+
+fn tag_w(painter: &egui::Painter, text: &str) -> f32 {
+    painter.layout_no_wrap(text.to_string(), theme::font_semi(theme::T_MICRO + 1.0), Color32::WHITE).rect.width()
 }
 
 fn sketch(painter: &egui::Painter, area: Rect, kind: Sketch, fade: &dyn Fn(Color32) -> Color32) {
@@ -347,20 +379,20 @@ fn sketch(painter: &egui::Painter, area: Rect, kind: Sketch, fade: &dyn Fn(Color
             let sheet = Rect::from_min_max(Pos2::new(area.left() + room, sheet.top()), Pos2::new(area.right(), sheet.bottom()));
             let inner = page(painter, sheet, fade);
             let rows: [(&str, f32, f32, bool); 5] = [
-                ("SCENE", 0.0, 0.7, true),
-                ("ACTION", 0.0, 0.95, false),
-                ("CHARACTER", 0.38, 0.22, true),
-                ("DIALOGUE", 0.18, 0.6, false),
-                ("ACTION", 0.0, 0.8, false),
+                ("Scene", 0.0, 0.7, true),
+                ("Action", 0.0, 0.95, false),
+                ("Character", 0.38, 0.22, true),
+                ("Dialogue", 0.18, 0.6, false),
+                ("Action", 0.0, 0.8, false),
             ];
             for (k, (name, x, w, bold)) in rows.iter().enumerate() {
                 let y = inner.top() + 14.0 + k as f32 * (inner.height() - 20.0) / 5.0;
                 bar(painter, inner.left() + inner.width() * x, y, inner.width() * w, if *bold { strong } else { ink });
-                tag(painter, Pos2::new(sheet.left() - 10.0 - theme::tracked_width(painter.ctx(), name, theme::font_hud(theme::T_MICRO), 0.8), y + 1.0), name, if k == 3 { blue } else { fade(p.text_faint) });
+                tag(painter, Pos2::new(sheet.left() - 10.0 - tag_w(painter, name), y + 1.0), name, if k == 3 { blue } else { fade(p.text_faint) });
             }
             let key = Rect::from_center_size(Pos2::new(sheet.right() - 26.0, sheet.bottom() - 22.0), Vec2::new(38.0, 22.0));
             painter.rect_stroke(key, egui::Rounding::same(4.0), Stroke::new(1.0_f32, blue));
-            painter.text(key.center(), Align2::CENTER_CENTER, "TAB", theme::font_mono(theme::T_MICRO), blue);
+            painter.text(key.center(), Align2::CENTER_CENTER, "Tab", theme::font_semi(theme::T_MICRO + 1.0), blue);
         }
         Sketch::Views => {
             let w = (area.width() - 16.0) / 3.0;
@@ -376,32 +408,34 @@ fn sketch(painter: &egui::Painter, area: Rect, kind: Sketch, fade: &dyn Fn(Color
                     }),
                     _ => (0..7).for_each(|i| bar(painter, inner.left() + if i % 3 == 1 { inner.width() * 0.3 } else { 0.0 }, inner.top() + i as f32 * 8.0, inner.width() * 0.6, ink)),
                 }
-                let name = ["WRITE", "CARDS", "READ"][k];
+                let name = ["Write", "Cards", "Read"][k];
                 tag(painter, Pos2::new(r.left(), r.bottom() + 14.0), name, if k == 1 { blue } else { fade(p.text_faint) });
             }
         }
         Sketch::Cards => {
-            let strip = Rect::from_min_size(Pos2::new(area.left(), area.center().y - 104.0), Vec2::new(area.width(), 12.0));
-            let lens = [3.0, 2.0, 4.0, 1.0, 3.0, 2.0, 3.0, 2.0];
-            let total: f32 = lens.iter().sum();
-            let mut x = strip.left();
-            for (k, l) in lens.iter().enumerate() {
-                let w = strip.width() * l / total;
-                painter.rect_filled(Rect::from_min_size(Pos2::new(x, strip.top()), Vec2::new(w - 1.5, strip.height())), egui::Rounding::same(theme::R_ROW), fade(p.group(k % 3)));
-                x += w;
+            let mut x = area.left();
+            for (k, name) in ["Inciting incident", "Midpoint", "Climax"].iter().enumerate() {
+                let w = tag_w(painter, name) + 16.0;
+                let chip = Rect::from_min_size(Pos2::new(x, area.top() + 10.0), Vec2::new(w, 20.0));
+                painter.rect_filled(chip, egui::Rounding::same(10.0), fade(theme::wash(p.primary, 46)));
+                painter.text(chip.center(), Align2::CENTER_CENTER, *name, theme::font_semi(theme::T_MICRO + 1.0), blue);
+                x = chip.right() + 6.0 + k as f32;
             }
-            let mid = strip.left() + strip.width() * 0.5;
-            painter.line_segment([Pos2::new(mid, strip.top() - 14.0), Pos2::new(mid, strip.bottom() + 4.0)], Stroke::new(1.0_f32, strong));
-            tag(painter, Pos2::new(mid + 4.0, strip.top() - 10.0), "MIDPOINT", strong);
-            let cw = (area.width() - 12.0) / 2.0;
-            for k in 0..4 {
-                let r = Rect::from_min_size(Pos2::new(area.left() + (k % 2) as f32 * (cw + 12.0), strip.bottom() + 22.0 + (k / 2) as f32 * 86.0), Vec2::new(cw, 74.0));
-                painter.rect_filled(r, egui::Rounding::same(theme::R_SM), fade(p.solid_hi));
-                painter.rect_stroke(r.shrink(0.5), egui::Rounding::same(theme::R_SM), Stroke::new(1.0_f32, fade(p.line)));
-                painter.rect_filled(Rect::from_min_size(r.min, Vec2::new(3.0, r.height())), egui::Rounding::same(theme::R_ROW), fade(p.group(k % 3)));
-                bar(painter, r.left() + 12.0, r.top() + 14.0, r.width() * 0.6, strong);
-                bar(painter, r.left() + 12.0, r.top() + 30.0, r.width() * 0.75, ink);
-                bar(painter, r.left() + 12.0, r.top() + 40.0, r.width() * 0.5, ink);
+            let gap = 10.0;
+            let w = (area.width() - 2.0 * gap) / 3.0;
+            let top = area.top() + 44.0;
+            for (k, (name, cards)) in [("Maria", 3usize), ("The heist", 2), ("Cole", 1)].iter().enumerate() {
+                let lane = Rect::from_min_size(Pos2::new(area.left() + k as f32 * (w + gap), top), Vec2::new(w, area.bottom() - top));
+                painter.rect_filled(lane, egui::Rounding::same(ncf::theme::R_MD), fade(if p.dark { p.solid } else { Color32::WHITE }));
+                painter.circle_filled(Pos2::new(lane.left() + 14.0, lane.top() + 16.0), 4.0, fade(p.group(k)));
+                tag(painter, Pos2::new(lane.left() + 24.0, lane.top() + 16.0), name, strong);
+                for c in 0..*cards {
+                    let r = Rect::from_min_size(Pos2::new(lane.left() + 7.0, lane.top() + 32.0 + c as f32 * 62.0), Vec2::new(w - 14.0, 54.0));
+                    painter.rect_filled(r, egui::Rounding::same(10.0), fade(p.raised));
+                    bar(painter, r.left() + 9.0, r.top() + 12.0, r.width() * 0.66, strong);
+                    bar(painter, r.left() + 9.0, r.top() + 24.0, r.width() * 0.8, ink);
+                    painter.rect_filled(Rect::from_min_size(Pos2::new(r.left() + 9.0, r.top() + 34.0), Vec2::new(24.0, 10.0)), egui::Rounding::same(5.0), fade(theme::wash(p.group(1), 70)));
+                }
             }
         }
         Sketch::Notes | Sketch::Panel => {
@@ -420,7 +454,7 @@ fn sketch(painter: &egui::Painter, area: Rect, kind: Sketch, fade: &dyn Fn(Color
             bar(painter, note.left() + 8.0, note.top() + 12.0, note.width() - 20.0, strong);
             bar(painter, note.left() + 8.0, note.top() + 24.0, note.width() * 0.5, ink);
             if matches!(kind, Sketch::Panel) {
-                tag(painter, Pos2::new(inner.left(), sheet.top() + 12.0), "NOTES / CHANGES", blue);
+                tag(painter, Pos2::new(inner.left(), sheet.top() + 12.0), "Notes · Changes", blue);
             }
         }
         Sketch::Revisions => {
@@ -450,7 +484,7 @@ fn sketch(painter: &egui::Painter, area: Rect, kind: Sketch, fade: &dyn Fn(Color
             let inner = page(painter, sheet, fade);
             let half = inner.width() * 0.46;
             for (k, x) in [inner.left(), inner.left() + inner.width() * 0.54].into_iter().enumerate() {
-                tag(painter, Pos2::new(x + half * 0.3, inner.top() + 30.0), ["MARIA", "JONAS"][k], strong);
+                tag(painter, Pos2::new(x + half * 0.3, inner.top() + 30.0), ["Maria", "Jonas"][k], strong);
                 for i in 0..4 {
                     bar(painter, x, inner.top() + 46.0 + i as f32 * 9.0, half * if i == 3 { 0.5 } else { 0.95 }, ink);
                 }
@@ -464,7 +498,7 @@ fn sketch(painter: &egui::Painter, area: Rect, kind: Sketch, fade: &dyn Fn(Color
             painter.rect_stroke(field.shrink(0.5), egui::Rounding::same(theme::R_SM), Stroke::new(1.0_f32, blue));
             crate::icons::draw(painter, Rect::from_center_size(Pos2::new(field.left() + 16.0, field.center().y), Vec2::splat(12.0)), crate::icons::Icon::Search, blue);
             painter.text(Pos2::new(field.left() + 30.0, field.center().y), Align2::LEFT_CENTER, "kettle", theme::font(theme::T_SM), strong);
-            let rows = [("MARIA", 0.39), ("COLE", 0.36), ("JONAS", 0.25)];
+            let rows = [("Maria", 0.39), ("Cole", 0.36), ("Jonas", 0.25)];
             for (k, (name, share)) in rows.iter().enumerate() {
                 let y = field.bottom() + 36.0 + k as f32 * 34.0;
                 tag(painter, Pos2::new(area.left(), y), name, strong);
@@ -476,30 +510,85 @@ fn sketch(painter: &egui::Painter, area: Rect, kind: Sketch, fade: &dyn Fn(Color
         Sketch::Look => {
             let back = Rect::from_center_size(area.center(), Vec2::new(area.width(), area.height().min(area.width() * 1.05)));
             painter.rect_filled(back, egui::Rounding::same(ncf::theme::R_MD), fade(p.sunken));
-            let bar_r = Rect::from_min_size(back.min + Vec2::new(14.0, 14.0), Vec2::new(back.width() - 28.0, 30.0));
-            painter.rect_filled(bar_r, egui::Rounding::same(15.0), fade(p.raised));
-            painter.rect_stroke(bar_r.shrink(0.5), egui::Rounding::same(15.0), Stroke::new(1.0_f32, fade(p.line_strong)));
-            let seg = (bar_r.width() * 0.55) / 3.0;
-            for k in 0..3 {
-                let r = Rect::from_min_size(Pos2::new(bar_r.left() + 5.0 + k as f32 * seg, bar_r.top() + 5.0), Vec2::new(seg - 4.0, 20.0));
-                if k == 0 {
-                    painter.rect_filled(r, egui::Rounding::same(10.0), strong);
+            let side = Rect::from_min_size(back.min + Vec2::new(10.0, 10.0), Vec2::new(back.width() * 0.24, back.height() - 20.0));
+            painter.rect_filled(side, egui::Rounding::same(12.0), fade(p.raised));
+            painter.rect_filled(Rect::from_min_size(side.min + Vec2::new(6.0, 8.0), Vec2::new(side.width() - 12.0, 16.0)), egui::Rounding::same(8.0), fade(p.primary));
+            for i in 0..4 {
+                let y = side.top() + 38.0 + i as f32 * 16.0;
+                if i == 1 {
+                    painter.rect_filled(Rect::from_min_size(Pos2::new(side.left() + 5.0, y - 5.0), Vec2::new(side.width() - 10.0, 13.0)), egui::Rounding::same(6.5), strong);
                 } else {
-                    bar(painter, r.left() + seg * 0.2, r.center().y - 1.5, seg * 0.5, ink);
+                    bar(painter, side.left() + 10.0, y, side.width() * 0.5, ink);
                 }
             }
-            for k in 0..3 {
-                painter.circle_filled(Pos2::new(bar_r.right() - 16.0 - k as f32 * 18.0, bar_r.center().y), 4.0, ink);
-            }
-            let sheet = Rect::from_min_max(Pos2::new(back.left() + 30.0, bar_r.bottom() + 16.0), Pos2::new(back.right() - 30.0, back.bottom() - 14.0));
-            painter.rect_filled(sheet, egui::Rounding::same(ncf::theme::R_MD), fade(if p.dark { p.solid_hi } else { Color32::WHITE }));
-            let inner = sheet.shrink2(Vec2::new(sheet.width() * 0.14, 20.0));
-            for i in 0..7 {
-                let y = inner.top() + i as f32 * 16.0;
+            let main = Rect::from_min_max(Pos2::new(side.right() + 8.0, side.top()), Pos2::new(back.right() - 10.0, side.bottom()));
+            let tools = Rect::from_min_size(main.min, Vec2::new(main.width(), 22.0));
+            painter.rect_filled(tools, egui::Rounding::same(11.0), fade(p.raised));
+            painter.rect_filled(Rect::from_min_size(tools.min + Vec2::new(tools.width() * 0.16, 4.0), Vec2::new(tools.width() * 0.16, 14.0)), egui::Rounding::same(7.0), strong);
+            painter.rect_filled(Rect::from_min_size(Pos2::new(tools.right() - 34.0, tools.top() + 4.0), Vec2::new(28.0, 14.0)), egui::Rounding::same(7.0), fade(p.primary));
+            let tabs_w = main.width() * 0.3;
+            let page = Rect::from_min_max(Pos2::new(main.left(), tools.bottom() + 8.0), Pos2::new(main.right() - tabs_w - 8.0, main.bottom() - 24.0));
+            painter.rect_filled(page, egui::Rounding::same(ncf::theme::R_SM), fade(if p.dark { p.solid_hi } else { Color32::WHITE }));
+            let inner = page.shrink2(Vec2::new(page.width() * 0.14, 14.0));
+            for i in 0..8 {
+                let y = inner.top() + i as f32 * 13.0;
                 if y > inner.bottom() {
                     break;
                 }
                 bar(painter, inner.left() + if i % 3 == 1 { inner.width() * 0.3 } else { 0.0 }, y, inner.width() * if i == 0 { 0.6 } else if i % 3 == 1 { 0.4 } else { 0.9 }, if i == 0 { strong } else { ink });
+            }
+            let tabs = Rect::from_min_max(Pos2::new(page.right() + 8.0, page.top()), Pos2::new(main.right(), page.bottom()));
+            painter.rect_filled(tabs, egui::Rounding::same(10.0), fade(p.raised));
+            for i in 0..4 {
+                let y = tabs.top() + 14.0 + i as f32 * 16.0;
+                painter.rect_filled(Rect::from_min_size(Pos2::new(tabs.left() + 6.0, y - 4.0), Vec2::new(9.0, 9.0)), egui::Rounding::same(3.0), if i == 0 { fade(p.primary) } else { ink });
+                bar(painter, tabs.left() + 20.0, y - 1.0, tabs.width() * 0.55, ink);
+            }
+            let status = Rect::from_min_size(Pos2::new(main.left(), main.bottom() - 16.0), Vec2::new(main.width(), 16.0));
+            painter.rect_filled(status, egui::Rounding::same(8.0), fade(p.raised));
+        }
+        Sketch::Palette => {
+            let win = Rect::from_center_size(area.center(), Vec2::new(area.width(), (area.height() * 0.8).min(250.0)));
+            painter.rect_filled(win, egui::Rounding::same(ncf::theme::R_MD), fade(if p.dark { p.solid_hi } else { Color32::WHITE }));
+            painter.rect_stroke(win.shrink(0.5), egui::Rounding::same(ncf::theme::R_MD), Stroke::new(1.0_f32, fade(p.line_strong)));
+            let field = Rect::from_min_size(win.min + Vec2::new(10.0, 10.0), Vec2::new(win.width() - 20.0, 28.0));
+            painter.rect_filled(field, egui::Rounding::same(14.0), fade(p.raised));
+            crate::icons::draw(painter, Rect::from_center_size(Pos2::new(field.left() + 16.0, field.center().y), Vec2::splat(12.0)), crate::icons::Icon::Search, ink);
+            painter.text(Pos2::new(field.left() + 30.0, field.center().y), Align2::LEFT_CENTER, "garage", theme::font(theme::T_SM), strong);
+            let rows = [("Scenes", "INT. GARAGE - NIGHT", true), ("Scenes", "EXT. GARAGE - DAWN", false), ("Commands", "Quick Export (PDF)", false)];
+            let mut y = field.bottom() + 10.0;
+            let mut last = "";
+            for (head, line, on) in rows {
+                let first = head != last;
+                last = head;
+                if first {
+                    tag(painter, Pos2::new(win.left() + 14.0, y + 6.0), head, fade(p.text_faint));
+                    y += 16.0;
+                }
+                let r = Rect::from_min_size(Pos2::new(win.left() + 6.0, y), Vec2::new(win.width() - 12.0, 30.0));
+                if on {
+                    painter.rect_filled(r, egui::Rounding::same(8.0), fade(p.raised));
+                }
+                let chip = Rect::from_center_size(Pos2::new(r.left() + 16.0, r.center().y), Vec2::splat(20.0));
+                painter.rect_filled(chip, egui::Rounding::same(6.0), if on { fade(p.primary) } else { fade(p.raised) });
+                let icon = if head == "Commands" { crate::icons::Icon::Sparkle } else { crate::icons::Icon::List };
+                crate::icons::draw(painter, chip.shrink(5.0), icon, if on { fade(p.ink) } else { ink });
+                painter.text(Pos2::new(chip.right() + 10.0, r.center().y), Align2::LEFT_CENTER, line, theme::font_semi(theme::T_CAP), strong);
+                y = r.bottom() + 2.0;
+            }
+        }
+        Sketch::Week => {
+            let gap = 10.0;
+            let w = (area.width() - gap) / 2.0;
+            let h = (area.height() * 0.62).min(w * 1.1);
+            let top = area.center().y - h * 0.5;
+            let tiles = [(p.tile(1), "This week", "1,240", "words written"), (p.tile(2), "Next deadline", "4 days", "Pilot draft due")];
+            for (k, (fill, eyebrow, big, small)) in tiles.into_iter().enumerate() {
+                let r = Rect::from_min_size(Pos2::new(area.left() + k as f32 * (w + gap), top), Vec2::new(w, h));
+                painter.rect_filled(r, egui::Rounding::same(ncf::theme::R_MD + 4.0), fade(fill));
+                tag(painter, Pos2::new(r.left() + 14.0, r.top() + 20.0), eyebrow, fade(p.on_tile));
+                painter.text(Pos2::new(r.left() + 14.0, r.bottom() - 40.0), Align2::LEFT_BOTTOM, big, theme::font_display(28.0), fade(p.on_tile));
+                tag(painter, Pos2::new(r.left() + 14.0, r.bottom() - 24.0), small, fade(p.on_tile));
             }
         }
         Sketch::Appearance => {
@@ -524,12 +613,12 @@ fn sketch(painter: &egui::Painter, area: Rect, kind: Sketch, fade: &dyn Fn(Color
             let pill = Rect::from_center_size(Pos2::new(area.center().x, top + h + 34.0), Vec2::new(area.width().min(240.0), 30.0));
             painter.rect_filled(pill, egui::Rounding::same(15.0), fade(p.raised));
             let seg = (pill.width() - 8.0) / 3.0;
-            for (k, name) in ["SYSTEM", "LIGHT", "DARK"].iter().enumerate() {
+            for (k, name) in ["System", "Light", "Dark"].iter().enumerate() {
                 let r = Rect::from_min_size(Pos2::new(pill.left() + 4.0 + k as f32 * seg, pill.top() + 4.0), Vec2::new(seg, 22.0));
                 if k == 0 {
                     painter.rect_filled(r, egui::Rounding::same(11.0), strong);
                 }
-                let wn = theme::tracked_width(painter.ctx(), name, theme::font_hud(theme::T_MICRO), 0.8);
+                let wn = tag_w(painter, name);
                 tag(painter, Pos2::new(r.center().x - wn * 0.5, r.center().y), name, if k == 0 { fade(p.solid) } else { ink });
             }
         }

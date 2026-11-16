@@ -214,7 +214,7 @@ pub fn show(
         let here: Vec<&str> = beat_tags.iter().filter(|(b, _)| *b == k).map(|(_, n)| *n).collect();
         if let Some(first) = here.first() {
             let font = theme::font_hud(theme::T_MICRO);
-            let up = if here.len() > 1 { format!("{} +{}", first.to_uppercase(), here.len() - 1) } else { first.to_uppercase() };
+            let up = if here.len() > 1 { format!("{first} +{}", here.len() - 1) } else { first.to_string() };
             let w = theme::tracked_width(ui.ctx(), &up, font.clone(), 0.8);
             let at = Pos2::new(r.right() - w - 4.0, r.top() - 8.0);
             ui.painter().rect_filled(Rect::from_center_size(Pos2::new(at.x - 8.0, at.y), Vec2::splat(5.0)), egui::Rounding::same(theme::R_ROW), theme::wash(p.primary_light, (255.0 * fade) as u8));
@@ -293,7 +293,7 @@ pub fn show(
         Icon::Plus,
         theme::mix(p.text_dim, p.text, hot),
     );
-    let label = "NEW SCENE";
+    let label = "New scene";
     let font = theme::font_hud(theme::T_CAP);
     let lw = theme::tracked_width(ui.ctx(), label, font.clone(), 0.9);
     theme::tracked_text(
@@ -471,7 +471,7 @@ fn beat_bar(
     // storylines legend here---
     let row = Rect::from_min_size(Pos2::new(left, y), Vec2::new(w, 26.0));
     let hud = theme::font_hud(theme::T_MICRO);
-    let mut x = left + theme::tracked_text(ui.painter(), Pos2::new(left, row.center().y), "STORYLINES", hud.clone(), p.text_faint, 0.8) + 14.0;
+    let mut x = left + theme::tracked_text(ui.painter(), Pos2::new(left, row.center().y), "Storylines", hud.clone(), p.text_faint, 0.8) + 14.0;
     let mut right = ui.new_child(egui::UiBuilder::new().max_rect(row).layout(egui::Layout::right_to_left(egui::Align::Center)));
     let naming = st.naming.is_some();
     if ui::quiet_button(&mut right, if naming { "Done" } else { "Name" }, Some(if naming { Icon::Check } else { Icon::Pencil })) {
@@ -610,7 +610,7 @@ fn beat_bar(
                 ui.painter().line_segment([Pos2::new(x, yy), Pos2::new(x, (yy + 3.0).min(track.bottom() + 2.0))], egui::Stroke::new(1.0_f32, p.primary_light));
                 yy += 5.0;
             }
-            let label = format!("{} · P.{page}", name.to_uppercase());
+            let label = format!("{name} · p. {page}");
             let lw = theme::tracked_width(ui.ctx(), &label, hud.clone(), 0.7);
             let ly = y + 6.0 + if i % 2 == 0 { 0.0 } else { 13.0 };
             let lx = (x - lw * 0.5).clamp(left, left + w - lw);
@@ -657,7 +657,7 @@ fn act_ribbon(ui: &mut egui::Ui, rect: Rect, a: &ActSpan, note: &str) -> bool {
     let mut x = rect.left() + 24.0 + w + 16.0;
     if !note.is_empty() {
         let font = theme::font_hud(theme::T_MICRO + 0.5);
-        let up = note.to_uppercase();
+        let up = note.to_string();
         let nw = theme::tracked_width(ui.ctx(), &up, font.clone(), 0.8);
         if x + nw + 40.0 < rect.right() {
             theme::tracked_text(ui.painter(), Pos2::new(x, cy), &up, font, p.text_faint, 0.8);
@@ -748,7 +748,7 @@ fn draw_card(
     theme::tracked_text(
         &clip,
         Pos2::new(r.left() + 14.0, r.bottom() - 16.0),
-        &ui::elide_to_width(ui.ctx(), &foot.to_uppercase(), foot_font.clone(), 0.6, r.width() - 28.0),
+        &ui::elide_to_width(ui.ctx(), &foot, foot_font.clone(), 0.6, r.width() - 28.0),
         foot_font,
         theme::wash(p.text_faint, (255.0 * fade) as u8),
         0.6,

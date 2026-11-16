@@ -678,7 +678,7 @@ impl App {
                 let mut job = egui::text::LayoutJob::default();
                 let plain = egui::TextFormat { font_id: font.clone(), color: p.text_dim, ..Default::default() };
                 if h.note {
-                    job.append("NOTE  ", 0.0, egui::TextFormat { font_id: theme::font_mono(theme::T_CAP), color: p.primary_light, ..Default::default() });
+                    job.append("Note  ", 0.0, egui::TextFormat { font_id: theme::font_semi(theme::T_CAP), color: p.primary_light, ..Default::default() });
                 }
                 job.append(&cut(0, h.start), 0.0, plain.clone());
                 job.append(
