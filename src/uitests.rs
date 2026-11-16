@@ -292,6 +292,97 @@ fn ctrl_shift_f_searches_every_script_from_home() {
     assert!(h.ctx.memory(|m| m.has_focus(egui::Id::new("ns-home-search"))));
 }
 
+// palette here---
+
+#[test]
+fn ctrl_k_opens_the_palette_and_typing_never_reaches_the_page() {
+    let mut h = Harness::new();
+    h.load(three_scenes());
+    let id = h.app.doc().blocks[2].id;
+    h.focus(id);
+    let before = h.app.doc().clone();
+    h.press(Key::K, Modifiers::COMMAND);
+    h.frames(2);
+    assert!(h.app.debug_palette_open());
+    assert!(h.app.debug_palette_rect().width() > 300.0);
+    assert_eq!(h.app.debug_note_open(), None, "Ctrl+K no longer adds a note");
+    h.type_text("zz");
+    h.press(Key::Enter, Modifiers::NONE);
+    h.frames(2);
+    assert_eq!(h.app.doc().blocks, before.blocks, "nothing typed in the palette reaches the page");
+    h.press(Key::Escape, Modifiers::NONE);
+    h.frames(2);
+    assert!(!h.app.debug_palette_open(), "Esc closes it");
+    h.type_text(" Again.");
+    assert!(h.app.doc().blocks[2].text.ends_with("Again."), "and the caret is back where it was");
+}
+
+#[test]
+fn the_palette_finds_a_scene_and_enter_takes_you_there() {
+    let mut h = Harness::new();
+    h.load(three_scenes());
+    let rows = h.app.debug_palette_rows("three");
+    assert!(rows.iter().any(|(s, t)| s == "Scenes" && t == "INT. THREE - DAWN"), "{rows:?}");
+    h.press(Key::K, Modifiers::COMMAND);
+    h.frames(2);
+    h.type_text("dawn");
+    h.frames(1);
+    h.press(Key::Enter, Modifiers::NONE);
+    h.frames(3);
+    assert!(!h.app.debug_palette_open());
+    assert_eq!(h.app.mode(), Mode::Write);
+    let want = h.app.doc().blocks[5].id;
+    assert_eq!(h.app.debug_focus_block(), Some(want));
+}
+
+#[test]
+fn the_palette_runs_a_command_and_arrows_move_the_pick() {
+    let mut h = Harness::new();
+    h.load(three_scenes());
+    let rows = h.app.debug_palette_rows("title page");
+    assert_eq!(rows.first().map(|r| r.0.as_str()), Some("Commands"), "{rows:?}");
+    h.press(Key::K, Modifiers::COMMAND);
+    h.frames(2);
+    h.type_text("title page");
+    h.frames(1);
+    h.press(Key::Enter, Modifiers::NONE);
+    h.frames(2);
+    assert!(!h.app.debug_palette_open());
+    assert!(h.app.debug_title_sheet_open(), "Enter ran the command");
+    h.press(Key::Escape, Modifiers::NONE);
+    h.frames(2);
+    h.press(Key::K, Modifiers::COMMAND);
+    h.frames(2);
+    let rows = h.app.debug_palette_row_rects();
+    assert!(rows.len() >= 2, "{rows:?}");
+    h.press(Key::ArrowDown, Modifiers::NONE);
+    h.press(Key::ArrowUp, Modifiers::NONE);
+    h.press(Key::ArrowUp, Modifiers::NONE);
+    h.frames(1);
+    assert!(h.app.debug_palette_open(), "arrows move the pick, they never close it");
+    h.press(Key::K, Modifiers::COMMAND);
+    h.frames(2);
+    assert!(!h.app.debug_palette_open(), "Ctrl+K again puts it away");
+}
+
+#[test]
+fn the_palette_opens_from_home_and_a_click_outside_closes_it() {
+    let mut h = Harness::new();
+    h.load(three_scenes());
+    h.app.debug_go_home();
+    h.frames(2);
+    h.press(Key::K, Modifiers::COMMAND);
+    h.frames(3);
+    assert!(h.app.debug_palette_open());
+    let rows = h.app.debug_palette_rows("");
+    assert!(rows.iter().any(|(s, t)| s == "Scripts" && t == "Three Scenes"), "{rows:?}");
+    assert!(rows.iter().all(|(s, _)| s != "Scenes"), "no scenes from Home");
+    let rect = h.app.debug_palette_rect();
+    h.click(Pos2::new(rect.center().x, rect.bottom() + 40.0));
+    h.frames(2);
+    assert!(!h.app.debug_palette_open());
+}
+
 // writing here---
 
 #[test]

@@ -642,7 +642,7 @@ impl App {
         }
     }
 
-    fn found_for(&mut self, needle: &str) -> Vec<Found> {
+    pub(super) fn found_for(&mut self, needle: &str) -> Vec<Found> {
         if needle.chars().count() < 2 {
             return Vec::new();
         }

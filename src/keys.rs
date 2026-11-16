@@ -28,13 +28,14 @@ pub enum Command {
     DualDialogue,
     AddNote,
     Reports,
+    Palette,
     Element(u8),
 }
 
 use Command::*;
 
 impl Command {
-    pub const ALL: [Command; 28] = [
+    pub const ALL: [Command; 29] = [
         Save,
         NewScript,
         NewScene,
@@ -56,6 +57,7 @@ impl Command {
         DualDialogue,
         AddNote,
         Reports,
+        Palette,
         Element(1),
         Element(2),
         Element(3),
@@ -88,6 +90,7 @@ impl Command {
             DualDialogue => "dual_dialogue".into(),
             AddNote => "add_note".into(),
             Reports => "reports".into(),
+            Palette => "palette".into(),
             Element(n) => format!("element_{n}"),
         }
     }
@@ -110,15 +113,16 @@ impl Command {
             ExportWindow => "Export…".into(),
             NextView => "Next view (Write, Cards, Read)".into(),
             FocusMode => "Focus mode".into(),
-            ToggleLibrary => "Show or hide Notes and Changes".into(),
-            ToggleDetails => "Show or hide Details".into(),
-            ToggleScenes => "Show or hide Scenes".into(),
+            ToggleLibrary => "Show or hide the library sidebar".into(),
+            ToggleDetails => "Title page".into(),
+            ToggleScenes => "Show or hide Scenes, notes and cast".into(),
             Settings => "Settings".into(),
             Bigger => "Larger page text".into(),
             Smaller => "Smaller page text".into(),
             DualDialogue => "Dual dialogue".into(),
             AddNote => "Add a note".into(),
             Reports => "Reports".into(),
+            Palette => "Search or jump to…".into(),
             Element(n) => Element::from_digit(n as usize).map(|e| e.label()).unwrap_or("Element").to_string(),
         }
     }
@@ -127,7 +131,7 @@ impl Command {
         match self {
             Save | NewScript | NewScene | NewAct | Undo | Redo | Find | FindScripts | DualDialogue | AddNote => "Writing",
             QuickExport | ExportWindow => "Export",
-            NextView | FocusMode | ToggleLibrary | ToggleDetails | ToggleScenes | Settings | Bigger | Smaller | Reports => {
+            NextView | FocusMode | ToggleLibrary | ToggleDetails | ToggleScenes | Settings | Bigger | Smaller | Reports | Palette => {
                 "Views and panels"
             }
             Element(_) => "Elements",
@@ -166,7 +170,8 @@ impl Command {
             Bigger => vec![c(cmd, Key::Plus), c(cmd, Key::Equals)],
             Smaller => vec![c(cmd, Key::Minus)],
             DualDialogue => vec![c(cmd, Key::D)],
-            AddNote => vec![c(cmd, Key::M), c(cmd, Key::K)],
+            AddNote => vec![c(cmd, Key::M)],
+            Palette => vec![c(cmd, Key::K)],
             Reports => vec![c(cmd_shift, Key::R)],
             Element(n) => {
                 let k = DIGITS[(n as usize).clamp(1, 7) - 1];

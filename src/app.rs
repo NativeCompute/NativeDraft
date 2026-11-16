@@ -33,6 +33,7 @@ mod cloudui;
 mod cloudui;
 mod keyboard;
 mod notes;
+mod palette;
 mod reports;
 mod imported;
 pub mod onboarding;
@@ -229,6 +230,9 @@ pub struct App {
     status_rect: Rect,
     title_sheet: bool,
     title_sheet_rect: Rect,
+    palette: Option<palette::Palette>,
+    palette_rect: Rect,
+    palette_rows_drawn: Vec<Rect>,
     home_starred: bool,
     home_all: bool,
     words_dirty: bool,
@@ -401,6 +405,9 @@ impl App {
             status_rect: Rect::NOTHING,
             title_sheet: false,
             title_sheet_rect: Rect::NOTHING,
+            palette: None,
+            palette_rect: Rect::NOTHING,
+            palette_rows_drawn: Vec::new(),
             home_starred: false,
             home_all: false,
             words_dirty: false,
@@ -1188,7 +1195,7 @@ impl App {
                 Mode::Read => format!("{} · Read", self.title_or_untitled()),
             }
         };
-        let chord = self.keys_for(keys::Command::FindScripts);
+        let chord = self.keys_for(keys::Command::Palette);
         let mut search = false;
         egui::TopBottomPanel::top("ns-ribbon")
             .exact_height(chrome::TITLE_H + 6.0)
@@ -1214,10 +1221,6 @@ impl App {
         if search {
             self.open_palette();
         }
-    }
-
-    pub(super) fn open_palette(&mut self) {
-        self.run(keys::Command::FindScripts);
     }
 
     // library rail here---
@@ -3477,6 +3480,7 @@ impl App {
                 }
             }
             C::Reports => self.open_reports(),
+            C::Palette => self.open_palette(),
             C::Element(n) => {
                 if !self.guard_edit() {
                     return;
@@ -3493,10 +3497,11 @@ impl App {
     fn home_shortcuts(&mut self, ctx: &egui::Context) {
         use egui::Key;
         use keys::Command as C;
-        for (cmd, chord) in self.settings.keys.listen(&[C::NewScript, C::Settings], crate::WEB) {
+        for (cmd, chord) in self.settings.keys.listen(&[C::NewScript, C::Settings, C::Palette], crate::WEB) {
             if ctx.input_mut(|i| i.consume_shortcut(&chord)) {
                 match cmd {
                     C::NewScript if self.can_write() => self.new_script(),
+                    C::Palette => self.open_palette(),
                     C::Settings => self.toggle_popover(Popover::Settings),
                     _ => {}
                 }
@@ -3633,6 +3638,8 @@ impl App {
             self.tour_keys(ctx);
         } else if self.key_capture.is_some() {
             self.capture_chord(ctx);
+        } else if self.palette.is_some() {
+            self.palette_keys(ctx);
         } else if !self.deck.asking() {
             if self.home {
                 self.home_shortcuts(ctx);
@@ -3680,6 +3687,7 @@ impl App {
         }
         self.popovers(ctx);
         self.title_sheet(ctx);
+        self.palette_overlay(ctx);
         self.tour_overlay(ctx);
         self.debug_panel(ctx);
         chrome::resize_handles(ctx);
@@ -3890,6 +3898,18 @@ impl App {
     pub fn debug_title_sheet_open(&self) -> bool {
         self.title_sheet
     }
+    pub fn debug_palette_open(&self) -> bool {
+        self.palette.is_some()
+    }
+    pub fn debug_palette_rect(&self) -> Rect {
+        self.palette_rect
+    }
+    pub fn debug_palette_rows(&mut self, query: &str) -> Vec<(String, String)> {
+        self.palette_rows(query).into_iter().map(|r| (r.section.to_string(), r.title)).collect()
+    }
+    pub fn debug_palette_row_rects(&self) -> Vec<Rect> {
+        self.palette_rows_drawn.clone()
+    }
     pub fn debug_side_rect(&self) -> Rect {
         self.side_rect
     }
@@ -3931,6 +3951,9 @@ impl App {
     }
     pub fn debug_open_from_home(&mut self, path: PathBuf) {
         self.open_from_home(path);
+    }
+    pub fn debug_focus_block(&self) -> Option<u64> {
+        self.ed.focus_block
     }
     pub fn debug_go_home(&mut self) {
         self.go_home();
@@ -3995,6 +4018,13 @@ impl App {
     }
     pub fn debug_close_popover(&mut self) {
         self.popover = None;
+        self.palette = None;
+    }
+    pub fn debug_open_palette(&mut self, query: &str) {
+        self.open_palette();
+        if let Some(p) = self.palette.as_mut() {
+            p.query = query.to_string();
+        }
     }
     pub fn debug_open_voice_picker(&mut self, name: &str) {
         self.open_voice_picker(name, Pos2::new(400.0, 300.0));

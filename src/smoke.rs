@@ -121,15 +121,17 @@ enum Step {
     Import,
     Revision,
     Find,
+    Palette,
     LightHome,
     LightWrite,
     LightCards,
     LightRead,
     LightSettings,
+    LightPalette,
     Quit,
 }
 
-const STEPS: [Step; 18] = [
+const STEPS: [Step; 20] = [
     Step::Splash,
     Step::Tour,
     Step::Home,
@@ -142,11 +144,13 @@ const STEPS: [Step; 18] = [
     Step::Import,
     Step::Revision,
     Step::Find,
+    Step::Palette,
     Step::LightHome,
     Step::LightWrite,
     Step::LightCards,
     Step::LightRead,
     Step::LightSettings,
+    Step::LightPalette,
     Step::Quit,
 ];
 
@@ -290,8 +294,15 @@ impl Smoke {
                 app.debug_go_home();
                 app.debug_home_search("kettle");
             }
-            Step::LightHome => {
+            Step::Palette => {
                 app.debug_home_search("");
+                let lib = library(&self.dir);
+                app.debug_open_from_home(lib.join("scripts/the-long-way-down.md"));
+                app.debug_open_palette("");
+            }
+            Step::LightHome => {
+                app.debug_close_popover();
+                app.debug_go_home();
                 app.debug_set_appearance(ncf::settings::Appearance::Light);
             }
             Step::LightWrite => {
@@ -303,6 +314,10 @@ impl Smoke {
             Step::LightSettings => {
                 app.set_mode(Mode::Write);
                 app.debug_run(Command::Settings);
+            }
+            Step::LightPalette => {
+                app.debug_close_popover();
+                app.debug_open_palette("int");
             }
             Step::Quit => {
                 app.debug_close_popover();
