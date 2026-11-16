@@ -23,7 +23,7 @@ use crate::storage::{self, Entry};
 use crate::theme::{self, pal};
 use crate::ui;
 
-mod home;
+pub(crate) mod home;
 mod team;
 #[cfg(not(target_arch = "wasm32"))]
 mod cloudui;
@@ -153,6 +153,7 @@ pub struct App {
     focus_home_search: bool,
     home_sel: usize,
     home_order: Vec<PathBuf>,
+    left_off: Option<(PathBuf, usize, String)>,
     home_keyed: bool,
     home_hits: Option<(String, Vec<storage::Found>)>,
     hit_rows: Vec<(PathBuf, usize, Rect)>,
@@ -326,6 +327,7 @@ impl App {
             focus_home_search: false,
             home_sel: 0,
             home_order: Vec::new(),
+            left_off: None,
             home_keyed: false,
             home_hits: None,
             hit_rows: Vec::new(),
@@ -500,7 +502,11 @@ impl App {
         };
 
         if allow_rename {
-            path = self.store.follow_title(&path, &self.doc.meta.title);
+            let next = self.store.follow_title(&path, &self.doc.meta.title);
+            if next != path && self.doc.meta.cover.is_none() {
+                self.doc.meta.cover = Some(storage::stem_cover(&path));
+            }
+            path = next;
         }
 
         match self.store.save(&path, &self.doc) {
@@ -1495,11 +1501,29 @@ impl App {
         self.left_panel(ctx);
     }
 
+    pub(super) fn set_cover(&mut self, path: &Path, cover: usize) {
+        let cover = cover % storage::COVERS.len();
+        if !self.home && self.path.as_deref() == Some(path) {
+            if !self.access.can_edit() || !self.guard_edit() {
+                return;
+            }
+            self.doc.meta.cover = Some(cover);
+            self.mark_changed();
+            self.save(false);
+        } else if let Err(e) = self.store.set_cover(path, cover) {
+            self.deck.warn(&e, "Cloud scripts take a new cover while they're open, so nobody's edits cross.");
+            return;
+        }
+        self.refresh_entries();
+    }
+
     fn row_menu(&mut self, ctx: &egui::Context) {
         let Some((path, at, opened)) = self.rail.menu.clone() else {
             return;
         };
         let starred = self.entries.iter().find(|e| e.path == path).map(|e| e.starred).unwrap_or(false);
+        let cover = self.entries.iter().find(|e| e.path == path).map(storage::cover_of).unwrap_or_else(|| storage::stem_cover(&path));
+        let mut recover = None;
         let team = self.store.team().is_some() || self.store.place(&path).is_some();
         let write = self.can_write();
         let mut close = false;
@@ -1538,6 +1562,14 @@ impl App {
                         close = true;
                     }
                     if write {
+                        ui.add_space(4.0);
+                        if let Some(c) = home::cover_swatches(ui, cover, true) {
+                            recover = Some(c);
+                            close = true;
+                        }
+                        ui.add_space(2.0);
+                    }
+                    if write {
                         if let Some(m) = self.move_items(ui, &mut rects, &path) {
                             moving = Some(m);
                             close = true;
@@ -1559,6 +1591,9 @@ impl App {
             || ctx.input(|i| i.key_pressed(egui::Key::Escape))
         {
             self.rail.menu = None;
+        }
+        if let Some(c) = recover {
+            self.set_cover(&path, c);
         }
         if let Some(m) = moving {
             self.do_move(&path, m);
@@ -1733,6 +1768,19 @@ impl App {
         }
         if edited {
             self.mark_changed();
+        }
+
+        ui.add_space(6.0);
+        ui::section(ui, "Cover");
+        let cover = self
+            .doc
+            .meta
+            .cover
+            .unwrap_or_else(|| self.path.as_deref().map(storage::stem_cover).unwrap_or(0));
+        if let Some(c) = home::cover_swatches(ui, cover, can_edit) {
+            if let Some(path) = self.path.clone() {
+                self.set_cover(&path, c);
+            }
         }
 
         ui.add_space(6.0);
@@ -4357,6 +4405,12 @@ impl App {
     }
     pub fn debug_home_order(&self) -> Vec<PathBuf> {
         self.home_order.clone()
+    }
+    pub fn debug_set_cover(&mut self, path: &Path, cover: usize) {
+        self.set_cover(path, cover);
+    }
+    pub fn debug_left_off(&self) -> Option<(PathBuf, usize, String)> {
+        self.left_off.clone()
     }
     pub fn debug_capture_keys(&mut self, cmd: keys::Command) {
         self.key_capture = Some(cmd);

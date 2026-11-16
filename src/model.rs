@@ -145,6 +145,7 @@ pub struct Meta {
     pub contact: String,
     pub draft: String,
     pub starred: bool,
+    pub cover: Option<usize>,
     pub voices: Vec<(String, u16)>,
     pub storylines: Vec<(usize, String)>,
     pub revision: Option<usize>,

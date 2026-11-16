@@ -305,6 +305,7 @@ fn new_scripts_go_to_the_chosen_space_and_trash_comes_back() {
     a.set_starred(&key, true).unwrap();
     drain(&mut a);
     assert!(a.list().iter().find(|e| e.path == key).unwrap().starred);
+    assert_eq!(a.set_cover(&key, 2).unwrap_err(), crate::backend::COVER_WHEN_OPEN, "a closed cloud script keeps its cover");
     a.delete(&key).unwrap();
     assert_eq!(a.list().len(), 1);
     let trash = a.trash().unwrap();

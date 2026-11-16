@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use eframe::egui::{self, Align, Layout, Pos2, Rect, Sense, Stroke, Vec2};
+use eframe::egui::{self, Align, Color32, Layout, Pos2, Rect, Rounding, Sense, Stroke, Vec2};
 use web_time::Instant;
 
 use super::{new_script_button, relative_time, youtrack_button, App, Popover};
@@ -13,11 +13,13 @@ use crate::ui;
 
 const CARD_W: f32 = 268.0;
 const CARD_H: f32 = 132.0;
-const T_CONTINUE: f32 = 22.0;
-const CONTINUE_RIGHT: f32 = 150.0;
-const HERO_T: f32 = 34.0;
-const HERO_T_MIN: f32 = 22.0;
+const TILE_H: f32 = 168.0;
+const T_TILE_TITLE: f32 = 30.0;
+const T_BIG: f32 = 46.0;
+const HERO_T: f32 = 40.0;
+const HERO_T_MIN: f32 = 24.0;
 const HERO_BUTTONS: f32 = 300.0;
+const SCRIPTS_PAD: f32 = 20.0;
 
 impl App {
     pub(super) fn go_home(&mut self) {
@@ -25,6 +27,15 @@ impl App {
             self.save(false);
         }
         if let Some(path) = self.path.clone() {
+            self.left_off = self.ed.focus_block.map(|id| {
+                let page = crate::export::page_of_block(&self.doc, id).unwrap_or(1);
+                let scene = self
+                    .doc
+                    .scene_of(id)
+                    .and_then(|k| self.doc.scenes().get(k).map(|s| s.heading.clone()))
+                    .unwrap_or_default();
+                (path.clone(), page, scene)
+            });
             self.store.close(&path);
         }
         self.home = true;
@@ -100,15 +111,11 @@ impl App {
                 ui.add_space(6.0);
                 let buttons = HERO_BUTTONS + if team.is_some() { 38.0 } else { 0.0 };
                 let room = (w - buttons).max(120.0);
-                let shout = hello.to_uppercase();
-                let at = |size: f32| theme::tracked_width(ui.ctx(), &shout, theme::font_display(size), 0.0);
+                let at = |size: f32| theme::tracked_width(ui.ctx(), &hello, theme::font_display(size), ncf::theme::display_tracking(size));
                 let full = at(HERO_T);
                 let size = if full <= room { HERO_T } else { (HERO_T * room / full * 0.97).max(HERO_T_MIN) };
-                let shown = ui::elide_to_width(ui.ctx(), &shout, theme::font_display(size), 0.0, room);
-                ui.add(
-                    egui::Label::new(egui::RichText::new(shown).font(theme::font_display(size)).color(p.text))
-                        .extend(),
-                );
+                let shown = ui::elide_to_width(ui.ctx(), &hello, theme::font_display(size), ncf::theme::display_tracking(size), room);
+                ui.add(egui::Label::new(ui::display_text(&shown, size, p.text)).extend());
             });
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if self.can_write() {
@@ -180,8 +187,8 @@ impl App {
                 .or_else(|| list.first())
                 .cloned();
             if let Some(e) = mine {
-                self.continue_card(ui, &e, w);
-                ui.add_space(22.0);
+                self.bento_row(ui, &e, w);
+                ui.add_space(theme::GAP);
             }
         }
 
@@ -191,61 +198,89 @@ impl App {
         let mut open = None;
         let mut star = None;
         let mut menu = None;
-        for (label, icon, items) in [
-            ("Starred", Icon::StarFilled, &starred),
-            (if team.is_some() { "Team scripts" } else { "Scripts" }, Icon::File, &rest),
-        ] {
-            if items.is_empty() {
-                continue;
-            }
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 8.0;
-                icons::show(ui, icon, 12.0, if label == "Starred" { p.warn } else { p.text_faint });
-                ui::hud(ui, &format!("{label} / {:02}", items.len()), Some(p.text_dim));
-            });
-            ui.add_space(8.0);
-            let gap = theme::GAP;
-            let cols = (((w + gap) / (CARD_W + gap)).floor() as usize).max(1);
-            let card_w = (w - gap * (cols - 1) as f32) / cols as f32;
-            ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("ns-home-cols"), cols));
-            for row in items.chunks(cols) {
+        let mut jump = None;
+        let shown = starred.len() + rest.len();
+        ncf::theme::surface_frame(ncf::theme::R_LG, ncf::theme::Lift::Rest)
+            .inner_margin(egui::Margin::same(SCRIPTS_PAD))
+            .show(ui, |ui| {
+                let w = w - SCRIPTS_PAD * 2.0;
+                ui.set_width(w);
                 ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = gap;
-                    for e in row {
-                        let selected = self.home_keyed && self.home_sel == order.len();
-                        order.push(e.path.clone());
-                        match self.script_card(ui, e, card_w, selected) {
-                            CardAction::Open => open = Some(e.path.clone()),
-                            CardAction::Star => star = Some(e.path.clone()),
-                            CardAction::Menu(at) => menu = Some((e.path.clone(), at)),
-                            CardAction::None => {}
+                    ui.spacing_mut().item_spacing.x = 10.0;
+                    ui.label(
+                        egui::RichText::new(if team.is_some() { "Team scripts" } else { "Your scripts" })
+                            .font(ncf::theme::font_heading(theme::T_H + 1.0))
+                            .color(p.text),
+                    );
+                    ui::hud(ui, &format!("{shown:02}"), Some(p.text_faint));
+                });
+                ui.add_space(12.0);
+                let both = !starred.is_empty() && !rest.is_empty();
+                for (label, icon, items) in [
+                    ("Starred", Icon::StarFilled, &starred),
+                    (if team.is_some() { "Team scripts" } else { "Scripts" }, Icon::File, &rest),
+                ] {
+                    if items.is_empty() {
+                        continue;
+                    }
+                    if !order.is_empty() {
+                        ui.add_space(18.0);
+                    }
+                    if both || label == "Starred" {
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = 8.0;
+                            icons::show(ui, icon, 12.0, if label == "Starred" { p.warn } else { p.text_faint });
+                            ui::hud(ui, &format!("{label} / {:02}", items.len()), Some(p.text_dim));
+                        });
+                        ui.add_space(8.0);
+                    }
+                    let gap = theme::GAP;
+                    let cols = (((w + gap) / (CARD_W + gap)).floor() as usize).max(1);
+                    let card_w = (w - gap * (cols - 1) as f32) / cols as f32;
+                    ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("ns-home-cols"), cols));
+                    let rows = items.len().div_ceil(cols);
+                    for (k, row) in items.chunks(cols).enumerate() {
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = gap;
+                            for e in row {
+                                let selected = self.home_keyed && self.home_sel == order.len();
+                                order.push(e.path.clone());
+                                match self.script_card(ui, e, card_w, selected) {
+                                    CardAction::Open => open = Some(e.path.clone()),
+                                    CardAction::Star => star = Some(e.path.clone()),
+                                    CardAction::Menu(at) => menu = Some((e.path.clone(), at)),
+                                    CardAction::None => {}
+                                }
+                            }
+                        });
+                        if k + 1 < rows {
+                            ui.add_space(gap);
                         }
                     }
-                });
-                ui.add_space(gap);
-            }
-            ui.add_space(10.0);
-        }
-        let found = self.found_for(&needle);
-        let mut jump = None;
-        self.hit_rows.clear();
-        if !found.is_empty() {
-            jump = self.found_section(ui, &found, w);
-        }
-        if enter && open.is_none() && jump.is_none() && !needle.is_empty() {
-            match (order.first(), found.first().and_then(|f| f.hits.first().map(|h| (f.path.clone(), h.block)))) {
-                (Some(path), _) => open = Some(path.clone()),
-                (None, Some(hit)) => jump = Some(hit),
-                (None, None) => {}
-            }
-        }
-        if order.is_empty() && found.is_empty() {
-            ui.label(
-                egui::RichText::new("Nothing matches.")
-                    .font(theme::font(theme::T_SM))
-                    .color(p.text_faint),
-            );
-        }
+                }
+                let found = self.found_for(&needle);
+                self.hit_rows.clear();
+                if !found.is_empty() {
+                    if !order.is_empty() {
+                        ui.add_space(18.0);
+                    }
+                    jump = self.found_section(ui, &found, w);
+                }
+                if enter && open.is_none() && jump.is_none() && !needle.is_empty() {
+                    match (order.first(), found.first().and_then(|f| f.hits.first().map(|h| (f.path.clone(), h.block)))) {
+                        (Some(path), _) => open = Some(path.clone()),
+                        (None, Some(hit)) => jump = Some(hit),
+                        (None, None) => {}
+                    }
+                }
+                if order.is_empty() && found.is_empty() {
+                    ui.label(
+                        egui::RichText::new("Nothing matches.")
+                            .font(theme::font(theme::T_SM))
+                            .color(p.text_faint),
+                    );
+                }
+            });
         self.home_order = order;
 
         self.home_foot(ui);
@@ -341,109 +376,190 @@ impl App {
         self.open(path);
     }
 
-    fn continue_card(&mut self, ui: &mut egui::Ui, e: &Entry, w: f32) {
-        let p = pal();
-        let (rect, resp) = ui.allocate_exact_size(Vec2::new(w, 98.0), Sense::click());
-        let hot = anim::ease(ui.ctx(), resp.id, resp.hovered(), anim::HOVER);
-        ui.painter().rect_filled(rect, egui::Rounding::same(theme::R_SM), theme::mix(p.solid, p.solid_hi, hot));
-        ui.painter().rect_stroke(
-            rect.shrink(0.5),
-            egui::Rounding::same(theme::R_SM),
-            Stroke::new(1.0_f32, p.primary_light),
+    fn bento_row(&mut self, ui: &mut egui::Ui, e: &Entry, w: f32) {
+        let gap = theme::GAP;
+        let cols: usize = if w >= 820.0 { 4 } else if w >= 470.0 { 2 } else { 1 };
+        let unit = (w - gap * (cols - 1) as f32) / cols as f32;
+        let top = ui.cursor().min;
+        let place = |col: usize, row: usize, span: usize| {
+            Rect::from_min_size(
+                Pos2::new(top.x + col as f32 * (unit + gap), top.y + row as f32 * (TILE_H + gap)),
+                Vec2::new(unit * span as f32 + gap * (span - 1) as f32, TILE_H),
+            )
+        };
+        let (go, session, library, rows) = match cols {
+            4 => (place(0, 0, 2), place(2, 0, 1), place(3, 0, 1), 1),
+            2 => (place(0, 0, 2), place(0, 1, 1), place(1, 1, 1), 2),
+            _ => (place(0, 0, 1), place(0, 1, 1), place(0, 2, 1), 3),
+        };
+        ui.allocate_rect(
+            Rect::from_min_size(top, Vec2::new(w, rows as f32 * TILE_H + (rows - 1) as f32 * gap)),
+            Sense::hover(),
         );
-        theme::top_edge(ui.painter(), rect);
+        self.continue_tile(ui, go, e);
+        self.session_tile(ui, session);
+        self.library_tile(ui, library);
+    }
 
-        let x = rect.left() + 26.0;
-        ui.painter().rect_filled(
-            Rect::from_center_size(Pos2::new(x + 3.0, rect.top() + 22.0), Vec2::splat(6.0)),
-            egui::Rounding::ZERO,
-            p.primary_light,
-        );
-        theme::tracked_text(
-            ui.painter(),
-            Pos2::new(x + 14.0, rect.top() + 22.0),
-            "CONTINUE WRITING",
-            theme::font_hud(theme::T_MICRO + 0.5),
-            p.primary_light,
-            0.8,
-        );
-        let room = (rect.right() - CONTINUE_RIGHT - x).max(40.0);
+    // continue writing tile here---
+    fn continue_tile(&mut self, ui: &mut egui::Ui, rect: Rect, e: &Entry) {
+        let p = pal();
+        let resp = ui.interact(rect, egui::Id::new("ns-home-continue"), Sense::click());
+        let hot = anim::ease(ui.ctx(), resp.id, resp.hovered(), anim::HOVER);
+        bento_tile(ui.painter(), rect, p.tile(0), hot);
+        let ink = p.on_tile;
+        let soft = theme::wash(ink, 190);
+        let x = rect.left() + 24.0;
         let clip = ui.painter().with_clip_rect(rect.shrink(1.0));
-        clip.text(
-            Pos2::new(x, rect.top() + 48.0),
-            egui::Align2::LEFT_CENTER,
-            ui::elide_to_width(ui.ctx(), &e.title.to_uppercase(), theme::font_display(T_CONTINUE), 0.0, room),
-            theme::font_display(T_CONTINUE),
-            p.text,
-        );
-        let me = self.me();
-        let mut meta = format!(
-            "{} / {}",
-            plural(e.pages, "page", "pages"),
-            plural(e.scenes, "scene", "scenes")
-        );
+        ui::eyebrow_text(&clip, Pos2::new(x, rect.top() + 28.0), "Continue writing", soft);
+
+        let room = rect.width() - 48.0;
+        let track = ncf::theme::display_tracking(T_TILE_TITLE);
+        let font = theme::font_display(T_TILE_TITLE);
+        let title = ui::elide_to_width(ui.ctx(), &e.title, font.clone(), track, room);
+        theme::tracked_text(&clip, Pos2::new(x, rect.top() + 66.0), &title, font, ink, track);
+
+        let place = match &self.left_off {
+            Some((path, page, scene)) if *path == e.path => {
+                if scene.is_empty() {
+                    format!("You left off on page {page}")
+                } else {
+                    format!("Page {page} · {scene}")
+                }
+            }
+            _ => format!("{} · {}", plural(e.pages, "page", "pages"), plural(e.scenes, "scene", "scenes")),
+        };
+        let mut meta = place;
         if let Some(by) = &e.edited_by {
-            meta.push_str(&format!(" / saved by {}", people::by_line(by, me.as_ref(), &relative_time(e.modified))));
+            let me = self.me();
+            meta.push_str(&format!(" · saved by {}", people::by_line(by, me.as_ref(), &relative_time(e.modified))));
         }
-        let hud = theme::font_hud(theme::T_MICRO + 0.5);
-        theme::tracked_text(
-            &clip,
-            Pos2::new(x, rect.top() + 76.0),
-            &ui::elide_to_width(ui.ctx(), &meta.replace(" · ", " / ").to_uppercase(), hud.clone(), 0.8, room),
-            hud,
-            p.text_faint,
-            0.8,
+        let button_w = 96.0;
+        let meta_room = (rect.width() - 48.0 - button_w - 16.0).max(40.0);
+        let meta_font = theme::font_med(theme::T_SM);
+        clip.text(
+            Pos2::new(x, rect.bottom() - 34.0),
+            egui::Align2::LEFT_CENTER,
+            ui::elide_to_width(ui.ctx(), &meta, meta_font.clone(), 0.0, meta_room),
+            meta_font,
+            soft,
         );
-        let right = Pos2::new(rect.right() - 24.0, rect.center().y);
+
+        let pill = Rect::from_min_size(Pos2::new(rect.right() - 24.0 - button_w, rect.bottom() - 52.0), Vec2::new(button_w, 36.0));
         if self.is_opening(&e.path) {
-            ui.painter().text(right, egui::Align2::RIGHT_CENTER, "Opening…", theme::font_med(theme::T_SM), p.text_dim);
+            clip.text(pill.center(), egui::Align2::CENTER_CENTER, "Opening…", theme::font_bold(theme::T_SM), ink);
         } else if let Some(who) = &e.editing {
-            editing_badge(ui, right, who);
+            let text = format!("{} is editing", who.first_name());
+            clip.text(Pos2::new(pill.right(), pill.center().y), egui::Align2::RIGHT_CENTER, text, theme::font_bold(theme::T_CAP), ink);
         } else {
-            let ink = theme::mix(p.text_dim, p.primary_light, hot);
-            let arrow = Rect::from_center_size(Pos2::new(right.x - 7.0, right.y), Vec2::splat(14.0));
-            icons::draw(ui.painter(), arrow, Icon::ArrowRight, ink);
-            ui.painter().text(
-                Pos2::new(arrow.left() - 6.0, right.y),
-                egui::Align2::RIGHT_CENTER,
-                "Open",
-                theme::font_med(theme::T_SM),
-                ink,
-            );
+            clip.rect_filled(pill, Rounding::same(pill.height() * 0.5), ink);
+            let label = clip.layout_no_wrap("Open".to_string(), theme::font_bold(theme::T_SM), p.tile(0));
+            let total = label.rect.width() + 6.0 + 14.0;
+            let lx = pill.center().x - total * 0.5;
+            clip.galley(Pos2::new(lx, pill.center().y - label.rect.height() * 0.5), label, p.tile(0));
+            let arrow = Rect::from_center_size(Pos2::new(lx + total - 7.0 + 3.0 * hot, pill.center().y), Vec2::splat(14.0));
+            icons::draw(&clip, arrow, Icon::ArrowRight, p.tile(0));
+        }
+        if resp.hovered() {
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
         }
         if resp.clicked() {
             self.open_from_home(e.path.clone());
         }
     }
 
+    // session tile here---
+    fn session_tile(&self, ui: &egui::Ui, rect: Rect) {
+        let p = pal();
+        bento_tile(ui.painter(), rect, p.tile(1), 0.0);
+        let ink = p.on_tile;
+        let soft = theme::wash(ink, 190);
+        let clip = ui.painter().with_clip_rect(rect.shrink(1.0));
+        let x = rect.left() + 22.0;
+        ui::eyebrow_text(&clip, Pos2::new(x, rect.top() + 28.0), "This session", soft);
+        let words = self.session_words.max(0);
+        big_figure(ui, &clip, Pos2::new(x, rect.top() + 76.0), &grouped(words), if words == 1 { "word" } else { "words" }, ink, rect.right() - 22.0);
+        let goal = self.settings.session_goal;
+        let room = rect.width() - 44.0;
+        let line = if goal > 0 {
+            let t = (words as f32 / goal as f32).clamp(0.0, 1.0);
+            let track = Rect::from_min_size(Pos2::new(x, rect.bottom() - 52.0), Vec2::new(room, 6.0));
+            clip.rect_filled(track, Rounding::same(3.0), theme::wash(ink, 40));
+            if t > 0.0 {
+                let fill = Rect::from_min_size(track.min, Vec2::new((room * t).max(6.0), 6.0));
+                clip.rect_filled(fill, Rounding::same(3.0), ink);
+            }
+            if words as u32 >= goal {
+                format!("Goal met · {} words", grouped(goal as i64))
+            } else {
+                format!("{}% of your {}-word goal", (t * 100.0).floor() as u32, grouped(goal as i64))
+            }
+        } else {
+            "Written since you opened Blackline".to_string()
+        };
+        let font = theme::font_med(theme::T_CAP);
+        clip.text(
+            Pos2::new(x, rect.bottom() - 28.0),
+            egui::Align2::LEFT_CENTER,
+            ui::elide_to_width(ui.ctx(), &line, font.clone(), 0.0, room),
+            font,
+            soft,
+        );
+    }
+
+    // library tile here---
+    fn library_tile(&self, ui: &egui::Ui, rect: Rect) {
+        let p = pal();
+        bento_tile(ui.painter(), rect, p.tile(2), 0.0);
+        let ink = p.on_tile;
+        let soft = theme::wash(ink, 190);
+        let clip = ui.painter().with_clip_rect(rect.shrink(1.0));
+        let x = rect.left() + 22.0;
+        ui::eyebrow_text(&clip, Pos2::new(x, rect.top() + 28.0), "Your library", soft);
+        let pages: usize = self.entries.iter().map(|e| e.pages).sum();
+        let scenes: usize = self.entries.iter().map(|e| e.scenes).sum();
+        let starred = self.entries.iter().filter(|e| e.starred).count();
+        big_figure(ui, &clip, Pos2::new(x, rect.top() + 76.0), &grouped(pages as i64), if pages == 1 { "page" } else { "pages" }, ink, rect.right() - 22.0);
+        let mut line = format!("{} · {}", plural(self.entries.len(), "script", "scripts"), plural(scenes, "scene", "scenes"));
+        if starred > 0 {
+            line.push_str(&format!(" · {starred} starred"));
+        }
+        let font = theme::font_med(theme::T_CAP);
+        clip.text(
+            Pos2::new(x, rect.bottom() - 28.0),
+            egui::Align2::LEFT_CENTER,
+            ui::elide_to_width(ui.ctx(), &line, font.clone(), 0.0, rect.width() - 44.0),
+            font,
+            soft,
+        );
+    }
+
     fn script_card(&self, ui: &mut egui::Ui, e: &Entry, w: f32, selected: bool) -> CardAction {
         let p = pal();
         let (rect, resp) = ui.allocate_exact_size(Vec2::new(w, CARD_H), Sense::click());
         let hot = anim::ease(ui.ctx(), resp.id, resp.hovered(), anim::HOVER);
-        ui.painter().rect_filled(rect, egui::Rounding::same(theme::R_SM), theme::mix(p.solid, p.solid_hi, hot));
-        ui.painter().rect_stroke(
-            rect.shrink(0.5),
-            egui::Rounding::same(theme::R_SM),
-            Stroke::new(1.0_f32, theme::mix(p.line, p.text_faint, hot)),
-        );
-        theme::top_edge(ui.painter(), rect);
+        let round = Rounding::same(theme::R_MD);
+        ui.painter().rect_filled(rect, round, theme::mix(p.raised, p.sunken, hot * 0.6));
+        if hot > 0.01 {
+            ui.painter().rect_stroke(rect.shrink(0.5), round, Stroke::new(1.0_f32, theme::wash(p.line_strong, (255.0 * hot) as u8)));
+        }
         if selected {
-            ui.painter().rect_stroke(
-                rect.expand(3.0),
-                egui::Rounding::same(theme::R_SM),
-                Stroke::new(2.0_f32, p.primary_light),
-            );
+            ui.painter().rect_stroke(rect.expand(3.0), Rounding::same(theme::R_MD + 3.0), Stroke::new(2.0_f32, p.focus));
         }
 
         let pad = 16.0;
         let x = rect.left() + pad;
         let cp = ui.painter().with_clip_rect(rect.shrink(1.0));
         let inner = w - pad * 2.0;
+        let chip = Rect::from_min_size(Pos2::new(x, rect.top() + 16.0), Vec2::splat(38.0));
+        cover_chip(&cp, chip, &e.title, crate::storage::cover_of(e));
+        let tx = chip.right() + 12.0;
+        let t_room = rect.right() - pad - 28.0 - tx;
         let title_font = theme::font_bold(theme::T_BODY + 0.5);
         cp.text(
-            Pos2::new(x, rect.top() + 24.0),
+            Pos2::new(tx, rect.top() + 26.0),
             egui::Align2::LEFT_CENTER,
-            ui::elide_to_width(ui.ctx(), &e.title, title_font.clone(), 0.0, inner - 28.0),
+            ui::elide_to_width(ui.ctx(), &e.title, title_font.clone(), 0.0, t_room),
             title_font,
             p.text,
         );
@@ -453,15 +569,15 @@ impl App {
             format!("by {}", e.author.trim())
         };
         cp.text(
-            Pos2::new(x, rect.top() + 46.0),
+            Pos2::new(tx, rect.top() + 45.0),
             egui::Align2::LEFT_CENTER,
-            ui::elide_to_width(ui.ctx(), &author, theme::font(theme::T_CAP), 0.0, inner),
+            ui::elide_to_width(ui.ctx(), &author, theme::font(theme::T_CAP), 0.0, rect.right() - pad - tx),
             theme::font(theme::T_CAP),
             p.text_dim,
         );
         theme::tracked_text(
             ui.painter(),
-            Pos2::new(x, rect.top() + 68.0),
+            Pos2::new(x, rect.top() + 76.0),
             &format!("{:02} pg / {:02} sc", e.pages, e.scenes).to_uppercase(),
             theme::font_hud(theme::T_MICRO + 0.5),
             p.text_faint,
@@ -473,14 +589,14 @@ impl App {
             if e.waiting {
                 let label = "WAITING TO SYNC";
                 let tw = theme::tracked_width(ui.ctx(), label, theme::font_hud(theme::T_MICRO), 0.8);
-                theme::tracked_text(ui.painter(), Pos2::new(right - tw, rect.top() + 68.0), label, theme::font_hud(theme::T_MICRO), col, 0.8);
-                icons::draw(ui.painter(), Rect::from_center_size(Pos2::new(right - tw - 10.0, rect.top() + 68.0), Vec2::splat(11.0)), Icon::Cloud, col);
+                theme::tracked_text(ui.painter(), Pos2::new(right - tw, rect.top() + 76.0), label, theme::font_hud(theme::T_MICRO), col, 0.8);
+                icons::draw(ui.painter(), Rect::from_center_size(Pos2::new(right - tw - 10.0, rect.top() + 76.0), Vec2::splat(11.0)), Icon::Cloud, col);
             } else {
-                icons::draw(ui.painter(), Rect::from_center_size(Pos2::new(right - 6.0, rect.top() + 68.0), Vec2::splat(12.0)), Icon::Cloud, col);
+                icons::draw(ui.painter(), Rect::from_center_size(Pos2::new(right - 6.0, rect.top() + 76.0), Vec2::splat(12.0)), Icon::Cloud, col);
             }
         }
 
-        let foot_y = rect.bottom() - 24.0;
+        let foot_y = rect.bottom() - 22.0;
         let me = self.me();
         if self.is_opening(&e.path) {
             ui.painter().text(
@@ -520,7 +636,7 @@ impl App {
             );
         }
 
-        let star_rect = Rect::from_center_size(Pos2::new(rect.right() - 22.0, rect.top() + 24.0), Vec2::splat(24.0));
+        let star_rect = Rect::from_center_size(Pos2::new(rect.right() - 22.0, rect.top() + 26.0), Vec2::splat(24.0));
         let star_resp = ui.interact(star_rect, resp.id.with("star"), Sense::click());
         let star_hot = anim::ease(ui.ctx(), star_resp.id, star_resp.hovered(), anim::HOVER);
         if e.starred || hot > 0.02 {
@@ -564,11 +680,7 @@ impl App {
             .inner_margin(egui::Margin::symmetric(28.0, 26.0))
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
-                ui.label(
-                    egui::RichText::new("NO SCRIPTS YET")
-                        .font(theme::font_display(26.0))
-                        .color(p.text),
-                );
+                ui.label(ui::display_text("No scripts yet", 28.0, p.text));
                 ui.add_space(4.0);
                 ui.label(
                     egui::RichText::new(if self.can_write() {
@@ -704,6 +816,84 @@ fn local_name() -> Option<String> {
     }
     let mut c = first.chars();
     Some(c.next()?.to_uppercase().collect::<String>() + &c.as_str().to_lowercase())
+}
+
+fn bento_tile(painter: &egui::Painter, rect: Rect, colour: Color32, hot: f32) {
+    let lift = if hot > 0.5 { ncf::theme::Lift::Float } else { ncf::theme::Lift::Rest };
+    ncf::theme::shadow(painter, rect, ncf::theme::R_LG, lift);
+    painter.rect_filled(rect, Rounding::same(ncf::theme::R_LG), theme::lighten(colour, 0.08 * hot));
+}
+
+fn big_figure(ui: &egui::Ui, painter: &egui::Painter, left_centre: Pos2, figure: &str, unit: &str, ink: Color32, right: f32) {
+    let track = ncf::theme::display_tracking(T_BIG);
+    let mut size = T_BIG;
+    let unit_font = theme::font_bold(theme::T_SM);
+    let unit_w = theme::tracked_width(ui.ctx(), unit, unit_font.clone(), 0.0);
+    let room = (right - left_centre.x - unit_w - 8.0).max(20.0);
+    let w = theme::tracked_width(ui.ctx(), figure, theme::font_display(size), track);
+    if w > room {
+        size = (size * room / w).max(20.0);
+    }
+    let w = theme::tracked_text(painter, left_centre, figure, theme::font_display(size), ink, ncf::theme::display_tracking(size));
+    painter.text(
+        Pos2::new(left_centre.x + w + 8.0, left_centre.y + size * 0.22),
+        egui::Align2::LEFT_CENTER,
+        unit,
+        unit_font,
+        theme::wash(ink, 190),
+    );
+}
+
+pub(crate) fn cover_chip(painter: &egui::Painter, rect: Rect, title: &str, cover: usize) {
+    let p = pal();
+    painter.rect_filled(rect, Rounding::same(theme::R_SM), p.tile(cover));
+    let initial: String = title.trim().chars().find(|c| c.is_alphanumeric()).map(|c| c.to_uppercase().collect()).unwrap_or_else(|| "·".to_string());
+    painter.text(rect.center(), egui::Align2::CENTER_CENTER, initial, theme::font_display(rect.height() * 0.5), p.on_tile);
+}
+
+// cover swatches here---
+pub(crate) fn cover_swatches(ui: &mut egui::Ui, current: usize, enabled: bool) -> Option<usize> {
+    let p = pal();
+    let mut picked = None;
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 8.0;
+        for (i, name) in crate::storage::COVERS.iter().enumerate() {
+            let sense = if enabled { Sense::click() } else { Sense::hover() };
+            let (rect, resp) = ui.allocate_exact_size(Vec2::splat(26.0), sense);
+            let hot = anim::ease(ui.ctx(), resp.id, resp.hovered() && enabled, anim::HOVER);
+            let c = rect.center();
+            let alpha = if enabled { 255 } else { 110 };
+            ui.painter().circle_filled(c, 10.0 + 1.0 * hot, theme::wash(p.tile(i), alpha));
+            if i == current {
+                ui.painter().circle_stroke(c, 12.5, Stroke::new(2.0_f32, p.text));
+            }
+            let label = format!("{}{}", name[..1].to_uppercase(), &name[1..]);
+            let resp = resp.on_hover_text(if enabled { label } else { format!("{label} · {}", crate::backend::COVER_WHEN_OPEN) });
+            if enabled && resp.hovered() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+            }
+            if resp.clicked() && i != current {
+                picked = Some(i);
+            }
+        }
+    });
+    picked
+}
+
+pub(crate) fn grouped(n: i64) -> String {
+    let digits = n.unsigned_abs().to_string();
+    let mut out = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    if n < 0 {
+        format!("-{out}")
+    } else {
+        out
+    }
 }
 
 fn plural(n: usize, one: &str, many: &str) -> String {

@@ -1743,3 +1743,77 @@ fn a_script_added_in_the_same_clock_tick_is_still_noticed() {
     assert!(!store.changed(), "and once seen, nothing more to report");
 }
 
+#[test]
+fn home_figures_are_grouped_by_thousands() {
+    use crate::app::home::grouped;
+    assert_eq!(grouped(0), "0");
+    assert_eq!(grouped(999), "999");
+    assert_eq!(grouped(1000), "1,000");
+    assert_eq!(grouped(1234567), "1,234,567");
+    assert_eq!(grouped(-4200), "-4,200");
+}
+
+#[test]
+fn a_cover_round_trips_through_the_front_matter() {
+    let mut d = Document::default();
+    d.meta.title = "Covered".into();
+    d.meta.cover = Some(2);
+    let text = storage::to_markdown(&d);
+    assert!(text.contains("cover: sun\n"), "{text}");
+    assert_eq!(storage::from_markdown(&text).meta.cover, Some(2));
+    let e = storage::entry_from_text(std::path::PathBuf::from("covered.md"), &text, std::time::SystemTime::UNIX_EPOCH);
+    assert_eq!(e.cover, Some(2));
+    assert_eq!(storage::cover_of(&e), 2);
+}
+
+#[test]
+fn a_script_without_a_cover_stays_without_one() {
+    let mut d = Document::default();
+    d.meta.title = "Plain".into();
+    let text = storage::to_markdown(&d);
+    assert!(!text.contains("cover:"), "nothing is written until someone picks one");
+    assert_eq!(storage::from_markdown(&text).meta.cover, None);
+    let odd = text.replacen("title: Plain", "title: Plain\ncover: plaid", 1);
+    assert_eq!(storage::from_markdown(&odd).meta.cover, None, "an unknown colour is ignored");
+    let shouty = text.replacen("title: Plain", "title: Plain\ncover: LILAC", 1);
+    assert_eq!(storage::from_markdown(&shouty).meta.cover, Some(1));
+}
+
+#[test]
+fn the_fallback_cover_comes_from_the_file_name_and_does_not_move() {
+    let a = std::path::Path::new("/x/the-long-way-down.md");
+    let first = storage::stem_cover(a);
+    assert!(first < storage::COVERS.len());
+    for _ in 0..3 {
+        assert_eq!(storage::stem_cover(a), first);
+    }
+    assert_eq!(storage::stem_cover(std::path::Path::new("/elsewhere/The-Long-Way-Down.md")), first, "folder and case don't matter");
+    let spread: std::collections::HashSet<usize> = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
+        .iter()
+        .map(|n| storage::stem_cover(std::path::Path::new(&format!("{n}.md"))))
+        .collect();
+    assert!(spread.len() >= 3, "different scripts get different covers: {spread:?}");
+    let e = storage::Entry { path: a.to_path_buf(), cover: Some((first + 1) % 4), ..Default::default() };
+    assert_eq!(storage::cover_of(&e), (first + 1) % 4, "a picked cover wins");
+}
+
+#[test]
+fn the_cover_never_leaks_into_exports() {
+    let mut d = Document::default();
+    d.meta.title = "Covered".into();
+    d.meta.cover = Some(0);
+    d.push(Element::SceneHeading, "INT. ROOM - DAY");
+    for out in [export::to_fountain(&d), export::to_fdx(&d)] {
+        assert!(!out.to_lowercase().contains("coral") && !out.contains("cover"), "{out}");
+    }
+}
+
+#[test]
+fn the_cloud_carries_the_cover_in_its_metadata() {
+    let mut d = Document::default();
+    d.meta.cover = Some(1);
+    assert_eq!(crate::cloud::meta_of(&d)["cover"], "lilac");
+    d.meta.cover = None;
+    assert!(crate::cloud::meta_of(&d)["cover"].is_null());
+}
+

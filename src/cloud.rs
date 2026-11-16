@@ -93,7 +93,8 @@ fn local_when(text: &str) -> String {
 pub fn meta_of(doc: &Document) -> Value {
     let body = storage::to_markdown(doc);
     let preview = storage::entry_from_text(PathBuf::new(), &body, SystemTime::UNIX_EPOCH).preview;
-    json!({"pages": crate::export::page_count(doc), "scenes": doc.scene_count(), "preview": preview, "author": doc.meta.author})
+    let cover = doc.meta.cover.map(|c| storage::COVERS[c % storage::COVERS.len()]);
+    json!({"pages": crate::export::page_count(doc), "scenes": doc.scene_count(), "preview": preview, "author": doc.meta.author, "cover": cover})
 }
 
 impl CloudStore {
@@ -337,6 +338,7 @@ impl CloudStore {
                 preview: p.and_then(|p| p.meta.get("preview")).and_then(Value::as_str).unwrap_or("").to_string(),
                 pages: p.and_then(|p| p.meta.get("pages")).and_then(Value::as_u64).unwrap_or(0) as usize,
                 scenes: p.and_then(|p| p.meta.get("scenes")).and_then(Value::as_u64).unwrap_or(0) as usize,
+                cover: p.and_then(|p| p.meta.get("cover")).and_then(Value::as_str).and_then(storage::cover_named),
                 ..Default::default()
             },
         };
@@ -809,6 +811,13 @@ impl Store for CloudStore {
         self.write_index();
         self.changed = true;
         Ok(())
+    }
+
+    fn set_cover(&mut self, key: &Path, cover: usize) -> Result<(), String> {
+        match self.id_of(key) {
+            None => self.local.set_cover(key, cover),
+            Some(_) => Err(crate::backend::COVER_WHEN_OPEN.to_string()),
+        }
     }
 
     fn set_starred(&mut self, key: &Path, on: bool) -> Result<(), String> {

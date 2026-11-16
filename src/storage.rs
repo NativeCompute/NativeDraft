@@ -84,6 +84,7 @@ pub struct Entry {
     pub author: String,
     pub cloud: Option<String>,
     pub waiting: bool,
+    pub cover: Option<usize>,
 }
 
 impl Default for Entry {
@@ -101,6 +102,7 @@ impl Default for Entry {
             author: String::new(),
             cloud: None,
             waiting: false,
+            cover: None,
         }
     }
 }
@@ -154,11 +156,34 @@ pub fn entry_from_text(path: PathBuf, text: &str, modified: SystemTime) -> Entry
         modified,
         preview,
         starred: meta.starred,
+        cover: meta.cover,
         pages: export::page_count(&doc),
         scenes: doc.scene_count(),
         author: meta.author.clone(),
         ..Default::default()
     }
+}
+
+// covers here---
+
+pub const COVERS: [&str; 4] = ["coral", "lilac", "sun", "sky"];
+
+pub fn cover_named(v: &str) -> Option<usize> {
+    COVERS.iter().position(|c| c.eq_ignore_ascii_case(v.trim()))
+}
+
+pub fn stem_cover(path: &Path) -> usize {
+    let stem = path.file_stem().map(|s| s.to_string_lossy().to_lowercase()).unwrap_or_default();
+    let mut h: u32 = 0x811c_9dc5;
+    for b in stem.bytes() {
+        h ^= b as u32;
+        h = h.wrapping_mul(0x0100_0193);
+    }
+    (h % COVERS.len() as u32) as usize
+}
+
+pub fn cover_of(e: &Entry) -> usize {
+    e.cover.unwrap_or_else(|| stem_cover(&e.path)) % COVERS.len()
 }
 
 pub fn slugify(title: &str) -> String {
@@ -214,6 +239,9 @@ pub fn to_markdown(doc: &Document) -> String {
     s.push_str(&format!("draft: {}\n", esc(&doc.meta.draft)));
     if doc.meta.starred {
         s.push_str("starred: yes\n");
+    }
+    if let Some(c) = doc.meta.cover {
+        s.push_str(&format!("cover: {}\n", COVERS[c % COVERS.len()]));
     }
     let voices: Vec<String> = doc
         .meta
@@ -409,6 +437,7 @@ fn split_front_matter(text: &str) -> (Meta, &str) {
                 "contact" => meta.contact = v,
                 "draft" => meta.draft = v,
                 "starred" => meta.starred = matches!(v.as_str(), "yes" | "true" | "1"),
+                "cover" => meta.cover = cover_named(&v),
                 "voices" => meta.voices = parse_voices(&v),
                 "storylines" => meta.storylines = parse_storylines(&v),
                 "revision" => meta.revision = crate::revision::from_slug(&v),

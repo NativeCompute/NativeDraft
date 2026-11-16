@@ -207,6 +207,8 @@ impl Event {
     }
 }
 
+pub const COVER_WHEN_OPEN: &str = "Open the script to change its cover";
+
 pub trait Store {
     // this library here---
 
@@ -229,6 +231,9 @@ pub trait Store {
     fn duplicate(&mut self, key: &Path) -> Result<Option<String>, String>;
     fn delete(&mut self, key: &Path) -> Result<(), String>;
     fn set_starred(&mut self, key: &Path, on: bool) -> Result<(), String>;
+    fn set_cover(&mut self, _key: &Path, _cover: usize) -> Result<(), String> {
+        Err(COVER_WHEN_OPEN.to_string())
+    }
     fn request_edit(&mut self, _key: &Path) {}
     fn search(&mut self, _needle: &str) -> Option<Vec<crate::storage::Found>> {
         None
@@ -427,6 +432,12 @@ mod local {
         fn set_starred(&mut self, key: &Path, on: bool) -> Result<(), String> {
             let mut doc = storage::load(key).map_err(|e| e.to_string())?;
             doc.meta.starred = on;
+            storage::save(key, &doc).map_err(|e| e.to_string())
+        }
+
+        fn set_cover(&mut self, key: &Path, cover: usize) -> Result<(), String> {
+            let mut doc = storage::load(key).map_err(|e| e.to_string())?;
+            doc.meta.cover = Some(cover % storage::COVERS.len());
             storage::save(key, &doc).map_err(|e| e.to_string())
         }
 
