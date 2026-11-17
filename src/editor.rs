@@ -30,6 +30,22 @@ pub struct EditorState {
     heights: HashMap<u64, f32>,
     pub fresh: bool,
     pub note_request: Option<u64>,
+    pub mirror_request: Option<(u64, MirrorAct)>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct Mirror {
+    pub from: String,
+    pub heading: String,
+    pub lines: Vec<(Element, String)>,
+    pub color: Option<egui::Color32>,
+    pub missing: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MirrorAct {
+    Edit,
+    Own,
 }
 
 impl Default for EditorState {
@@ -44,6 +60,7 @@ impl Default for EditorState {
             heights: Default::default(),
             fresh: true,
             note_request: None,
+            mirror_request: None,
         }
     }
 }
@@ -85,6 +102,7 @@ pub struct View<'a> {
     pub margin: f32,
     pub labels: &'a [String],
     pub changed: &'a std::collections::HashSet<u64>,
+    pub mirrors: Option<&'a HashMap<u64, Mirror>>,
 }
 
 fn label_of(view: &View, n: usize) -> String {
@@ -118,6 +136,11 @@ enum Act {
     Explode { id: u64 },
     Accept { id: u64, rest: String },
     Stay { id: u64, at: usize },
+    AppendScene { after: u64 },
+}
+
+fn editable(doc: &Document, k: usize) -> bool {
+    doc.blocks.get(k).is_some_and(|b| b.link.is_none())
 }
 
 #[derive(Clone, Copy)]
@@ -318,6 +341,31 @@ fn page_body(
         // vertical rhythm between here---
         if i > 0 && !geo.first {
             ui.add_space(element.blank_lines_before() as f32 * row_h * 0.62 + 2.0);
+        }
+
+        // same scene mirror here---
+        if element == Element::SceneHeading && doc.blocks[i].link.is_some() {
+            if st.pending_focus.is_some_and(|(fid, _)| fid == bid) {
+                st.pending_focus = (i + 1..doc.blocks.len())
+                    .find(|&k| editable(doc, k))
+                    .or_else(|| (0..i).rev().find(|&k| editable(doc, k)))
+                    .map(|k| (doc.blocks[k].id, Caret::Start));
+            }
+            let m = view.mirrors.and_then(|m| m.get(&bid)).cloned().unwrap_or_default();
+            let left = x0 - 6.0;
+            let mid_y = mirror_card(ui, st, bid, &m, left, col.right() - 6.0, row_h, font, font_bold, char_w);
+            let live = live_scene == in_scene && live_scene.is_some();
+            scene_star(ui, Pos2::new(content_left + STAR_X, mid_y), bid, live, dimmed);
+            if view.scene_numbers {
+                ui.painter().text(
+                    Pos2::new(content_left + STAR_X + 16.0, mid_y),
+                    egui::Align2::LEFT_CENTER,
+                    format!("{}", doc.scene_base + scene_no),
+                    theme::font_mono(theme::T_CAP),
+                    p.text_faint,
+                );
+            }
+            continue;
         }
 
         // smarttype would finish here---
@@ -614,7 +662,7 @@ fn page_body(
                 ui.painter().text(
                     Pos2::new(content_left + STAR_X + 16.0, mid_y),
                     egui::Align2::LEFT_CENTER,
-                    format!("{}", scene_no),
+                    format!("{}", doc.scene_base + scene_no),
                     theme::font_mono(theme::T_CAP),
                     if dimmed { theme::wash(p.text_faint, 80) } else { p.text_faint },
                 );
@@ -747,11 +795,97 @@ fn page_body(
     );
     if filler.clicked() {
         if let Some(last) = doc.blocks.last() {
-            st.pending_focus = Some((last.id, Caret::End));
+            if last.link.is_some() {
+                acts.push(Act::AppendScene { after: last.id });
+            } else {
+                st.pending_focus = Some((last.id, Caret::End));
+            }
         }
     }
 
     changed
+}
+
+#[allow(clippy::too_many_arguments)]
+fn mirror_card(
+    ui: &mut egui::Ui,
+    st: &mut EditorState,
+    bid: u64,
+    m: &Mirror,
+    left: f32,
+    right: f32,
+    row_h: f32,
+    font: &egui::FontId,
+    font_bold: &egui::FontId,
+    char_w: f32,
+) -> f32 {
+    let p = pal();
+    let color = if m.missing { p.warn } else { m.color.unwrap_or(p.primary) };
+    const SHOWN: usize = 5;
+    let lines = m.lines.len().min(SHOWN);
+    let more = m.lines.len() > SHOWN;
+    let h = 18.0 + 16.0 + 8.0 + row_h + 6.0 + lines as f32 * row_h + if more { row_h } else { 0.0 } + 12.0 + 26.0 + 14.0;
+    let top = ui.cursor().top();
+    let (slot, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), h), Sense::hover());
+    let card = Rect::from_min_max(Pos2::new(left, top), Pos2::new(right, slot.bottom()));
+    let painter = ui.painter();
+    painter.rect_filled(card, egui::Rounding::same(theme::R_CARD), theme::wash(color, if p.dark { 14 } else { 16 }));
+    painter.rect_stroke(card, egui::Rounding::same(theme::R_CARD), egui::Stroke::new(1.0_f32, theme::wash(color, 120)));
+    let x = card.left() + 18.0;
+    let mut y = card.top() + 18.0;
+    crate::icons::draw(painter, Rect::from_center_size(Pos2::new(x + 6.0, y + 7.0), Vec2::splat(12.0)), crate::icons::Icon::Link, color);
+    let eyebrow = if m.missing {
+        "SAME SCENE · NO LONGER THERE".to_string()
+    } else {
+        format!("SAME SCENE · FROM {}", m.from.to_uppercase())
+    };
+    theme::tracked_text(painter, Pos2::new(x + 18.0, y + 7.0), &eyebrow, theme::font_semi(theme::T_MICRO), color, 0.9);
+    y += 16.0 + 8.0;
+    let room = card.right() - x - 18.0;
+    let heading = if m.heading.trim().is_empty() { "Untitled scene".to_string() } else { m.heading.clone() };
+    let mid_y = y + row_h * 0.5;
+    painter.text(
+        Pos2::new(x, mid_y),
+        egui::Align2::LEFT_CENTER,
+        crate::ui::elide_to_width(ui.ctx(), &heading, font_bold.clone(), 0.0, room),
+        font_bold.clone(),
+        p.text,
+    );
+    y += row_h + 6.0;
+    for (e, text) in m.lines.iter().take(SHOWN) {
+        let indent = (e.indent_cols() as f32 * char_w * 0.6).min(room * 0.4);
+        let shown = crate::ui::elide_to_width(ui.ctx(), text, font.clone(), 0.0, room - indent);
+        painter.text(Pos2::new(x + indent, y + row_h * 0.5), egui::Align2::LEFT_CENTER, shown, font.clone(), p.text_dim);
+        y += row_h;
+    }
+    if more {
+        let n = m.lines.len() - SHOWN;
+        let t = if n == 1 { "… and 1 more line".to_string() } else { format!("… and {n} more lines") };
+        painter.text(Pos2::new(x, y + row_h * 0.5), egui::Align2::LEFT_CENTER, t, theme::font(theme::T_SM), p.text_faint);
+        y += row_h;
+    }
+    y += 12.0;
+    let mut bx = x;
+    let mut button = |label: &str, act: MirrorAct, st: &mut EditorState| {
+        let f = theme::font_semi(theme::T_SM);
+        let w = theme::tracked_width(ui.ctx(), label, f.clone(), 0.0) + 22.0;
+        let r = Rect::from_min_size(Pos2::new(bx, y), Vec2::new(w, 26.0));
+        let resp = ui.interact(r, egui::Id::new(("ns-mirror", bid, label.to_string())), Sense::click());
+        let hot = anim::ease(ui.ctx(), resp.id, resp.hovered(), anim::HOVER);
+        ui.painter().rect_filled(r, egui::Rounding::same(13.0), theme::wash(color, (30.0 + 50.0 * hot) as u8));
+        ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, label, f, if p.dark { p.text } else { theme::mix(color, p.text, 0.45) });
+        if resp.clicked() {
+            st.mirror_request = Some((bid, act));
+        }
+        bx += w + 8.0;
+    };
+    if !m.missing {
+        button(&format!("Edit in {}", m.from), MirrorAct::Edit, st);
+        button("Make it its own", MirrorAct::Own, st);
+    } else {
+        button("Remove it", MirrorAct::Own, st);
+    }
+    mid_y
 }
 
 pub fn act_notes(doc: &Document, page_starts: &HashMap<u64, usize>, pages: usize) -> HashMap<u64, String> {
@@ -1041,6 +1175,17 @@ fn apply(doc: &mut Document, st: &mut EditorState, act: Act) -> bool {
             if i == 0 {
                 return false;
             }
+            if !editable(doc, i - 1) {
+                if doc.blocks[i].text.trim().is_empty() && doc.blocks.len() > 1 {
+                    doc.blocks.remove(i);
+                    if let Some(k) = (0..i).rev().find(|&k| editable(doc, k)).or_else(|| (i..doc.blocks.len()).find(|&k| editable(doc, k))) {
+                        st.focus(doc.blocks[k].id, Caret::End);
+                    }
+                    doc.ensure_not_empty();
+                    return true;
+                }
+                return false;
+            }
             let cur_empty = doc.blocks[i].text.trim().is_empty();
             let same_kind = doc.blocks[i].element == doc.blocks[i - 1].element;
             let prev_id = doc.blocks[i - 1].id;
@@ -1067,7 +1212,7 @@ fn apply(doc: &mut Document, st: &mut EditorState, act: Act) -> bool {
             let Some(i) = doc.index_of(id) else {
                 return false;
             };
-            if i + 1 >= doc.blocks.len() {
+            if i + 1 >= doc.blocks.len() || !editable(doc, i + 1) {
                 return false;
             }
             let next_empty = doc.blocks[i + 1].text.trim().is_empty();
@@ -1085,8 +1230,8 @@ fn apply(doc: &mut Document, st: &mut EditorState, act: Act) -> bool {
         }
         Act::FocusPrev { id } => {
             if let Some(i) = doc.index_of(id) {
-                if i > 0 {
-                    let pid = doc.blocks[i - 1].id;
+                if let Some(k) = (0..i).rev().find(|&k| editable(doc, k)) {
+                    let pid = doc.blocks[k].id;
                     st.focus(pid, Caret::End);
                 }
             }
@@ -1094,12 +1239,22 @@ fn apply(doc: &mut Document, st: &mut EditorState, act: Act) -> bool {
         }
         Act::FocusNext { id } => {
             if let Some(i) = doc.index_of(id) {
-                if i + 1 < doc.blocks.len() {
-                    let nid = doc.blocks[i + 1].id;
+                if let Some(k) = (i + 1..doc.blocks.len()).find(|&k| editable(doc, k)) {
+                    let nid = doc.blocks[k].id;
                     st.focus(nid, Caret::Start);
                 }
             }
             false
+        }
+        Act::AppendScene { after } => {
+            let Some(i) = doc.index_of(after) else {
+                return false;
+            };
+            let nb = doc.new_block(Element::SceneHeading, "");
+            let nid = nb.id;
+            doc.blocks.insert(i + 1, nb);
+            st.focus(nid, Caret::Start);
+            true
         }
         Act::MoveUp { id } => {
             if let Some(i) = doc.index_of(id) {

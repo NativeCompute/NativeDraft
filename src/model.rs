@@ -207,6 +207,7 @@ pub struct Document {
     pub meta: Meta,
     pub blocks: Vec<Block>,
     next_id: u64,
+    pub scene_base: usize,
 }
 
 impl Default for Document {
@@ -218,6 +219,7 @@ impl Default for Document {
             },
             blocks: Vec::new(),
             next_id: 1,
+            scene_base: 0,
         };
         let first = doc_block(&mut doc.next_id, SceneHeading, "");
         doc.blocks.push(first);
@@ -237,6 +239,7 @@ impl Document {
             meta,
             blocks,
             next_id: 1,
+            scene_base: 0,
         };
         doc.ensure_not_empty();
         doc.reseed_ids();
@@ -605,7 +608,7 @@ impl Document {
                 open = true;
                 out.push(Scene {
                     id: b.id,
-                    number: out.len() + 1,
+                    number: self.scene_base + out.len() + 1,
                     heading: b.text.clone(),
                     synopsis: b.note.clone(),
                     tint: b.tint,

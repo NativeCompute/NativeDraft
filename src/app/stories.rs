@@ -20,6 +20,30 @@ pub struct Side {
     pub files: Vec<(PathBuf, Option<String>, Option<String>)>,
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct Before {
+    pub number: usize,
+    pub heading: String,
+    pub line: String,
+    pub tl: Tl,
+    pub head: Option<usize>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct TlHead {
+    pub color: Option<egui::Color32>,
+    pub parent: String,
+    pub fork: String,
+    pub fork_at: Option<(Tl, Option<usize>)>,
+    pub choice: String,
+    pub before: Vec<Before>,
+    pub merge: Option<(String, String, Tl, Option<usize>)>,
+    pub story: Option<Document>,
+    pub origin: Vec<(Tl, usize)>,
+    pub pages: usize,
+    pub scenes: usize,
+}
+
 pub struct BranchDialog {
     pub parent: Tl,
     pub from: Option<(Tl, usize, Option<String>)>,
@@ -179,12 +203,81 @@ impl App {
         self.tgraph.clone()
     }
 
+    fn refresh_head(&mut self, b: &Bundle) {
+        self.mirrors.clear();
+        let t = self.tl;
+        let Some(i) = t else {
+            self.tl_head = None;
+            self.doc.scene_base = 0;
+            return;
+        };
+        let st = timelines::story(b, t);
+        let before_n = st.scenes_before(st.own.start);
+        self.doc.scene_base = before_n;
+        let scope = b.ancestors(t);
+        for blk in &self.doc.blocks {
+            let Some(link) = &blk.link else { continue };
+            let found = b.owner_of(link).filter(|(o, _)| scope.contains(o));
+            let m = match found {
+                Some((o, k)) => {
+                    let src = timelines::scene_blocks(b.doc(o), k);
+                    crate::editor::Mirror {
+                        from: b.name(o),
+                        heading: src.first().map(|x| x.text.clone()).unwrap_or_default(),
+                        lines: src.iter().skip(1).filter(|x| !x.text.trim().is_empty()).map(|x| (x.element, x.text.clone())).collect(),
+                        color: Some(color_of(b, o)),
+                        missing: false,
+                    }
+                }
+                None => crate::editor::Mirror { missing: true, ..Default::default() },
+            };
+            self.mirrors.insert(blk.id, m);
+        }
+        let meta = b.items[i].meta().clone();
+        let parent = b.parent(t).unwrap_or(None);
+        let mut before = Vec::new();
+        let mut n = 0;
+        for step in &st.steps[..st.own.start] {
+            if !step.scene {
+                continue;
+            }
+            n += 1;
+            let line = step.blocks.iter().skip(1).find(|x| !x.text.trim().is_empty()).map(|x| x.text.clone()).unwrap_or_default();
+            before.push(Before { number: n, heading: step.heading(), line, tl: step.tl, head: step.head });
+        }
+        let fork_step = st.steps[..st.own.start].iter().rev().find(|s| s.scene);
+        let merge = meta.merges_into.as_ref().and_then(|m| {
+            let (o, k) = b.owner_of(m)?;
+            let heading = b.doc(o).blocks.get(k).map(|x| x.text.clone()).unwrap_or_default();
+            Some((heading, b.name(o), o, Some(k)))
+        });
+        let (story, origin) = timelines::assemble_mapped(b, t);
+        let pages = crate::export::page_count(&story);
+        let scenes = story.scene_count();
+        self.tl_head = Some(TlHead {
+            color: Some(color_of(b, t)),
+            parent: b.name(parent),
+            fork: fork_step.map(|s| s.heading()).unwrap_or_default(),
+            fork_at: fork_step.map(|s| (s.tl, s.head)),
+            choice: meta.choice.clone(),
+            before,
+            merge,
+            story: Some(story),
+            origin,
+            pages,
+            scenes,
+        });
+    }
+
     pub(super) fn refresh_timelines(&mut self) {
         self.tgraph = None;
         let Some(b) = self.live() else {
             self.tl_whole = Some(self.doc.clone());
+            self.tl_head = None;
+            self.mirrors.clear();
             return;
         };
+        self.refresh_head(&b);
         let Some(whole) = self.tl_whole.clone() else {
             self.tl_whole = Some(self.doc.clone());
             return;
@@ -1117,6 +1210,159 @@ impl App {
             self.create_branch();
         } else if close {
             self.branch_dialog = None;
+        }
+    }
+
+    // writing in a timeline here---
+
+    pub(super) fn mirror_act(&mut self, bid: u64, act: crate::editor::MirrorAct) {
+        let Some(k) = self.doc.index_of(bid) else { return };
+        let Some(link) = self.doc.blocks[k].link.clone() else { return };
+        match act {
+            crate::editor::MirrorAct::Edit => {
+                let Some((o, h)) = self.bundle.as_ref().and_then(|b| b.owner_of(&link)) else { return };
+                self.open_timeline(o, Some(h), true);
+            }
+            crate::editor::MirrorAct::Own => {
+                if !self.guard_edit() {
+                    return;
+                }
+                let Some(mut b) = self.live() else { return };
+                let missing = b.owner_of(&link).is_none();
+                let done = if missing {
+                    b.doc_mut(self.tl).blocks.remove(k);
+                    b.doc_mut(self.tl).ensure_not_empty();
+                    true
+                } else {
+                    timelines::make_own(&mut b, self.tl, k)
+                };
+                if done && self.commit(b, vec![self.tl], Vec::new()) {
+                    let undo = self.keys_for(keys::Command::Undo);
+                    if missing {
+                        self.deck.ok("Removed", &format!("{undo} brings it back"));
+                    } else {
+                        self.deck.ok("It is its own scene now", &format!("Edit it here; the original stays as it was · {undo} links it again"));
+                    }
+                }
+            }
+        }
+    }
+
+    pub(super) fn branch_banner(&mut self, ui: &mut egui::Ui, avail: f32, pad: f32) -> bool {
+        let Some(head) = self.tl_head.clone() else { return false };
+        let p = pal();
+        let mut changed = false;
+        let color = head.color.unwrap_or(p.primary);
+        ui.add_space(14.0);
+        let inner_w = avail - 2.0 * pad;
+        ui.horizontal(|ui| {
+            ui.add_space(pad);
+            ui.vertical(|ui| {
+                ui.set_width(inner_w);
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 8.0;
+                    let (dot, _) = ui.allocate_exact_size(Vec2::new(14.0, 30.0), Sense::hover());
+                    ui.painter().circle_filled(dot.center(), 6.0, color);
+                    let mut name = self.doc.meta.timeline.as_ref().map(|t| t.name.clone()).unwrap_or_default();
+                    let r = ui.add(
+                        egui::TextEdit::singleline(&mut name)
+                            .id(egui::Id::new("ns-timeline-title"))
+                            .frame(false)
+                            .desired_width(inner_w - 30.0)
+                            .font(theme::font_page_bold(24.0))
+                            .text_color(p.text)
+                            .hint_text("Name this timeline"),
+                    );
+                    if r.changed() && self.access.can_edit() {
+                        if let Some(t) = self.doc.meta.timeline.as_mut() {
+                            t.name = name.clone();
+                        }
+                        self.doc.meta.title = name;
+                        changed = true;
+                    }
+                    if r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                        if let Some(id) = self.doc.blocks.iter().find(|x| x.link.is_none()).map(|x| x.id) {
+                            self.ed.focus(id, Caret::End);
+                        }
+                    }
+                });
+                let from = if head.fork.trim().is_empty() { "the start".to_string() } else { head.fork.trim().to_string() };
+                let mut line = format!("Branches from {from} in {}", head.parent);
+                if !head.choice.trim().is_empty() {
+                    line.push_str(&format!(" \u{b7} Choice: {}", head.choice.trim()));
+                }
+                let font = theme::font(theme::T_SM);
+                let shown = ui::elide_to_width(ui.ctx(), &line, font.clone(), 0.0, inner_w);
+                let resp = ui.add(egui::Label::new(egui::RichText::new(shown).font(font).color(p.text_dim)).sense(Sense::click()));
+                if resp.on_hover_text(format!("Open {from} in {}", head.parent)).clicked() {
+                    if let Some((t, h)) = head.fork_at {
+                        self.open_timeline(t, h, true);
+                    }
+                }
+                ui.add_space(8.0);
+                if !head.before.is_empty() {
+                    let n = head.before.len();
+                    let label = format!("The story so far \u{b7} {}", if n == 1 { "1 scene".to_string() } else { format!("{n} scenes") });
+                    let f = theme::font_semi(theme::T_SM);
+                    let w = theme::tracked_width(ui.ctx(), &label, f.clone(), 0.0) + 24.0;
+                    let (r, resp) = ui.allocate_exact_size(Vec2::new(w, 22.0), Sense::click());
+                    let icon = if self.story_open { Icon::ChevronDown } else { Icon::ChevronRight };
+                    icons::draw(ui.painter(), Rect::from_center_size(Pos2::new(r.left() + 7.0, r.center().y), Vec2::splat(12.0)), icon, color);
+                    ui.painter().text(Pos2::new(r.left() + 20.0, r.center().y), egui::Align2::LEFT_CENTER, label, f, color);
+                    if resp.on_hover_text("The scenes this timeline shares with the ones it came from").clicked() {
+                        self.story_open = !self.story_open;
+                    }
+                    if self.story_open {
+                        ui.add_space(4.0);
+                        let mut go = None;
+                        for b in &head.before {
+                            let (row, resp) = ui.allocate_exact_size(Vec2::new(inner_w, 38.0), Sense::click());
+                            let hot = anim::ease(ui.ctx(), resp.id, resp.hovered(), anim::HOVER);
+                            ui.painter().rect_filled(row, egui::Rounding::same(10.0), theme::wash(p.raised, (60.0 + 140.0 * hot) as u8));
+                            let mono = theme::font_mono(theme::T_CAP);
+                            ui.painter().text(Pos2::new(row.left() + 14.0, row.center().y), egui::Align2::LEFT_CENTER, b.number.to_string(), mono, p.text_faint);
+                            let hf = theme::font_semi(theme::T_SM);
+                            let room = row.width() - 60.0;
+                            let heading = if b.heading.trim().is_empty() { "Untitled scene".to_string() } else { b.heading.clone() };
+                            ui.painter().text(Pos2::new(row.left() + 44.0, row.top() + 12.0), egui::Align2::LEFT_CENTER, ui::elide_to_width(ui.ctx(), &heading, hf.clone(), 0.0, room), hf, p.text);
+                            let lf = theme::font(theme::T_CAP);
+                            ui.painter().text(Pos2::new(row.left() + 44.0, row.top() + 27.0), egui::Align2::LEFT_CENTER, ui::elide_to_width(ui.ctx(), &b.line, lf.clone(), 0.0, room), lf, p.text_faint);
+                            if resp.on_hover_text("Open this scene where it lives").clicked() {
+                                go = Some((b.tl, b.head));
+                            }
+                            ui.add_space(2.0);
+                        }
+                        if let Some((t, h)) = go {
+                            self.open_timeline(t, h, true);
+                        }
+                    }
+                }
+            });
+        });
+        ui.add_space(10.0);
+        let y = ui.cursor().top();
+        ui.painter().line_segment([Pos2::new(ui.max_rect().left() + pad, y), Pos2::new(ui.max_rect().left() + avail - pad, y)], Stroke::new(1.0_f32, theme::wash(color, 90)));
+        ui.add_space(6.0);
+        changed
+    }
+
+    pub(super) fn merge_footer(&mut self, ui: &mut egui::Ui) {
+        let Some((heading, name, t, h)) = self.tl_head.as_ref().and_then(|x| x.merge.clone()) else { return };
+        let p = pal();
+        ui.add_space(26.0);
+        let w = ui.available_width();
+        let (row, resp) = ui.allocate_exact_size(Vec2::new(w, 46.0), Sense::click());
+        let color = self.bundle.as_ref().map(|b| color_of(b, t)).unwrap_or(p.primary);
+        let hot = anim::ease(ui.ctx(), resp.id, resp.hovered(), anim::HOVER);
+        ui.painter().rect_filled(row, egui::Rounding::same(theme::R_CARD), theme::wash(color, (14.0 + 26.0 * hot) as u8));
+        ui.painter().rect_stroke(row, egui::Rounding::same(theme::R_CARD), Stroke::new(1.0_f32, theme::wash(color, 90)));
+        icons::draw(ui.painter(), Rect::from_center_size(Pos2::new(row.left() + 22.0, row.center().y), Vec2::splat(15.0)), Icon::ArrowRight, color);
+        let heading = if heading.trim().is_empty() { "an untitled scene".to_string() } else { heading.trim().to_string() };
+        let f = theme::font_semi(theme::T_SM);
+        let text = ui::elide_to_width(ui.ctx(), &format!("Then merges into {heading} in {name}"), f.clone(), 0.0, row.width() - 60.0);
+        ui.painter().text(Pos2::new(row.left() + 42.0, row.center().y), egui::Align2::LEFT_CENTER, text, f, p.text);
+        if resp.on_hover_text("Open that scene").clicked() {
+            self.open_timeline(t, h, true);
         }
     }
 }

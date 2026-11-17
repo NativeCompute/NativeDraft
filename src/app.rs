@@ -260,6 +260,9 @@ pub struct App {
     tl_whole: Option<Document>,
     tl_missing: Vec<String>,
     timeline_button_rect: Rect,
+    tl_head: Option<stories::TlHead>,
+    mirrors: HashMap<u64, editor::Mirror>,
+    story_open: bool,
 
     frame_no: u64,
     page_key: String,
@@ -448,6 +451,9 @@ impl App {
             tl_whole: None,
             tl_missing: Vec::new(),
             timeline_button_rect: Rect::NOTHING,
+            tl_head: None,
+            mirrors: HashMap::new(),
+            story_open: false,
             frame_no: 0,
             page_key: String::new(),
             page_born: Instant::now(),
@@ -1630,7 +1636,7 @@ impl App {
                         (if p.dark { p.raised } else { p.sunken }, p.text_dim)
                     };
                     ui.painter().rect_filled(badge, egui::Rounding::same(8.0), bfill);
-                    let number = if self.settings.scene_numbers { sc.number.to_string() } else { (i + 1).to_string() };
+                    let number = if self.settings.scene_numbers { sc.number.to_string() } else { (self.doc.scene_base + i + 1).to_string() };
                     ui.painter().text(badge.center(), egui::Align2::CENTER_CENTER, number, theme::font_hud(theme::T_MICRO), bink);
 
                     let (_, _, time) = crate::report::split_heading(&sc.heading);
@@ -1638,7 +1644,13 @@ impl App {
                     let tag_w = tone.map(|_| ui::tag_size(ui.ctx(), &sentence(&time), false).x + 8.0).unwrap_or(0.0);
                     let tx = badge.right() + 12.0;
                     let room = rect.right() - tx - 10.0 - tag_w;
-                    let name = if sc.heading.trim().is_empty() { format!("Scene {}", i + 1) } else { sc.heading.clone() };
+                    let mirror = sc.link.as_ref().and_then(|_| self.mirrors.get(&sc.id));
+                    let name = match mirror {
+                        Some(m) if !m.missing => format!("{} · same scene", m.heading),
+                        Some(_) => "A Same scene that is gone".to_string(),
+                        None if sc.heading.trim().is_empty() => format!("Scene {}", self.doc.scene_base + i + 1),
+                        None => sc.heading.clone(),
+                    };
                     let label_font = theme::font_semi(theme::T_SM);
                     let clip = ui.painter().with_clip_rect(rect);
                     clip.text(
@@ -1918,6 +1930,7 @@ impl App {
         let starts = std::mem::take(&mut self.layout.page_starts);
         let labels = std::mem::take(&mut self.layout.labels);
         let changes = std::mem::take(&mut self.layout.changes);
+        let mirrors = std::mem::take(&mut self.mirrors);
         let voices = self.voices();
         let inner = ui.max_rect().shrink(theme::STAGE_PAD);
         let col_w = editor::column_width(ui, self.ed.font_px).min(inner.width() - 16.0);
@@ -1942,7 +1955,11 @@ impl App {
 
                 ui.add_space(4.0);
                 self.lost_strip(ui, avail, pad);
-                changed |= self.banner(ui, avail, pad);
+                if self.tl_head.is_some() {
+                    changed |= self.branch_banner(ui, avail, pad);
+                } else {
+                    changed |= self.banner(ui, avail, pad);
+                }
                 ui.add_space(14.0);
 
                 let needle = if self.find.open { Some(self.find.needle.clone()) } else { None };
@@ -1966,6 +1983,7 @@ impl App {
                     margin: pad,
                     labels: &labels,
                     changed: &changes,
+                    mirrors: (!mirrors.is_empty()).then_some(&mirrors),
                 };
                 ui.horizontal(|ui| {
                     ui.add_space(pad);
@@ -1973,6 +1991,7 @@ impl App {
                         ui.set_width(col);
                         ui.set_max_width(col);
                         changed |= editor::show(ui, &mut self.doc, &mut self.ed, &view);
+                        self.merge_footer(ui);
                         ui.add_space(60.0);
                     });
                 });
@@ -1981,8 +2000,14 @@ impl App {
         self.layout.page_starts = starts;
         self.layout.labels = labels;
         self.layout.changes = changes;
+        if self.mirrors.is_empty() {
+            self.mirrors = mirrors;
+        }
         if changed {
             self.mark_changed();
+        }
+        if let Some((bid, act)) = self.ed.mirror_request.take() {
+            self.mirror_act(bid, act);
         }
         if let Some(id) = self.ed.note_request.take() {
             self.open_note(id);
@@ -2068,6 +2093,12 @@ impl App {
         let lengths = self.layout.lengths.clone();
         let act_notes = self.layout.acts.clone();
         let mut out = cards::Out { changed: false, act: None, rename: None };
+        let shown: Vec<(u64, String)> = self.mirrors.iter().map(|(id, m)| (*id, if m.missing { crate::timelines::GAP_SCENE.to_string() } else { format!("{} (SAME AS {})", m.heading, m.from.to_uppercase()) })).collect();
+        for (id, text) in &shown {
+            if let Some(k) = self.doc.index_of(*id) {
+                self.doc.blocks[k].text = text.clone();
+            }
+        }
         if self.settings.cards_columns {
             egui::ScrollArea::both()
                 .id_salt("ns-cards-columns")
@@ -2082,6 +2113,15 @@ impl App {
                 .show(ui, |ui| {
                     out = cards::show(ui, &mut self.doc, &mut self.cards, &lengths, &act_notes, live, self.frame_no, self.settings.beat_guides);
                 });
+        }
+        for (id, _) in &shown {
+            if let Some(k) = self.doc.index_of(*id) {
+                let b = &mut self.doc.blocks[k];
+                b.text.clear();
+                b.note.clear();
+                b.tint = None;
+                b.remark.clear();
+            }
         }
         if out.changed {
             self.mark_changed();
@@ -2140,6 +2180,28 @@ impl App {
             changed: revising.then_some(&self.layout.changes),
             header: revising.then(|| crate::revision::header(self.doc.meta.revision.unwrap_or(0), &self.doc.meta.revision_date)),
         };
+        if let Some((story, origin)) = self.tl_head.as_ref().and_then(|h| h.story.clone().map(|d| (d, h.origin.clone()))) {
+            if let Some(want) = self.pages.show_block.take() {
+                let own = self.doc.index_of(want).map(|k| (self.tl, k));
+                self.pages.show_block = own.and_then(|o| origin.iter().position(|x| *x == o)).map(|k| k as u64 + 1);
+            }
+            let plain = pages::Revised { lock: None, changed: None, header: None };
+            let jump = pages::show(ui, &story, &mut self.pages, self.settings.scene_numbers, voices.as_ref(), &plain);
+            if let Some((t, k)) = jump.and_then(|id| origin.get((id as usize).saturating_sub(1)).copied()) {
+                if !self.access.can_edit() {
+                    return;
+                }
+                if t == self.tl {
+                    if let Some(id) = self.doc.blocks.get(k).map(|b| b.id) {
+                        self.mode = Mode::Write;
+                        self.ed.jump_to(id);
+                    }
+                } else {
+                    self.open_timeline(t, Some(k), true);
+                }
+            }
+            return;
+        }
         let jump = pages::show(ui, &self.doc, &mut self.pages, self.settings.scene_numbers, voices.as_ref(), &rev);
         if let Some(id) = jump {
             self.mode = Mode::Write;
@@ -4194,6 +4256,12 @@ impl App {
     }
     pub fn debug_open_timeline(&mut self, t: crate::timelines::Tl) {
         self.open_timeline(t, None, true);
+    }
+    pub fn debug_mirror_act(&mut self, bid: u64, own: bool) {
+        self.mirror_act(bid, if own { editor::MirrorAct::Own } else { editor::MirrorAct::Edit });
+    }
+    pub fn debug_story_counts(&self) -> Option<(usize, usize)> {
+        self.tl_head.as_ref().map(|h| (h.pages, h.scenes))
     }
     pub fn debug_lost(&self) -> Vec<String> {
         self.tl_missing.clone()

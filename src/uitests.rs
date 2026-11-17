@@ -1814,3 +1814,78 @@ fn opening_a_library_with_timelines_writes_nothing() {
     assert_eq!(std::fs::read_to_string(&main).unwrap(), a);
     assert_eq!(std::fs::read_to_string(&branch).unwrap(), b);
 }
+
+const HARBOUR_IDS: &str = "---\ntitle: Harbour\nauthor: \ncontact: \ndraft: \n---\n\n## INT. DOCK - NIGHT\n<!-- scene: | id=dock01 -->\n\nRain.\n\n## INT. OFFICE - NIGHT\n<!-- scene: | id=offi01 -->\n\n**MARIA**\n\n> No.\n\n## EXT. PIER - DAWN\n<!-- scene: | id=pier01 -->\n\nGulls.\n\n";
+
+const ROOF: &str = "---\ntitle: Roof\nauthor: \ncontact: \ndraft: \ntimeline-id: roof01\ntimeline: Roof\nparent: main\nfrom: offi01\nchoice: She climbs\n---\n\n## INT. ROOF - NIGHT\n\nWind.\n\n## @same pier01\n\n## INT. CAR - NIGHT\n\nEngine.\n\n";
+
+impl Harness {
+    fn roof(&mut self) -> (std::path::PathBuf, std::path::PathBuf) {
+        let main = storage::scripts_dir().join("harbour.md");
+        std::fs::write(&main, HARBOUR_IDS).unwrap();
+        let branch = storage::scripts_dir().join("harbour.timelines/roof.md");
+        std::fs::create_dir_all(branch.parent().unwrap()).unwrap();
+        std::fs::write(&branch, ROOF).unwrap();
+        self.app.debug_open(branch.clone());
+        self.frames(3);
+        (main, branch)
+    }
+}
+
+#[test]
+fn a_branch_numbers_its_scenes_after_the_story_so_far_and_counts_the_whole_story() {
+    let mut h = Harness::new();
+    let (main, branch) = h.roof();
+    assert_eq!(h.app.debug_tl(), Some(0));
+    assert_eq!(h.app.doc().scene_base, 2);
+    let numbers: Vec<usize> = h.app.doc().scenes().iter().map(|s| s.number).collect();
+    assert_eq!(numbers, vec![3, 4, 5]);
+    assert_eq!(h.app.debug_story_counts().map(|c| c.1), Some(5), "Dock, Office, Roof, the Pier and the Car");
+    h.app.set_mode(Mode::Read);
+    h.frames(3);
+    let b = crate::timelines::load_bundle(&main).unwrap();
+    let story = crate::timelines::assemble(&b, Some(0));
+    assert_eq!(h.app.debug_sheet_count(), 1 + crate::export::page_count(&story), "Read shows the whole story");
+    h.app.set_mode(Mode::Write);
+    h.frames(2);
+    assert_eq!(std::fs::read_to_string(&branch).unwrap(), ROOF, "looking is not writing");
+    assert_eq!(std::fs::read_to_string(&main).unwrap(), HARBOUR_IDS);
+}
+
+#[test]
+fn the_caret_steps_over_a_same_scene_and_backspace_cannot_eat_it() {
+    let mut h = Harness::new();
+    let (_, branch) = h.roof();
+    let wind = h.app.doc().blocks.iter().find(|b| b.text == "Wind.").unwrap().id;
+    let car = h.app.doc().blocks.iter().find(|b| b.text == "INT. CAR - NIGHT").unwrap().id;
+    h.app.focus_on(wind);
+    h.frames(2);
+    h.press(Key::ArrowDown, Modifiers::NONE);
+    h.frames(2);
+    assert_eq!(h.app.focus_block(), Some(car), "down from the line above lands below the Same scene");
+    h.app.focus_start(car);
+    h.frames(2);
+    h.press(Key::Backspace, Modifiers::NONE);
+    h.frames(2);
+    assert!(h.app.doc().blocks.iter().any(|b| b.link.as_deref() == Some("pier01")), "the Same scene is still there");
+    assert!(h.app.doc().blocks.iter().any(|b| b.text == "INT. CAR - NIGHT"), "and so is the heading");
+    h.app.debug_save();
+    assert!(std::fs::read_to_string(&branch).unwrap().contains("## @same pier01"));
+}
+
+#[test]
+fn make_it_its_own_copies_the_scene_in_and_undo_links_it_again() {
+    let mut h = Harness::new();
+    let (main, branch) = h.roof();
+    let link = h.app.doc().blocks.iter().find(|b| b.link.is_some()).unwrap().id;
+    h.app.debug_mirror_act(link, true);
+    h.frames(2);
+    h.app.debug_save();
+    let text = std::fs::read_to_string(&branch).unwrap();
+    assert!(!text.contains("@same") && text.contains("## EXT. PIER - DAWN") && text.contains("Gulls."), "{text}");
+    assert_eq!(std::fs::read_to_string(&main).unwrap(), HARBOUR_IDS, "the original stays as it was");
+    h.app.debug_undo();
+    h.frames(2);
+    h.app.debug_save();
+    assert_eq!(std::fs::read_to_string(&branch).unwrap(), ROOF);
+}

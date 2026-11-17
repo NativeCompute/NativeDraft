@@ -402,7 +402,10 @@ impl App {
         let p = pal();
         let l = &self.layout;
         let one = |n: usize, a: &'static str, b: &'static str| if n == 1 { a } else { b };
-        let (pages, scenes, words) = (l.pages, l.scenes, l.words);
+        let (pages, scenes, words) = match &self.tl_head {
+            Some(h) => (h.pages, h.scenes, l.words),
+            None => (l.pages, l.scenes, l.words),
+        };
         ui.spacing_mut().item_spacing.x = 8.0;
         let right_w = 260.0;
         let room = ui.available_width() - right_w;

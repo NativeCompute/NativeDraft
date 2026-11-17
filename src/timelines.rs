@@ -40,6 +40,7 @@ pub struct Step {
     pub gap: bool,
     pub head: Option<usize>,
     pub blocks: Vec<Block>,
+    pub origin: Vec<(Tl, usize)>,
 }
 
 impl Step {
@@ -457,6 +458,7 @@ pub fn own_steps(b: &Bundle, t: Tl) -> Vec<Step> {
             gap: false,
             head: None,
             blocks: doc.blocks[..prelude].to_vec(),
+            origin: (0..prelude).map(|k| (t, k)).collect(),
         });
     }
     let scope = b.ancestors(t);
@@ -473,16 +475,23 @@ pub fn own_steps(b: &Bundle, t: Tl) -> Vec<Step> {
                 .owner_of(link)
                 .filter(|(o, _)| scope.contains(o));
             let mut blocks = lead;
+            let mut origin: Vec<(Tl, usize)> = (seg.start..h).map(|k| (t, k)).collect();
+            let tail_origin = (h + 1..seg.end).map(|k| (t, k));
             match source {
                 Some((o, k)) => {
-                    blocks.extend(scene_blocks(b.doc(o), k));
+                    let copy = scene_blocks(b.doc(o), k);
+                    origin.extend((0..copy.len()).map(|j| (o, k + j)));
+                    blocks.extend(copy);
                     blocks.extend(tail);
-                    out.push(Step { tl: t, sid: Some(link.clone()), scene: true, same: Some(o), gap: false, head: Some(h), blocks });
+                    origin.extend(tail_origin);
+                    out.push(Step { tl: t, sid: Some(link.clone()), scene: true, same: Some(o), gap: false, head: Some(h), blocks, origin });
                 }
                 None => {
                     blocks.push(gap_block(GAP_SCENE));
+                    origin.push((t, h));
                     blocks.extend(tail);
-                    out.push(Step { tl: t, sid: Some(link.clone()), scene: true, same: None, gap: true, head: Some(h), blocks });
+                    origin.extend(tail_origin);
+                    out.push(Step { tl: t, sid: Some(link.clone()), scene: true, same: None, gap: true, head: Some(h), blocks, origin });
                 }
             }
             continue;
@@ -495,6 +504,7 @@ pub fn own_steps(b: &Bundle, t: Tl) -> Vec<Step> {
             gap: false,
             head: Some(h),
             blocks: doc.blocks[seg.start..seg.end].to_vec(),
+            origin: (seg.start..seg.end).map(|k| (t, k)).collect(),
         });
     }
     out
@@ -532,6 +542,7 @@ fn story_in(b: &Bundle, t: Tl, depth: usize) -> Story {
                         gap: true,
                         head: None,
                         blocks: vec![gap_block(GAP_SCENE)],
+                        origin: vec![(p, 0)],
                     });
                 }
             },
@@ -559,6 +570,10 @@ pub fn first_number(b: &Bundle, t: Tl) -> usize {
 }
 
 pub fn assemble(b: &Bundle, t: Tl) -> Document {
+    assemble_mapped(b, t).0
+}
+
+pub fn assemble_mapped(b: &Bundle, t: Tl) -> (Document, Vec<(Tl, usize)>) {
     let st = story(b, t);
     let mut meta = b.main.meta.clone();
     meta.timeline = None;
@@ -566,17 +581,19 @@ pub fn assemble(b: &Bundle, t: Tl) -> Document {
         meta.title = format!("{} ({})", b.main.meta.title.trim(), b.name(t));
     }
     let mut blocks = Vec::new();
+    let mut origin = Vec::new();
     let mut id = 0u64;
     for step in st.steps {
-        for mut blk in step.blocks {
+        for (mut blk, from) in step.blocks.into_iter().zip(step.origin) {
             id += 1;
             blk.id = id;
             blk.sid = None;
             blk.link = None;
             blocks.push(blk);
+            origin.push(from);
         }
     }
-    Document::from_parts(meta, blocks)
+    (Document::from_parts(meta, blocks), origin)
 }
 
 // graph here---
