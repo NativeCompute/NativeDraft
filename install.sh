@@ -68,21 +68,34 @@ else
 fi
 
 if [ "$PREBUILT" = 0 ]; then
-PKGS=(
-  build-essential pkg-config
-  libgl1-mesa-dev
-  libx11-dev libxcursor-dev libxrandr-dev libxi-dev
-  libxkbcommon-dev libxkbcommon-x11-dev
-  libwayland-dev
-)
-missing=()
-for p in "${PKGS[@]}"; do
-  dpkg -s "$p" >/dev/null 2>&1 || missing+=("$p")
-done
-if [ ${#missing[@]} -gt 0 ]; then
-  say "Installing build dependencies: ${missing[*]}"
-  sudo apt-get update || say "apt-get update reported errors (often a stale PPA); carrying on"
-  sudo apt-get install -y "${missing[@]}"
+if command -v apt-get >/dev/null 2>&1 && command -v dpkg >/dev/null 2>&1; then
+  PKGS=(
+    build-essential pkg-config
+    libgl1-mesa-dev
+    libx11-dev libxcursor-dev libxrandr-dev libxi-dev
+    libxkbcommon-dev libxkbcommon-x11-dev
+    libwayland-dev
+  )
+  missing=()
+  for p in "${PKGS[@]}"; do
+    dpkg -s "$p" >/dev/null 2>&1 || missing+=("$p")
+  done
+  if [ ${#missing[@]} -gt 0 ]; then
+    say "Installing build dependencies: ${missing[*]}"
+    sudo apt-get update || say "apt-get update reported errors (often a stale PPA); carrying on"
+    sudo apt-get install -y "${missing[@]}"
+  fi
+elif command -v pacman >/dev/null 2>&1; then
+  say "Installing build dependencies with pacman"
+  sudo pacman -S --needed --noconfirm base-devel pkgconf libglvnd libx11 libxcursor libxrandr libxi libxkbcommon libxkbcommon-x11 wayland
+elif command -v dnf >/dev/null 2>&1; then
+  say "Installing build dependencies with dnf"
+  sudo dnf install -y gcc gcc-c++ make pkgconf-pkg-config mesa-libGL-devel libX11-devel libXcursor-devel libXrandr-devel libXi-devel libxkbcommon-devel libxkbcommon-x11-devel wayland-devel
+elif command -v zypper >/dev/null 2>&1; then
+  say "Installing build dependencies with zypper"
+  sudo zypper --non-interactive install gcc gcc-c++ make pkg-config Mesa-libGL-devel libX11-devel libXcursor-devel libXrandr-devel libXi-devel libxkbcommon-devel libxkbcommon-x11-devel wayland-devel
+else
+  say "Could not tell which package manager this is. Install a C compiler, pkg-config and the OpenGL, X11, xkbcommon and Wayland development files, then run this again if the build fails."
 fi
 
 if ! command -v cargo >/dev/null 2>&1 && [ -f "$HOME/.cargo/env" ]; then

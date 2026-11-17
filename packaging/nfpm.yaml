@@ -1,0 +1,61 @@
+name: nativedraft
+arch: amd64
+platform: linux
+version: ${VERSION}
+release: 1
+section: editors
+priority: optional
+maintainer: NativeCompute <hello@nativecompute.net>
+description: |
+  Free screenwriting app.
+  Industry format as you type, branching timelines for games and
+  interactive stories, and export to PDF, Final Draft and Fountain.
+vendor: NativeCompute
+homepage: https://nativecompute.net/nativedraft
+license: MIT
+contents:
+  - src: ${STAGE}/usr/bin/nativedraft
+    dst: /usr/bin/nativedraft
+    file_info:
+      mode: 0755
+  - src: ${STAGE}/usr/share/applications/nativedraft.desktop
+    dst: /usr/share/applications/nativedraft.desktop
+  - src: ${STAGE}/usr/share/icons/hicolor/scalable/apps/nativedraft.svg
+    dst: /usr/share/icons/hicolor/scalable/apps/nativedraft.svg
+  - src: ${STAGE}/usr/share/icons/hicolor/256x256/apps/nativedraft.png
+    dst: /usr/share/icons/hicolor/256x256/apps/nativedraft.png
+  - src: ${STAGE}/usr/share/icons/hicolor/512x512/apps/nativedraft.png
+    dst: /usr/share/icons/hicolor/512x512/apps/nativedraft.png
+  - src: ${STAGE}/usr/share/doc/nativedraft/copyright
+    dst: /usr/share/doc/nativedraft/copyright
+overrides:
+  deb:
+    depends:
+      - libc6 (>= 2.35)
+      - libgcc-s1
+      - libgl1
+      - libegl1
+      - libxkbcommon0
+      - libwayland-client0
+      - libx11-6
+      - libxcursor1
+      - libxrandr2
+      - libxi6
+    recommends:
+      - xdg-utils
+      - zenity
+  rpm:
+    depends:
+      - glibc
+      - libgcc
+      - libglvnd-glx
+      - libglvnd-egl
+      - libxkbcommon
+      - libwayland-client
+      - libX11
+      - libXcursor
+      - libXrandr
+      - libXi
+    recommends:
+      - xdg-utils
+      - zenity

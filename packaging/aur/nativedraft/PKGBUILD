@@ -1,0 +1,38 @@
+pkgname=nativedraft
+pkgver=3.0.0
+pkgrel=1
+pkgdesc="Free screenwriting app: industry format as you type, branching timelines, PDF, Final Draft and Fountain"
+arch=('x86_64' 'aarch64')
+url="https://nativecompute.net/nativedraft"
+license=('MIT')
+depends=('gcc-libs' 'glibc' 'libglvnd' 'libxkbcommon' 'wayland' 'libx11' 'libxcursor' 'libxrandr' 'libxi' 'hicolor-icon-theme')
+makedepends=('cargo' 'git')
+optdepends=('xdg-utils: open exports, links and the library folder'
+            'kdialog: the import file picker on KDE'
+            'zenity: the import file picker on GNOME and others')
+provides=('nativedraft')
+conflicts=('nativedraft-bin')
+options=('!lto')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/NativeCompute/NativeDraft/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+prepare() {
+  cd "NativeDraft-${pkgver}"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "NativeDraft-${pkgver}"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release
+}
+
+package() {
+  cd "NativeDraft-${pkgver}"
+  install -Dm755 target/release/nativedraft "${pkgdir}/usr/bin/nativedraft"
+  install -Dm644 packaging/nativedraft.desktop "${pkgdir}/usr/share/applications/nativedraft.desktop"
+  install -Dm644 packaging/nativedraft.svg "${pkgdir}/usr/share/icons/hicolor/scalable/apps/nativedraft.svg"
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

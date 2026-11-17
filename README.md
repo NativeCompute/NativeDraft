@@ -237,6 +237,22 @@ On a Mac, `install.sh` hands over to `install-macos.sh --from-source`, which
 builds `NativeDraft.app` for your Mac and installs it the same way. If a tool is
 missing it says which and how to get it.
 
+### On Linux, with your package manager
+
+| Distribution | How |
+|---|---|
+| **Arch, Manjaro, EndeavourOS, CachyOS** and other Arch-based | `yay -S nativedraft-bin` (or `paru`), or `nativedraft` to build it from source |
+| **Debian, Ubuntu, Pop!\_OS, Mint, elementary, Zorin** | Download `nativedraft_<version>_amd64.deb` from [Releases](https://github.com/NativeCompute/NativeDraft/releases), then `sudo apt install ./nativedraft_*_amd64.deb` |
+| **Fedora, openSUSE, RHEL, Rocky, Alma** | Download `nativedraft-<version>-1.x86_64.rpm`, then `sudo dnf install ./nativedraft-*.rpm` (or `sudo zypper install`) |
+| **NixOS** and Nix anywhere | `nix run github:NativeCompute/NativeDraft`, or add the flake's `packages.<system>.default` to your configuration |
+| **Anything else** | `nativedraft-linux-x86_64.AppImage`: make it executable and double-click it. No install, nothing to set up |
+
+Every package runs on glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36
+and later). A package-manager copy doesn't update itself: when a new version is
+out, NativeDraft says so and your package manager brings it. Your library is
+the same `~/.local/share/nativedraft` folder (or your old Blackline one)
+whichever way you install. Flatpak is coming in 3.1.
+
 ### Linux and Windows, from a release
 
 Download the latest build from

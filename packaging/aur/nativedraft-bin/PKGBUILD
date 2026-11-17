@@ -1,0 +1,23 @@
+pkgname=nativedraft-bin
+pkgver=3.0.0
+pkgrel=1
+pkgdesc="Free screenwriting app: industry format as you type, branching timelines, PDF, Final Draft and Fountain"
+arch=('x86_64')
+url="https://nativecompute.net/nativedraft"
+license=('MIT')
+depends=('gcc-libs' 'glibc' 'libglvnd' 'libxkbcommon' 'wayland' 'libx11' 'libxcursor' 'libxrandr' 'libxi' 'hicolor-icon-theme')
+optdepends=('xdg-utils: open exports, links and the library folder'
+            'kdialog: the import file picker on KDE'
+            'zenity: the import file picker on GNOME and others')
+provides=('nativedraft')
+conflicts=('nativedraft')
+source=("https://github.com/NativeCompute/NativeDraft/releases/download/v${pkgver}/nativedraft-v${pkgver}-linux-x86_64.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+  cd "nativedraft-v${pkgver}-linux-x86_64"
+  install -Dm755 nativedraft "${pkgdir}/usr/bin/nativedraft"
+  install -Dm644 packaging/nativedraft.desktop "${pkgdir}/usr/share/applications/nativedraft.desktop"
+  install -Dm644 packaging/nativedraft.svg "${pkgdir}/usr/share/icons/hicolor/scalable/apps/nativedraft.svg"
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

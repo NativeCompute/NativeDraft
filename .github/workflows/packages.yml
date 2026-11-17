@@ -1,0 +1,80 @@
+name: Packages
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "packaging/**"
+      - "flake.nix"
+      - "install.sh"
+      - ".github/workflows/packages.yml"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build the Linux packages
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --release
+      - name: Package
+        run: |
+          v="$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)"
+          name="nativedraft-v${v}-linux-x86_64"
+          mkdir -p "$name/packaging"
+          cp target/release/nativedraft "$name/nativedraft"
+          cp install.sh README.md LICENSE "$name/"
+          cp packaging/nativedraft.desktop packaging/nativedraft.svg "$name/packaging/"
+          tar -czf "$name.tar.gz" "$name"
+          bash packaging/linux/package.sh "$v" target/release/nativedraft out "$name.tar.gz"
+          cp "$name.tar.gz" out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          path: out/
+
+  verify:
+    name: Install on ${{ matrix.name }}
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Arch Linux (AUR), image: "archlinux:latest", kind: arch }
+          - { name: Fedora (rpm), image: "fedora:41", kind: rpm }
+          - { name: Debian 12 (deb), image: "debian:12", kind: deb }
+          - { name: Ubuntu 22.04 (deb), image: "ubuntu:22.04", kind: deb }
+          - { name: Ubuntu 24.04 (AppImage), image: "ubuntu:24.04", kind: appimage }
+          - { name: Fedora (AppImage), image: "fedora:41", kind: appimage }
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-packages
+          path: out
+      - name: Install, open and smoke-test
+        timeout-minutes: 20
+        run: bash packaging/linux/verify-package.sh ${{ matrix.kind }} out
+
+  nix:
+    name: Nix flake
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - name: Build
+        run: nix build .#nativedraft --print-build-logs
+      - name: Open and smoke-test
+        timeout-minutes: 15
+        run: |
+          sudo apt-get update && sudo apt-get install -y xvfb
+          xvfb-run -a -s "-screen 0 1600x1000x24" ./result/bin/nativedraft --smoke "$RUNNER_TEMP/smoke" || true
+          cat "$RUNNER_TEMP/smoke/report.txt"
+          grep -q '^PASS' "$RUNNER_TEMP/smoke/report.txt"

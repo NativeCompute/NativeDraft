@@ -42,12 +42,115 @@ jobs:
           }
           pack nativedraft
           pack blackline
+          cp "nativedraft-${GITHUB_REF_NAME}-linux-x86_64.tar.gz" nativedraft-linux-x86_64.tar.gz
+          sha256sum nativedraft-linux-x86_64.tar.gz > nativedraft-linux-x86_64.tar.gz.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: linux
           path: |
             nativedraft-*.tar.gz*
             blackline-*.tar.gz*
+
+  linux-packages:
+    name: Linux packages (deb, rpm, AppImage, AUR)
+    needs: linux
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux
+          path: dist
+      - name: Build the packages
+        run: |
+          tarball="dist/nativedraft-${GITHUB_REF_NAME}-linux-x86_64.tar.gz"
+          tar -xzf "$tarball" -C dist
+          bash packaging/linux/package.sh "${GITHUB_REF_NAME}" "dist/nativedraft-${GITHUB_REF_NAME}-linux-x86_64/nativedraft" out "$tarball"
+          cp "$tarball" out/
+          cp "out/nativedraft-${GITHUB_REF_NAME}-linux-x86_64.AppImage" out/nativedraft-linux-x86_64.AppImage
+          (cd out && sha256sum nativedraft-linux-x86_64.AppImage > nativedraft-linux-x86_64.AppImage.sha256)
+          cp out/aur/nativedraft-bin/PKGBUILD out/nativedraft-bin.PKGBUILD
+          cp out/aur/nativedraft/PKGBUILD out/nativedraft.PKGBUILD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          path: out/
+
+  linux-verify:
+    name: Install on ${{ matrix.name }}
+    needs: linux-packages
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Arch Linux (AUR), image: "archlinux:latest", kind: arch }
+          - { name: Fedora (rpm), image: "fedora:41", kind: rpm }
+          - { name: Debian 12 (deb), image: "debian:12", kind: deb }
+          - { name: Ubuntu 22.04 (deb), image: "ubuntu:22.04", kind: deb }
+          - { name: Ubuntu 24.04 (AppImage), image: "ubuntu:24.04", kind: appimage }
+          - { name: Fedora (AppImage), image: "fedora:41", kind: appimage }
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-packages
+          path: out
+      - name: Install, open and smoke-test
+        timeout-minutes: 20
+        run: bash packaging/linux/verify-package.sh ${{ matrix.kind }} out
+
+  nix:
+    name: Nix flake
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - name: Build
+        run: nix build .#nativedraft --print-build-logs
+      - name: Open and smoke-test
+        timeout-minutes: 15
+        run: |
+          sudo apt-get update && sudo apt-get install -y xvfb
+          xvfb-run -a -s "-screen 0 1600x1000x24" ./result/bin/nativedraft --smoke "$RUNNER_TEMP/smoke" || true
+          cat "$RUNNER_TEMP/smoke/report.txt"
+          grep -q '^PASS' "$RUNNER_TEMP/smoke/report.txt"
+
+  aur:
+    name: Publish to the AUR
+    needs: [publish, linux-packages]
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-packages
+          path: out
+      - name: Publish nativedraft-bin and nativedraft
+        if: env.AUR_SSH_KEY != ''
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/aur"
+          for pkg in nativedraft-bin nativedraft; do
+            git clone "ssh://aur@aur.archlinux.org/${pkg}.git" "aur-${pkg}"
+            cp "out/aur/${pkg}/PKGBUILD" "aur-${pkg}/PKGBUILD"
+            docker run --rm -v "$PWD/aur-${pkg}:/pkg" -w /pkg archlinux:latest bash -c "useradd -m b && chown -R b /pkg && su b -c 'makepkg --printsrcinfo' > /pkg/.SRCINFO"
+            sudo chown -R "$USER" "aur-${pkg}"
+            cd "aur-${pkg}"
+            git -c user.name="NativeCompute" -c user.email="hello@nativecompute.net" add PKGBUILD .SRCINFO
+            git -c user.name="NativeCompute" -c user.email="hello@nativecompute.net" commit -m "${GITHUB_REF_NAME}" || true
+            git push origin HEAD:master
+            cd ..
+          done
+      - name: No AUR key yet
+        if: env.AUR_SSH_KEY == ''
+        run: echo "Add an AUR_SSH_KEY secret to publish nativedraft-bin and nativedraft to the AUR automatically. The PKGBUILDs are attached to the release."
 
   windows:
     name: Windows build
@@ -72,6 +175,9 @@ jobs:
           }
           Pack nativedraft
           Pack blackline
+          Copy-Item "nativedraft-$env:GITHUB_REF_NAME-windows-x86_64.zip" -Destination nativedraft-windows-x86_64.zip
+          $hash = (Get-FileHash -Algorithm SHA256 nativedraft-windows-x86_64.zip).Hash.ToLower()
+          "$hash  nativedraft-windows-x86_64.zip" | Out-File -Encoding ascii -NoNewline nativedraft-windows-x86_64.zip.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -145,7 +251,7 @@ jobs:
 
   publish:
     name: GitHub Release
-    needs: [linux, windows, macos, macos-intel, macos-verify]
+    needs: [linux, linux-packages, linux-verify, nix, windows, macos, macos-intel, macos-verify]
     if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
@@ -164,5 +270,13 @@ jobs:
             blackline-*.zip
             blackline-*.zip.sha256
             blackline-*.tar.gz.sha256
+            nativedraft*.deb
+            nativedraft*.deb.sha256
+            nativedraft*.rpm
+            nativedraft*.rpm.sha256
+            nativedraft*.AppImage
+            nativedraft*.AppImage.sha256
+            nativedraft-bin.PKGBUILD
+            nativedraft.PKGBUILD
             install-macos.sh
           generate_release_notes: true

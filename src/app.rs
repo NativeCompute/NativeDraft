@@ -3457,7 +3457,8 @@ impl App {
             return None;
         }
         let can = self.update_plan().is_some();
-        Some(ncf::splash::Offer::new(&r.version, can).with_art(r.art.clone()).managed(cfg!(target_os = "linux")))
+        let managed = cfg!(target_os = "linux") && std::env::var_os("APPIMAGE").is_none();
+        Some(ncf::splash::Offer::new(&r.version, can).with_art(r.art.clone()).managed(managed))
     }
 
     fn answer_offer(&mut self, choice: ncf::splash::Choice) {
