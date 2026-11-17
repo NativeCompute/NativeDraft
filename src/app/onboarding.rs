@@ -41,6 +41,7 @@ enum Sketch {
     Week,
     Appearance,
     Covers,
+    Timelines,
 }
 
 struct Step {
@@ -80,8 +81,8 @@ impl App {
                     sketch: Sketch::Writing,
                 },
                 Step {
-                    title: "Three ways to see a script",
-                    body: format!("Write is where you type. Cards shows each scene as a card you can drag. Read shows the printed pages. Switch in the toolbar, or with {}.", k(Command::NextView)),
+                    title: "Four ways to see a script",
+                    body: format!("Write is where you type. Cards shows each scene as a card you can drag. Timelines draws every branch of the story. Read shows the printed pages. Switch in the toolbar, or with {}.", k(Command::NextView)),
                     sketch: Sketch::Views,
                 },
                 Step {
@@ -103,6 +104,11 @@ impl App {
                     title: "Revisions and export",
                     body: "When the script goes out, start a revision from the Changes tab. Every change is marked with an asterisk, and each round takes the next colour. Export a PDF, Fountain or Final Draft file from the toolbar.".into(),
                     sketch: Sketch::Revisions,
+                },
+                Step {
+                    title: "Timelines",
+                    body: format!("Branch the story at any scene: {} starts a timeline that shares everything up to there and then goes its own way. Show a scene from Main as a Same scene, merge back when the paths meet, and see every timeline as a graph in the Timelines view.", k(Command::NewTimeline)),
+                    sketch: Sketch::Timelines,
                 },
                 Step {
                     title: "Your scripts stay yours",
@@ -136,6 +142,11 @@ impl App {
                         title: "Light, dark, or your system",
                         body: "NativeDraft now follows your computer's light or dark setting and changes when it does. To keep one look, pick Light or Dark under Settings, Appearance.".into(),
                         sketch: Sketch::Appearance,
+                    },
+                    Step {
+                        title: "Timelines",
+                        body: format!("Branch the story at a choice with {}. Each timeline shares the script up to that scene, can show a scene from Main as a Same scene and merge back, and exports as a script or as Ink, Yarn or JSON for games.", k(Command::NewTimeline)),
+                        sketch: Sketch::Timelines,
                     },
                     Step {
                         title: "A cover for every script",
@@ -492,6 +503,38 @@ fn sketch(painter: &egui::Painter, area: Rect, kind: Sketch, fade: &dyn Fn(Color
             painter.line_segment([Pos2::new(sheet.left() - 8.0, inner.top() + 24.0), Pos2::new(sheet.left() - 8.0, inner.top() + 82.0)], Stroke::new(1.5_f32, blue));
             bar(painter, inner.left(), inner.top() + 4.0, inner.width() * 0.8, ink);
             bar(painter, inner.left(), inner.top() + 104.0, inner.width() * 0.9, ink);
+        }
+        Sketch::Timelines => {
+            let rows = [area.center().y - 46.0, area.center().y + 6.0, area.center().y + 52.0];
+            let cols: Vec<f32> = (0..5).map(|i| area.left() + 16.0 + i as f32 * (area.width() - 32.0) / 4.0).collect();
+            let coral = fade(p.primary);
+            let lilac = fade(p.groups[1]);
+            let green = fade(p.groups[4 % p.groups.len()]);
+            let line = |a: Pos2, b: Pos2, c: Color32| {
+                let pts: Vec<Pos2> = (0..=20)
+                    .map(|i| {
+                        let t = i as f32 / 20.0;
+                        let e = t * t * (3.0 - 2.0 * t);
+                        Pos2::new(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * e)
+                    })
+                    .collect();
+                painter.add(egui::Shape::line(pts, Stroke::new(2.5_f32, c)));
+            };
+            line(Pos2::new(cols[0], rows[0]), Pos2::new(cols[4], rows[0]), coral);
+            line(Pos2::new(cols[1], rows[0]), Pos2::new(cols[2], rows[1]), lilac);
+            line(Pos2::new(cols[2], rows[1]), Pos2::new(cols[3], rows[1]), lilac);
+            line(Pos2::new(cols[3], rows[1]), Pos2::new(cols[4], rows[0]), lilac);
+            line(Pos2::new(cols[2], rows[1]), Pos2::new(cols[3], rows[2]), green);
+            for (k, x) in cols.iter().enumerate() {
+                painter.circle_filled(Pos2::new(*x, rows[0]), 7.0, coral);
+                painter.text(Pos2::new(*x, rows[0]), Align2::CENTER_CENTER, (k + 1).to_string(), theme::font_bold(theme::T_MICRO), fade(theme::on(p.primary)));
+            }
+            painter.circle_filled(Pos2::new(cols[2], rows[1]), 7.0, lilac);
+            painter.circle_filled(Pos2::new(cols[3], rows[1]), 7.0, fade(p.solid));
+            painter.circle_stroke(Pos2::new(cols[3], rows[1]), 7.0, Stroke::new(2.0_f32, lilac));
+            painter.circle_filled(Pos2::new(cols[3], rows[2]), 7.0, green);
+            tag(painter, Pos2::new(cols[1] + 4.0, rows[1] - 14.0), "She says no", strong);
+            tag(painter, Pos2::new(cols[0] - 8.0, rows[0] - 22.0), "Main", ink);
         }
         Sketch::Reports => {
             let field = Rect::from_min_size(Pos2::new(area.left(), area.center().y - 84.0), Vec2::new(area.width(), 30.0));

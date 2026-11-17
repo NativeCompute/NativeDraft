@@ -145,6 +145,7 @@ enum Step {
     Storylines,
     Timelines,
     Branch,
+    Compare,
     Read,
     Reports,
     Export,
@@ -164,7 +165,7 @@ enum Step {
     Quit,
 }
 
-const STEPS: [Step; 25] = [
+const STEPS: [Step; 26] = [
     Step::Splash,
     Step::Tour,
     Step::Home,
@@ -173,6 +174,7 @@ const STEPS: [Step; 25] = [
     Step::Storylines,
     Step::Timelines,
     Step::Branch,
+    Step::Compare,
     Step::Read,
     Step::Reports,
     Step::Export,
@@ -318,7 +320,12 @@ impl Smoke {
                 let lib = library(&self.dir);
                 app.debug_open_from_home(lib.join("scripts/the-harbour-job.timelines/maria-says-no.md"));
             }
+            Step::Compare => {
+                app.set_mode(Mode::Timelines);
+                let _ = app.debug_compare();
+            }
             Step::Read => {
+                app.debug_close_popover();
                 let lib = library(&self.dir);
                 app.debug_open_from_home(lib.join("scripts/the-long-way-down.md"));
                 app.set_mode(Mode::Read);

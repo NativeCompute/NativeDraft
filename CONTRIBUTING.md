@@ -32,6 +32,9 @@ On Linux, `./install.sh` builds and installs it for your user.
    needs a test that an old file still opens and saves byte for byte where it
    did not change. `an_existing_library_is_never_rewritten_by_the_app` in
    `src/tests.rs` guards this; never loosen it to make a change pass.
+   Timelines live in a `<script>.timelines` folder beside the script; a change
+   to how they are read or written comes with tests in `src/timelinetests.rs`,
+   and nothing may write to a script that has not branched.
 2. **Tests come with the change.** Behaviour goes in `src/tests.rs`, anything
    you click in `src/uitests.rs` (a real `App`, driven headless), the shared
    library screens in `src/teamtests.rs`.

@@ -89,6 +89,9 @@ Not released yet; this is what the next version brings.
 - **A new icon.** The ribbon mark on an ink tile with a coral glow, for the
   window, the dock and the installer.
 - **Reports** opens on four tiles: pages, scenes, speaking parts and locations.
+- **Timelines.** Branch the story at any scene, as many times and as deep as
+  you like, and see every branch as a graph. See [Timelines](#timelines)
+  below.
 
 ![Reports: the four figures, then characters, scenes, locations, day and night](docs/nativedraft-reports.png)
 
@@ -316,7 +319,7 @@ a rail of icons.
 
 ---
 
-## Three views
+## Four views
 
 The switch near the left of the toolbar (`Ctrl+G` steps through them). Left of
 it, **Library** goes back to Home and all your scripts.
@@ -350,6 +353,9 @@ timeline of the whole script to scale, with beat guides at 10, 25, 50, 75 and
 90 percent of the page count (*Beats* in the toolbar turns them off).
 Right-click a card for a storyline colour or to delete the scene (it asks
 first, and `Ctrl+Z` brings it back).
+
+**Timelines** — every timeline of the script as a graph (`Ctrl+Shift+G`).
+See [Timelines](#timelines).
 
 **Read** — Reading mode: the script exactly as it will print, one page at a
 time, typeset, drawn from the same layout pass the PDF is written from — no
@@ -463,6 +469,7 @@ unit a shooting schedule is drawn up in.
 ```
 ~/.local/share/nativedraft/
     scripts/       one .md per screenplay
+                   and a <name>.timelines folder for a script's timelines
     exports/       pdf / fdx / fountain / txt output
     snapshots/     dated copies, one folder per script
     settings.conf  what you have chosen, key = value
@@ -654,6 +661,63 @@ source, the card offers *Download* instead. *Not now* asks again next time
 NativeDraft opens; *Skip this version* never asks about that version again.
 Settings → About still offers *Update now* any time. Nothing is ever
 downloaded or installed without you clicking.
+
+---
+
+## Timelines
+
+Some stories don't go one way. A game writer's choice, a "what if she says
+no", an ending you want to try both ways: **Timelines** lets a script branch.
+
+![Timelines: Main across the top, Maria says no branching at scene 2 with a Same scene and a merge back into the Vault, and Cole runs nested beneath](docs/nativedraft-timelines.png)
+
+- **Main** is the script as you have always written it. Each scene is a dot.
+- **Branch from a scene** (`Ctrl+Shift+B` in Write, a right-click on a dot,
+  or *Branch from scene* in the Timelines view): name the timeline and the
+  choice that leads there, and, if you like, what staying on Main is called.
+  The new timeline shares everything up to that scene and then goes its own
+  way. Timelines can branch again, as deep as you need.
+- **Same scene.** When a branch goes through a scene that happens exactly as
+  it does in a timeline it came from, open the branch, find that scene in the
+  Timelines view, right-click it and choose *Show in (the branch) as a Same
+  scene*. It appears in the branch as a locked card, always in step with
+  the original; *Edit in Main* takes you to it, and *Make it its own* copies
+  it in so it can change.
+- **Merge.** When a branch rejoins the story, open the branch, right-click
+  the scene it flows into and choose *Merge (the branch) into here*. Nothing is folded away: the branch stays a
+  timeline of its own, and the graph draws the arrow back.
+- **Writing in a branch.** The page opens with the timeline's name, where it
+  branches from and the choice, with **The story so far** folded beneath. Its
+  scenes are numbered after the scenes it shares, Read turns the pages of the
+  whole story, and the status pill counts all of it.
+- **The graph** shows how many timelines, endings and paths the story has, and
+  anything that needs a look (a scene a timeline used that is gone, a merge
+  that loops back). Arrow keys move between scenes, `Enter` opens one.
+  Right-click a timeline's name to rename it, change the choice, its colour,
+  duplicate it or delete it. **Compare** sets two timelines side by side,
+  scene against scene.
+- **Switch timelines** from the sidebar (they sit under the open script), the
+  *Timeline* menu in the toolbar or `Ctrl+K`.
+- **Exports.** From a branch, PDF, Fountain and Final Draft export its whole
+  story. *Every timeline* writes one file per timeline into a folder. For
+  games, ⋯ → Export has **Ink**, **Yarn Spinner** and a **JSON graph**: one
+  knot or node per scene, the choices at every fork, merges as jumps.
+- **Reports** read any timeline's whole story, and list the characters and
+  places only the branches have.
+
+![Writing in a branch: the timeline's header, a Same scene as a locked card, and where it merges back](docs/nativedraft-branch.png)
+
+![Compare: Maria says no beside Main, scene against scene](docs/nativedraft-compare.png)
+
+**Safe by design.** A branch is its own file in a hidden folder beside the
+script (`scripts/the-harbour-job.timelines/maria-says-no.md`), so the script
+itself never changes shape. The one thing written into it is a short id on
+the card of a scene a timeline refers to (`<!-- scene: … | id=k3f9q2 -->`),
+and only once you branch; older versions of NativeDraft keep it and write it
+back untouched. Delete a scene a timeline uses and NativeDraft says which
+timelines use it, moves them to the scenes beside it, and `Ctrl+Z` puts every
+file back. Renaming, duplicating and deleting a script take its timelines
+along. Timelines live on this computer for now; NativeCloud gets them next.
 
 ---
 

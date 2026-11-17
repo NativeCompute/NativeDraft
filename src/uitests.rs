@@ -1383,12 +1383,12 @@ fn people_who_saw_blue_pages_only_get_the_new_look() {
     use crate::app::onboarding::Kind;
     let mut h = Harness::with(1320.0, 900.0, "onboarded = blue-pages\n");
     assert_eq!(h.app.debug_tour(), Some((Kind::New, 0)));
-    for step in 1..6 {
+    for step in 1..7 {
         h.press(Key::Enter, Modifiers::NONE);
         assert_eq!(h.app.debug_tour(), Some((Kind::New, step)));
     }
     h.press(Key::Enter, Modifiers::NONE);
-    assert_eq!(h.app.debug_tour(), None, "six slides, then back to work");
+    assert_eq!(h.app.debug_tour(), None, "seven slides, then back to work");
 }
 
 #[test]
@@ -1410,11 +1410,11 @@ fn whats_new_shows_once_takes_the_keys_and_can_be_replayed() {
 
     h.app.debug_start_tour();
     h.frames(1);
-    for _ in 0..8 {
+    for _ in 0..9 {
         assert!(h.app.debug_tour().is_some());
         h.press(Key::Enter, Modifiers::NONE);
     }
-    assert_eq!(h.app.debug_tour(), None, "eight steps, then back to writing");
+    assert_eq!(h.app.debug_tour(), None, "nine steps, then back to writing");
 }
 
 #[test]
