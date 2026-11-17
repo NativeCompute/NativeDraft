@@ -122,6 +122,8 @@ pub struct Block {
     pub tint: Option<usize>,
     pub remark: String,
     pub dual: bool,
+    pub sid: Option<String>,
+    pub link: Option<String>,
 }
 
 impl Block {
@@ -134,6 +136,8 @@ impl Block {
             tint: None,
             remark: String::new(),
             dual: false,
+            sid: None,
+            link: None,
         }
     }
 }
@@ -153,6 +157,19 @@ pub struct Meta {
     pub revision_date: String,
     pub revision_base: String,
     pub locked: bool,
+    pub timeline: Option<TimelineMeta>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TimelineMeta {
+    pub id: String,
+    pub name: String,
+    pub parent: Option<String>,
+    pub from: Option<String>,
+    pub choice: String,
+    pub stay: String,
+    pub merges_into: Option<String>,
+    pub color: Option<usize>,
 }
 
 impl Meta {
@@ -268,6 +285,28 @@ impl Document {
                 b.text = format!("({})", inner);
             }
         }
+    }
+
+    pub fn dedupe_sids(&mut self) {
+        let mut seen: Vec<String> = Vec::new();
+        for b in &mut self.blocks {
+            if b.element != SceneHeading {
+                continue;
+            }
+            if let Some(id) = &b.sid {
+                if seen.contains(id) {
+                    b.sid = None;
+                } else {
+                    seen.push(id.clone());
+                }
+            }
+        }
+    }
+
+    pub fn scene_by_sid(&self, sid: &str) -> Option<usize> {
+        self.blocks
+            .iter()
+            .position(|b| b.element == SceneHeading && b.sid.as_deref() == Some(sid))
     }
 
     pub fn word_count(&self) -> usize {
@@ -470,6 +509,8 @@ pub struct Scene {
     pub end: usize,
     pub cast: Vec<String>,
     pub words: usize,
+    pub sid: Option<String>,
+    pub link: Option<String>,
 }
 
 pub fn base_character(name: &str) -> String {
@@ -572,6 +613,8 @@ impl Document {
                     end: self.blocks.len(),
                     cast: Vec::new(),
                     words: 0,
+                    sid: b.sid.clone(),
+                    link: b.link.clone(),
                 });
             }
         }

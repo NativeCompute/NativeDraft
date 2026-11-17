@@ -422,11 +422,13 @@ mod local {
             doc.meta.starred = false;
             let new_path = storage::unique_path(&doc.meta.title, None);
             storage::save(&new_path, &doc).map_err(|e| e.to_string())?;
+            storage::copy_timelines(key, &new_path).map_err(|e| e.to_string())?;
             Ok(Some(doc.meta.title))
         }
 
         fn delete(&mut self, key: &Path) -> Result<(), String> {
-            storage::delete(key).map_err(|e| e.to_string())
+            storage::delete(key).map_err(|e| e.to_string())?;
+            storage::delete_timelines(key).map_err(|e| e.to_string())
         }
 
         fn set_starred(&mut self, key: &Path, on: bool) -> Result<(), String> {

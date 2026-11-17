@@ -5,6 +5,8 @@ mod teamtests;
 #[cfg(test)]
 mod uitests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
+mod timelinetests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod cloudtests;
 
 pub mod app;
@@ -31,6 +33,7 @@ pub mod splash;
 pub mod stats;
 pub mod storage;
 pub mod theme;
+pub mod timelines;
 pub mod ui;
 
 pub use eframe;

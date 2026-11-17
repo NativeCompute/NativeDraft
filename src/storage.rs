@@ -88,6 +88,7 @@ pub struct Entry {
     pub draft: String,
     pub revision: Option<usize>,
     pub notes: Vec<(String, String)>,
+    pub timelines: usize,
 }
 
 impl Default for Entry {
@@ -110,6 +111,7 @@ impl Default for Entry {
             draft: String::new(),
             revision: None,
             notes: Vec::new(),
+            timelines: 0,
         }
     }
 }
@@ -130,7 +132,8 @@ pub fn list_scripts() -> Vec<Entry> {
             .and_then(|m| m.modified())
             .unwrap_or(SystemTime::UNIX_EPOCH);
         let text = fs::read_to_string(&path).unwrap_or_default();
-        out.push(entry_from_text(path, &text, modified));
+        let timelines = list_timelines(&path).len();
+        out.push(Entry { timelines, ..entry_from_text(path, &text, modified) });
     }
     out.sort_by_key(|a| std::cmp::Reverse(a.modified));
     out
@@ -310,10 +313,19 @@ pub fn to_markdown(doc: &Document) -> String {
             s.push_str("locked: yes\n");
         }
     }
+    if let Some(t) = &doc.meta.timeline {
+        s.push_str(&timeline_keys(t));
+    }
     s.push_str("---\n\n");
 
     for b in &doc.blocks {
         let text = b.text.trim();
+        if b.element == Element::SceneHeading {
+            if let Some(link) = b.link.as_deref().filter(|l| sid_ok(l)) {
+                s.push_str(&format!("## @same {link}\n\n"));
+                continue;
+            }
+        }
         if text.is_empty() && !(b.element == Element::SceneHeading && has_card(b)) && b.element != Element::Act {
             continue;
         }
@@ -379,30 +391,81 @@ fn split_dual(cue: &str) -> (&str, bool) {
 }
 
 fn has_card(b: &Block) -> bool {
-    !b.note.trim().is_empty() || b.tint.is_some()
+    !b.note.trim().is_empty() || b.tint.is_some() || b.sid.as_deref().is_some_and(sid_ok)
+}
+
+pub fn sid_ok(id: &str) -> bool {
+    (1..=16).contains(&id.len()) && id.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
 }
 
 fn card_comment(b: &Block) -> String {
     let note = b.note.replace('\n', " ").replace("-->", "- ->");
     let note = note.trim();
+    let body = match b.sid.as_deref().filter(|id| sid_ok(id)) {
+        Some(id) if note.is_empty() => format!("| id={id}"),
+        Some(id) => format!("{note} | id={id}"),
+        None => note.to_string(),
+    };
     match b.tint {
-        Some(t) => format!("<!-- scene: tint={t} | {note} -->"),
-        None => format!("<!-- scene: {note} -->"),
+        Some(t) => format!("<!-- scene: tint={t} | {body} -->"),
+        None => format!("<!-- scene: {body} -->"),
     }
 }
 
-fn parse_card(line: &str) -> Option<(Option<usize>, String)> {
+struct Card {
+    tint: Option<usize>,
+    note: String,
+    sid: Option<String>,
+}
+
+fn parse_card(line: &str) -> Option<Card> {
     let inner = line.strip_prefix("<!--")?.strip_suffix("-->")?.trim();
     let rest = inner.strip_prefix("scene:")?.trim();
-    if let Some(after) = rest.strip_prefix("tint=") {
+    let (tint, note) = if let Some(after) = rest.strip_prefix("tint=") {
         let (num, note) = match after.split_once('|') {
             Some((n, note)) => (n.trim(), note.trim()),
             None => (after.trim(), ""),
         };
-        Some((num.parse::<usize>().ok(), note.to_string()))
+        (num.parse::<usize>().ok(), note.to_string())
     } else {
-        Some((None, rest.to_string()))
+        (None, rest.to_string())
+    };
+    let (note, sid) = split_sid(&note);
+    Some(Card { tint, note, sid })
+}
+
+fn split_sid(note: &str) -> (String, Option<String>) {
+    let Some(at) = note.rfind("| id=") else {
+        return (note.to_string(), None);
+    };
+    let id = note[at + 5..].trim_end();
+    let head = &note[..at];
+    let clean = head.is_empty() || head.ends_with(' ');
+    if !clean || !sid_ok(id) {
+        return (note.to_string(), None);
     }
+    (head.trim_end().to_string(), Some(id.to_string()))
+}
+
+fn timeline_keys(t: &crate::model::TimelineMeta) -> String {
+    let mut s = String::new();
+    s.push_str(&format!("timeline-id: {}\n", esc(&t.id)));
+    s.push_str(&format!("timeline: {}\n", esc(&t.name)));
+    s.push_str(&format!("parent: {}\n", t.parent.as_deref().map(esc).unwrap_or_else(|| "main".into())));
+    s.push_str(&format!("from: {}\n", t.from.as_deref().map(esc).unwrap_or_else(|| "start".into())));
+    if !t.choice.trim().is_empty() {
+        s.push_str(&format!("choice: {}\n", esc(&t.choice)));
+    }
+    if !t.stay.trim().is_empty() {
+        s.push_str(&format!("stay: {}\n", esc(&t.stay)));
+    }
+    if let Some(m) = &t.merges_into {
+        s.push_str(&format!("merges-into: {}\n", esc(m)));
+    }
+    if let Some(c) = t.color {
+        s.push_str(&format!("color: {c}\n"));
+    }
+    s
 }
 
 fn voice_name_ok(name: &str) -> bool {
@@ -480,6 +543,16 @@ fn split_front_matter(text: &str) -> (Meta, &str) {
                 "revision_date" => meta.revision_date = v,
                 "revision_base" => meta.revision_base = v,
                 "locked" => meta.locked = matches!(v.as_str(), "yes" | "true" | "1"),
+                "timeline-id" => meta.timeline.get_or_insert_with(Default::default).id = v,
+                "timeline" => meta.timeline.get_or_insert_with(Default::default).name = v,
+                "parent" => {
+                    meta.timeline.get_or_insert_with(Default::default).parent = (v != "main" && !v.is_empty()).then_some(v)
+                }
+                "from" => meta.timeline.get_or_insert_with(Default::default).from = (v != "start" && !v.is_empty()).then_some(v),
+                "choice" => meta.timeline.get_or_insert_with(Default::default).choice = v,
+                "stay" => meta.timeline.get_or_insert_with(Default::default).stay = v,
+                "merges-into" => meta.timeline.get_or_insert_with(Default::default).merges_into = (!v.is_empty()).then_some(v),
+                "color" => meta.timeline.get_or_insert_with(Default::default).color = v.parse().ok(),
                 _ => {}
             }
         }
@@ -502,12 +575,20 @@ pub fn from_markdown(text: &str) -> Document {
         if line.is_empty() {
             continue;
         }
-        if let Some((tint, note)) = parse_card(line) {
+        if let Some(card) = parse_card(line) {
             if let Some(last) = doc.blocks.last_mut() {
-                if last.element == Element::SceneHeading {
-                    last.tint = tint;
-                    last.note = note;
+                if last.element == Element::SceneHeading && last.link.is_none() {
+                    last.tint = card.tint;
+                    last.note = card.note;
+                    last.sid = card.sid;
                 }
+            }
+            continue;
+        }
+        if let Some(link) = line.strip_prefix("## @same ").map(str::trim).filter(|l| sid_ok(l)) {
+            add(&mut doc, &mut id, Element::SceneHeading, "", false, false);
+            if let Some(last) = doc.blocks.last_mut() {
+                last.link = Some(link.to_string());
             }
             continue;
         }
@@ -543,6 +624,7 @@ pub fn from_markdown(text: &str) -> Document {
     }
 
     doc.ensure_not_empty();
+    doc.dedupe_sids();
     doc.reseed_ids();
     doc
 }
@@ -580,6 +662,11 @@ pub fn save(path: &Path, doc: &Document) -> io::Result<()> {
         return Err(io::Error::other("the disk refused the write (a test failure from debug mode)"));
     }
     ensure_dirs()?;
+    if is_timeline_path(path) {
+        if let Some(dir) = path.parent() {
+            fs::create_dir_all(dir)?;
+        }
+    }
     let tmp = path.with_extension("md.tmp");
     fs::write(&tmp, to_markdown(doc))?;
     fs::rename(&tmp, path)?;
@@ -670,7 +757,106 @@ pub fn find_in(text: &str, needle: &str, keep: usize) -> (Vec<Hit>, usize) {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn search_scripts(needle: &str, keep: usize) -> Vec<Found> {
-    search_entries(list_scripts(), needle, keep)
+    let mut entries = Vec::new();
+    for e in list_scripts() {
+        for p in list_timelines(&e.path) {
+            let name = fs::read_to_string(&p)
+                .map(|t| split_front_matter(&t).0)
+                .ok()
+                .and_then(|m| m.timeline)
+                .map(|t| t.name)
+                .filter(|n| !n.trim().is_empty())
+                .unwrap_or_else(|| p.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string());
+            entries.push(Entry { path: p, title: format!("{} · {}", e.title, name), ..Default::default() });
+        }
+        entries.push(e);
+    }
+    search_entries(entries, needle, keep)
+}
+
+// timelines here---
+
+pub const TIMELINES_EXT: &str = "timelines";
+
+pub fn timelines_dir(main: &Path) -> PathBuf {
+    let stem = main.file_stem().and_then(|s| s.to_str()).unwrap_or("untitled");
+    main.with_file_name(format!("{stem}.{TIMELINES_EXT}"))
+}
+
+pub fn is_timeline_path(p: &Path) -> bool {
+    p.parent()
+        .and_then(|d| d.extension())
+        .and_then(|e| e.to_str())
+        == Some(TIMELINES_EXT)
+}
+
+pub fn main_of(branch: &Path) -> Option<PathBuf> {
+    if !is_timeline_path(branch) {
+        return None;
+    }
+    let dir = branch.parent()?;
+    let stem = dir.file_stem()?.to_str()?;
+    Some(dir.with_file_name(format!("{stem}.md")))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn list_timelines(main: &Path) -> Vec<PathBuf> {
+    if is_timeline_path(main) {
+        return Vec::new();
+    }
+    let Ok(rd) = fs::read_dir(timelines_dir(main)) else {
+        return Vec::new();
+    };
+    let mut out: Vec<PathBuf> = rd
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.is_file() && p.extension().and_then(|e| e.to_str()) == Some("md"))
+        .collect();
+    out.sort();
+    out
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn unique_timeline_path(main: &Path, name: &str, taken: &[PathBuf]) -> PathBuf {
+    let dir = timelines_dir(main);
+    let base = slugify(name);
+    let mut n = 1;
+    loop {
+        let file = if n == 1 { format!("{base}.md") } else { format!("{base}-{n}.md") };
+        let p = dir.join(file);
+        if !p.exists() && !taken.contains(&p) {
+            return p;
+        }
+        n += 1;
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn delete_timelines(main: &Path) -> io::Result<()> {
+    let dir = timelines_dir(main);
+    if dir.is_dir() && !is_timeline_path(main) {
+        for p in list_timelines(main) {
+            fs::remove_file(p)?;
+        }
+        let _ = fs::remove_dir(&dir);
+    }
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn copy_timelines(from: &Path, to: &Path) -> io::Result<usize> {
+    let files = list_timelines(from);
+    if files.is_empty() {
+        return Ok(0);
+    }
+    let dir = timelines_dir(to);
+    fs::create_dir_all(&dir)?;
+    for p in &files {
+        if let Some(name) = p.file_name() {
+            fs::copy(p, dir.join(name))?;
+        }
+    }
+    Ok(files.len())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -700,6 +886,9 @@ pub fn snapshot_folder(script: &Path) -> PathBuf {
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("untitled");
+    if let Some(dir) = script.parent().filter(|_| is_timeline_path(script)).and_then(|d| d.file_name()) {
+        return snapshots_dir().join(dir).join(stem);
+    }
     snapshots_dir().join(stem)
 }
 
@@ -766,6 +955,22 @@ pub fn follow_rename(from: &Path, to: &Path) {
     if old.is_dir() {
         let new = snapshot_folder(to);
         if !new.exists() {
+            let _ = fs::rename(old, new);
+        }
+    }
+    if is_timeline_path(from) {
+        return;
+    }
+    let old = timelines_dir(from);
+    if old.is_dir() {
+        let new = timelines_dir(to);
+        if !new.exists() {
+            let _ = fs::rename(old, new);
+        }
+    }
+    let name = |p: &Path| timelines_dir(p).file_name().map(|n| snapshots_dir().join(n));
+    if let (Some(old), Some(new)) = (name(from), name(to)) {
+        if old.is_dir() && !new.exists() {
             let _ = fs::rename(old, new);
         }
     }
