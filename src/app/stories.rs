@@ -1365,4 +1365,96 @@ impl App {
             self.open_timeline(t, h, true);
         }
     }
+
+    // exports here---
+
+    fn plain_options(&self) -> crate::export::PdfOptions {
+        let mut o = self.pdf_options(None);
+        o.changed = Default::default();
+        o.revision = None;
+        o.lock = None;
+        o.changed_only = false;
+        o.tint = false;
+        o
+    }
+
+    pub(super) fn story_of(&self, t: Tl) -> Option<Document> {
+        if t == self.tl {
+            if let Some(d) = self.tl_head.as_ref().and_then(|h| h.story.clone()) {
+                return Some(d);
+            }
+        }
+        let b = self.live()?;
+        if t.is_some_and(|i| i >= b.items.len()) {
+            return None;
+        }
+        Some(timelines::assemble(&b, t))
+    }
+
+    pub(super) fn export_timeline(&mut self, t: Tl, format: crate::export::Format, quick: bool) {
+        let Some(mut doc) = self.story_of(t) else { return };
+        doc.normalize();
+        let opts = self.plain_options();
+        let after = (format == crate::export::Format::Pdf && quick).then_some(self.settings.after_export);
+        let done = crate::export::render(&doc, format, &opts).and_then(|(name, bytes)| self.store.deliver(&name, bytes, after));
+        match done {
+            Ok(name) => self.deck.ok("Exported", &name),
+            Err(e) => self.deck.say("Export failed", &e, Tone::Danger),
+        }
+    }
+
+    pub(super) fn export_every(&mut self, format: crate::export::Format) {
+        let Some(b) = self.live() else { return };
+        let opts = self.plain_options();
+        let folder = format!("{} timelines", storage::slugify(&b.main.meta.title));
+        let mut n = 0;
+        for t in b.order() {
+            let mut doc = timelines::assemble(&b, t);
+            doc.normalize();
+            let done = crate::export::render(&doc, format, &opts).and_then(|(name, bytes)| {
+                let ext = name.rsplit('.').next().unwrap_or("pdf").to_string();
+                let file = format!("{folder}/{}.{ext}", storage::slugify(&b.name(t)));
+                self.store.deliver(&file, bytes, None)
+            });
+            match done {
+                Ok(_) => n += 1,
+                Err(e) => {
+                    self.deck.say("Export failed", &e, Tone::Danger);
+                    return;
+                }
+            }
+        }
+        self.deck.ok("Every timeline exported", &format!("{n} files in {folder}"));
+    }
+
+    pub(super) fn export_game(&mut self, game: crate::export_game::Game) {
+        let Some(b) = self.live() else { return };
+        let (name, bytes) = crate::export_game::render(&b, game);
+        match self.store.deliver(&name, bytes, None) {
+            Ok(name) => self.deck.ok(&format!("{} exported", game.label()), &name),
+            Err(e) => self.deck.say("Export failed", &e, Tone::Danger),
+        }
+    }
+
+    pub(super) fn export_picker(&mut self, ui: &mut egui::Ui) {
+        let Some(b) = self.bundle.clone() else { return };
+        ui::section(ui, "Timeline");
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing = Vec2::new(4.0, 4.0);
+            for t in b.order() {
+                let on = !self.export_every && self.export_pick == t;
+                if ui::button(ui, &b.name(t), None, on) {
+                    self.export_pick = t;
+                    self.export_every = false;
+                }
+            }
+            if ui::button(ui, "Every timeline", None, self.export_every) {
+                self.export_every = true;
+            }
+        });
+        if self.export_every || self.export_pick != self.tl {
+            ui.label(egui::RichText::new("The whole story of each, every page").font(theme::font(theme::T_CAP)).color(pal().text_faint));
+        }
+        ui.add_space(6.0);
+    }
 }

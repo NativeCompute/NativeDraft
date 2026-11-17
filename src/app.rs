@@ -260,6 +260,8 @@ pub struct App {
     tl_whole: Option<Document>,
     tl_missing: Vec<String>,
     timeline_button_rect: Rect,
+    export_pick: crate::timelines::Tl,
+    export_every: bool,
     tl_head: Option<stories::TlHead>,
     mirrors: HashMap<u64, editor::Mirror>,
     story_open: bool,
@@ -451,6 +453,8 @@ impl App {
             tl_whole: None,
             tl_missing: Vec::new(),
             timeline_button_rect: Rect::NOTHING,
+            export_pick: None,
+            export_every: false,
             tl_head: None,
             mirrors: HashMap::new(),
             story_open: false,
@@ -895,11 +899,22 @@ impl App {
 
     fn open_export_window(&mut self) {
         self.refresh_layout(true);
+        self.export_pick = self.tl;
+        self.export_every = false;
         self.popover = Some(Popover::Export);
         self.popover_frame = self.frame_no;
     }
 
     fn export_pdf_with(&mut self, pages: Option<Vec<usize>>) {
+        if self.export_every {
+            self.export_every(Format::Pdf);
+            return;
+        }
+        if self.export_pick != self.tl || self.tl.is_some() {
+            let pick = self.export_pick;
+            self.export_timeline(pick, Format::Pdf, true);
+            return;
+        }
         self.doc.normalize();
         let opts = self.pdf_options(pages);
         let after = self.settings.after_export;
@@ -912,6 +927,10 @@ impl App {
     }
 
     fn export(&mut self, format: Format, quick: bool) {
+        if self.tl.is_some() {
+            self.export_timeline(self.tl, format, quick);
+            return;
+        }
         self.doc.normalize();
         let opts = self.pdf_options(None);
         let after = (format == Format::Pdf && quick).then_some(self.settings.after_export);
@@ -2457,6 +2476,20 @@ impl App {
                         self.export(Format::Text, false);
                         self.popover = None;
                     }
+                    if self.has_timelines() {
+                        ui::section(ui, "Timelines");
+                        if ui::menu_item(ui, &mut rects, "Every timeline as PDF", Icon::Print, false) {
+                            self.export_every(Format::Pdf);
+                            self.popover = None;
+                        }
+                        for game in [crate::export_game::Game::Ink, crate::export_game::Game::Yarn, crate::export_game::Game::Json] {
+                            let label = format!("{} (.{})", game.label(), game.ext());
+                            if ui::menu_item(ui, &mut rects, &label, Icon::Graph, false) {
+                                self.export_game(game);
+                                self.popover = None;
+                            }
+                        }
+                    }
                     if !team && ui::menu_item(ui, &mut rects, "Open the exports folder", Icon::Folder, false) {
                         self.store.open_exports();
                         self.popover = None;
@@ -2755,6 +2788,11 @@ impl App {
                         .color(p.text_faint),
                 );
                 ui.add_space(8.0);
+
+                // timeline pick here---
+                if self.has_timelines() {
+                    self.export_picker(ui);
+                }
 
                 // pages here---
                 ui::section(ui, "Pages");
@@ -4262,6 +4300,15 @@ impl App {
     }
     pub fn debug_story_counts(&self) -> Option<(usize, usize)> {
         self.tl_head.as_ref().map(|h| (h.pages, h.scenes))
+    }
+    pub fn debug_export_every(&mut self, format: Format) {
+        self.export_every(format);
+    }
+    pub fn debug_export_game(&mut self, game: crate::export_game::Game) {
+        self.export_game(game);
+    }
+    pub fn debug_export(&mut self, format: Format) {
+        self.export(format, false);
     }
     pub fn debug_lost(&self) -> Vec<String> {
         self.tl_missing.clone()

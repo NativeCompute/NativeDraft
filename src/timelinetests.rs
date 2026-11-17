@@ -430,3 +430,72 @@ fn branch_files_live_beside_their_script_and_follow_it() {
     names.sort();
     assert_eq!(names, vec!["harbour-lights.md", "harbour-lights.timelines"]);
 }
+
+// game exports here---
+
+fn targets(text: &str, open: &str, close: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut rest = text;
+    while let Some(i) = rest.find(open) {
+        let after = &rest[i + open.len()..];
+        let end = after.find(close).unwrap_or(after.len());
+        out.push(after[..end].trim().to_string());
+        rest = &after[end..];
+    }
+    out
+}
+
+#[test]
+fn ink_has_a_knot_for_every_divert_and_a_choice_at_every_fork() {
+    let b = harbour();
+    let ink = crate::export_game::ink(&b);
+    let knots: Vec<String> = ink.lines().filter_map(|l| l.strip_prefix("=== ").and_then(|l| l.strip_suffix(" ==="))).map(String::from).collect();
+    assert_eq!(knots.len(), 5 + 3 + 1 + 1 + 1, "{ink}");
+    for t in targets(&ink, "-> ", "\n") {
+        assert!(t == "END" || knots.contains(&t), "-> {t} goes nowhere");
+    }
+    assert_eq!(ink.lines().filter(|l| l.starts_with("* [")).count(), 8, "two options at each of the four forks");
+    assert!(ink.contains("* [Pick ta] -> name_ta_s3"), "{ink}");
+    assert!(ink.contains("* [Continue] -> main_s3"));
+    assert!(ink.contains("# scene: INT. ONE - DAY"));
+    assert!(ink.contains("# same scene"));
+    assert!(ink.lines().filter(|l| *l == "-> END").count() >= 3, "B, C and D end");
+}
+
+#[test]
+fn yarn_jumps_land_on_nodes_and_json_describes_the_graph() {
+    let b = harbour();
+    let yarn = crate::export_game::yarn(&b);
+    let titles: Vec<String> = yarn.lines().filter_map(|l| l.strip_prefix("title: ")).map(String::from).collect();
+    for t in targets(&yarn, "<<jump ", ">>") {
+        assert!(titles.contains(&t), "<<jump {t}>> goes nowhere");
+    }
+    assert_eq!(yarn.lines().filter(|l| l.starts_with("-> ")).count(), 8);
+    assert_eq!(yarn.matches("===\n").count(), titles.len());
+
+    let v: serde_json::Value = serde_json::from_str(&crate::export_game::json(&b)).expect("valid JSON");
+    assert_eq!(v["timelines"].as_array().unwrap().len(), 5);
+    let nodes = v["graph"]["nodes"].as_array().unwrap();
+    assert_eq!(nodes.len(), 11);
+    let ids: Vec<&str> = nodes.iter().map(|n| n["id"].as_str().unwrap()).collect();
+    for n in nodes {
+        for c in n["choices"].as_array().unwrap() {
+            assert!(c["to"].is_null() || ids.contains(&c["to"].as_str().unwrap()));
+        }
+    }
+    for e in v["graph"]["edges"].as_array().unwrap() {
+        assert!(ids.contains(&e["to"].as_str().unwrap()), "{e}");
+    }
+    assert_eq!(v["paths"], 6);
+    assert_eq!(v["endings"], 4);
+}
+
+#[test]
+fn game_text_is_escaped() {
+    let main = "---\ntitle: X\n---\n\n## INT. A - DAY\n\n-> not a divert {not logic} # not a tag\n\n";
+    let b = Bundle::alone(PathBuf::from("x.md"), storage::from_markdown(main));
+    let ink = crate::export_game::ink(&b);
+    assert!(ink.contains("\\-> not a divert \\{not logic\\} \\# not a tag"), "{ink}");
+    let yarn = crate::export_game::yarn(&b);
+    assert!(yarn.contains("-\\> not a divert \\{not logic\\} \\# not a tag"), "{yarn}");
+}

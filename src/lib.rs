@@ -18,6 +18,7 @@ pub mod chrome;
 pub mod cloud;
 pub mod editor;
 pub mod export;
+pub mod export_game;
 pub mod fountain;
 pub mod keys;
 pub mod logo;

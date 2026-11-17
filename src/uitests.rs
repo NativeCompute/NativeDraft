@@ -1889,3 +1889,24 @@ fn make_it_its_own_copies_the_scene_in_and_undo_links_it_again() {
     h.app.debug_save();
     assert_eq!(std::fs::read_to_string(&branch).unwrap(), ROOF);
 }
+
+#[test]
+fn every_timeline_and_the_game_formats_export_from_a_branch() {
+    let mut h = Harness::new();
+    let (main, branch) = h.roof();
+    h.app.debug_export(crate::export::Format::Fountain);
+    let ex = storage::exports_dir();
+    let story = std::fs::read_to_string(ex.join("harbour-roof.fountain")).expect("the branch exports its whole story");
+    for heading in ["INT. DOCK - NIGHT", "INT. OFFICE - NIGHT", "INT. ROOF - NIGHT", "EXT. PIER - DAWN", "INT. CAR - NIGHT"] {
+        assert!(story.contains(heading), "{heading} missing from\n{story}");
+    }
+    h.app.debug_export_every(crate::export::Format::Fountain);
+    assert!(ex.join("harbour timelines/main.fountain").exists());
+    assert!(ex.join("harbour timelines/roof.fountain").exists());
+    for game in [crate::export_game::Game::Ink, crate::export_game::Game::Yarn, crate::export_game::Game::Json] {
+        h.app.debug_export_game(game);
+        assert!(ex.join(format!("harbour.{}", game.ext())).exists(), "{game:?}");
+    }
+    assert_eq!(std::fs::read_to_string(&branch).unwrap(), ROOF, "exporting writes nothing back");
+    assert_eq!(std::fs::read_to_string(&main).unwrap(), HARBOUR_IDS);
+}

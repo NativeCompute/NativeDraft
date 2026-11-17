@@ -471,6 +471,9 @@ mod local {
         fn deliver(&mut self, name: &str, bytes: Vec<u8>, after: Option<AfterExport>) -> Result<String, String> {
             storage::ensure_dirs().map_err(|e| e.to_string())?;
             let path = storage::exports_dir().join(name);
+            if let Some(dir) = path.parent() {
+                std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+            }
             std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
             match after {
                 Some(AfterExport::Open) => storage::open_with_desktop(&path),
