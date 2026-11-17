@@ -526,14 +526,14 @@ fn sketch(painter: &egui::Painter, area: Rect, kind: Sketch, fade: &dyn Fn(Color
             line(Pos2::new(cols[3], rows[1]), Pos2::new(cols[4], rows[0]), lilac);
             line(Pos2::new(cols[2], rows[1]), Pos2::new(cols[3], rows[2]), green);
             for (k, x) in cols.iter().enumerate() {
-                painter.circle_filled(Pos2::new(*x, rows[0]), 7.0, coral);
+                painter.circle_filled(Pos2::new(*x, rows[0]), 9.0, coral);
                 painter.text(Pos2::new(*x, rows[0]), Align2::CENTER_CENTER, (k + 1).to_string(), theme::font_bold(theme::T_MICRO), fade(theme::on(p.primary)));
             }
-            painter.circle_filled(Pos2::new(cols[2], rows[1]), 7.0, lilac);
-            painter.circle_filled(Pos2::new(cols[3], rows[1]), 7.0, fade(p.solid));
-            painter.circle_stroke(Pos2::new(cols[3], rows[1]), 7.0, Stroke::new(2.0_f32, lilac));
-            painter.circle_filled(Pos2::new(cols[3], rows[2]), 7.0, green);
-            tag(painter, Pos2::new(cols[1] + 4.0, rows[1] - 14.0), "She says no", strong);
+            painter.circle_filled(Pos2::new(cols[2], rows[1]), 9.0, lilac);
+            painter.circle_filled(Pos2::new(cols[3], rows[1]), 9.0, fade(p.solid));
+            painter.circle_stroke(Pos2::new(cols[3], rows[1]), 9.0, Stroke::new(2.0_f32, lilac));
+            painter.circle_filled(Pos2::new(cols[3], rows[2]), 9.0, green);
+            tag(painter, Pos2::new(cols[0] - 8.0, rows[1] + 2.0), "She says no", strong);
             tag(painter, Pos2::new(cols[0] - 8.0, rows[0] - 22.0), "Main", ink);
         }
         Sketch::Reports => {
