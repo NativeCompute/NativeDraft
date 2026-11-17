@@ -6,7 +6,7 @@ Please **do not open a public issue** for a security problem.
 
 Report it privately through GitHub: the repository's **Security** tab →
 **Report a vulnerability**. If that is not available to you, email
-**hello@nativecompute.com** with "Blackline security" in the subject.
+**hello@nativecompute.com** with "NativeDraft security" in the subject.
 
 Tell us what you found, how to reproduce it, and what an attacker could do
 with it. We will acknowledge the report within a few days, keep you posted

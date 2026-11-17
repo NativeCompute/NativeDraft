@@ -193,7 +193,7 @@ pub fn parse_checked(text: &str) -> (Document, Vec<Issue>) {
 
         if let Some(rest) = line.strip_prefix('=') {
             if rest.starts_with("==") {
-                issues.add("break", "Page breaks (===) left out; Blackline sets its own pages", Some(doc.blocks.len()));
+                issues.add("break", "Page breaks (===) left out; NativeDraft sets its own pages", Some(doc.blocks.len()));
             } else if !doc.blocks.iter().any(|b| b.element == Element::SceneHeading) {
                 issues.add("synopsis", "A synopsis (=) before the first scene had no card to go on", None);
             }
@@ -220,13 +220,13 @@ pub fn parse_checked(text: &str) -> (Document, Vec<Issue>) {
             if !rest.starts_with('#') {
                 push_act(&mut doc, rest);
             } else {
-                issues.add("section", "Section headings below the first level (##) left out; Blackline has acts only", Some(doc.blocks.len()));
+                issues.add("section", "Section headings below the first level (##) left out; NativeDraft has acts only", Some(doc.blocks.len()));
             }
             prev_blank = false;
             continue;
         }
         if line.chars().all(|c| c == '=') {
-            issues.add("break", "Page breaks (===) left out; Blackline sets its own pages", Some(doc.blocks.len()));
+            issues.add("break", "Page breaks (===) left out; NativeDraft sets its own pages", Some(doc.blocks.len()));
             prev_blank = false;
             continue;
         }
@@ -303,7 +303,7 @@ pub fn parse_checked(text: &str) -> (Document, Vec<Issue>) {
 fn note_scene_number(line: &str, issues: &mut Issues, at: usize) {
     let t = line.trim();
     if t.strip_suffix('#').and_then(|head| head.rfind('#')).is_some() {
-        issues.add("number", "Scene numbers (#12#) left out; Blackline numbers scenes for you", Some(at));
+        issues.add("number", "Scene numbers (#12#) left out; NativeDraft numbers scenes for you", Some(at));
     }
 }
 
@@ -406,7 +406,7 @@ fn title_page(lines: &[&str], issues: &mut Issues) -> (Meta, usize) {
             other => {
                 if !v.is_empty() {
                     let name = title_case(&other.to_uppercase());
-                    issues.add(&format!("title:{other}"), &format!("The title page's \u{201c}{name}\u{201d} has no place in Blackline"), None);
+                    issues.add(&format!("title:{other}"), &format!("The title page's \u{201c}{name}\u{201d} has no place in NativeDraft"), None);
                 }
                 None
             }

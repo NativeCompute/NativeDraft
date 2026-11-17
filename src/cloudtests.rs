@@ -13,11 +13,11 @@ use crate::tests::VAULT;
 
 fn sandbox(name: &str) -> std::sync::MutexGuard<'static, ()> {
     let guard = VAULT.lock().unwrap_or_else(|e| e.into_inner());
-    let dir = std::env::temp_dir().join(format!("blackline-cloud-{name}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("nativedraft-cloud-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    let _ = std::fs::create_dir_all(dir.join("blackline"));
+    let _ = std::fs::create_dir_all(dir.join("nativedraft"));
     std::env::set_var("XDG_DATA_HOME", &dir);
-    let _ = std::fs::write(dir.join("blackline/settings.conf"), "splash = no\nanimations = no\nautosave_ms = 150\nonboarded = new-look\n");
+    let _ = std::fs::write(dir.join("nativedraft/settings.conf"), "splash = no\nanimations = no\nautosave_ms = 150\nonboarded = new-look\n");
     guard
 }
 

@@ -41,7 +41,7 @@ impl App {
     pub(super) fn version_line(&mut self, ui: &mut egui::Ui) {
         let p = pal();
         let line = ui.label(
-            egui::RichText::new(format!("Page font: {} · Blackline {}", theme::PAGE_FONT_NAME, env!("CARGO_PKG_VERSION")))
+            egui::RichText::new(format!("Page font: {} · NativeDraft {}", theme::PAGE_FONT_NAME, env!("CARGO_PKG_VERSION")))
                 .font(theme::font(theme::T_MICRO))
                 .color(p.text_faint),
         );
@@ -131,7 +131,7 @@ impl App {
             #[cfg(not(target_arch = "wasm32"))]
             Request::Crash => {
                 let detail = "A test error from debug mode. Nothing is wrong.".to_string();
-                let mut text = format!("Blackline stopped unexpectedly. Your scripts are saved as you type, so nothing should be lost.\n\n{detail}");
+                let mut text = format!("NativeDraft stopped unexpectedly. Your scripts are saved as you type, so nothing should be lost.\n\n{detail}");
                 match crate::storage::write_error_log(&detail) {
                     Some(log) => {
                         text.push_str(&format!("\n\nThis was also written to {}", log.display()));
@@ -139,7 +139,7 @@ impl App {
                     }
                     None => self.deck.say("Crash report", "error.log could not be written.", Tone::Warn),
                 }
-                std::thread::spawn(move || ncf::platform::alert("Blackline", &text));
+                std::thread::spawn(move || ncf::platform::alert("NativeDraft", &text));
             }
             Request::TextScale(step) => {
                 self.settings.font_scale = (self.settings.font_scale + step).clamp(0.8, 1.4);
@@ -192,7 +192,7 @@ impl App {
             }
             #[cfg(not(target_arch = "wasm32"))]
             Tool::Outside => {
-                let mut doc = crate::storage::import_text("outside.fountain", "INT. SOMEWHERE ELSE - DAY\n\nWritten without Blackline.\n");
+                let mut doc = crate::storage::import_text("outside.fountain", "INT. SOMEWHERE ELSE - DAY\n\nWritten without NativeDraft.\n");
                 doc.meta.title = "Written Outside".into();
                 let path = crate::storage::unique_path(&doc.meta.title, None);
                 let wrote = crate::storage::ensure_dirs().and_then(|_| std::fs::write(&path, crate::storage::to_markdown(&doc)));

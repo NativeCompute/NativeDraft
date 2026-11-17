@@ -112,7 +112,7 @@ pub(crate) static VAULT: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 pub(crate) fn sandbox(name: &str) -> std::sync::MutexGuard<'static, ()> {
     let guard = VAULT.lock().unwrap_or_else(|e| e.into_inner());
-    let dir = std::env::temp_dir().join(format!("blackline-{name}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("nativedraft-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     let _ = std::fs::create_dir_all(&dir);
     std::env::set_var("XDG_DATA_HOME", &dir);
@@ -536,22 +536,30 @@ fn the_icon_is_the_ribbon_on_the_bento_tile() {
 #[test]
 fn the_packaged_icons_are_the_ones_the_app_draws() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let ico = std::fs::read(root.join("packaging/blackline.ico")).unwrap();
-    assert!(ico == crate::logo::ico(), "run `cargo run --release -- --emit-ico packaging/blackline.ico`");
-    let svg = std::fs::read_to_string(root.join("packaging/blackline.svg")).unwrap();
-    assert!(svg == crate::logo::svg(), "run `cargo run --release -- --emit-icon packaging/blackline.svg`");
+    let ico = std::fs::read(root.join("packaging/nativedraft.ico")).unwrap();
+    assert!(ico == crate::logo::ico(), "run `cargo run --release -- --emit-ico packaging/nativedraft.ico`");
+    let svg = std::fs::read_to_string(root.join("packaging/nativedraft.svg")).unwrap();
+    assert!(svg == crate::logo::svg(), "run `cargo run --release -- --emit-icon packaging/nativedraft.svg`");
 }
 
 #[test]
 fn a_library_from_before_the_rename_stays_where_it_is() {
-    let home = std::env::temp_dir().join(format!("blackline-rename-{}", std::process::id()));
+    let home = std::env::temp_dir().join(format!("nativedraft-rename-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&home);
     std::fs::create_dir_all(&home).unwrap();
-    let fresh = if cfg!(windows) || cfg!(target_os = "macos") { "Blackline" } else { "blackline" };
-    assert_eq!(storage::library_in(&home), home.join(fresh));
+    let mac_or_win = cfg!(windows) || cfg!(target_os = "macos");
+    let fresh = if mac_or_win { "NativeDraft" } else { "nativedraft" };
+    let blackline = if mac_or_win { "Blackline" } else { "blackline" };
+    assert_eq!(storage::library_in(&home), home.join(fresh), "a new person gets a NativeDraft folder");
     std::fs::create_dir_all(home.join("northstar/scripts")).unwrap();
-    assert_eq!(storage::library_in(&home), home.join("northstar"));
-    assert!(!home.join(fresh).exists());
+    assert_eq!(storage::library_in(&home), home.join("northstar"), "the oldest folder still opens");
+    std::fs::create_dir_all(home.join(blackline).join("scripts")).unwrap();
+    std::fs::write(home.join(blackline).join("scripts/pilot.md"), "---\ntitle: Pilot\n---\n\nFADE IN:\n").unwrap();
+    assert_eq!(storage::library_in(&home), home.join(blackline), "a Blackline library is used where it is");
+    assert!(!home.join(fresh).exists(), "nothing new is made beside it");
+    assert_eq!(std::fs::read_to_string(home.join(blackline).join("scripts/pilot.md")).unwrap(), "---\ntitle: Pilot\n---\n\nFADE IN:\n");
+    std::fs::create_dir_all(home.join(fresh)).unwrap();
+    assert_eq!(storage::library_in(&home), home.join(fresh), "once there is a NativeDraft folder, it wins");
     let _ = std::fs::remove_dir_all(&home);
 }
 
@@ -1120,10 +1128,10 @@ fn the_update_check_compares_versions_and_reads_github() {
     assert!(!newer("2.0.0", "v2.0.0"));
     assert!(!newer("2.1.0", "2.0.9"));
     assert!(!newer("2.0.0", "2.0.0-rc1"));
-    let reply = r#"{"url":"https://api.github.com/x","html_url":"https://github.com/NativeCompute/blackline/releases/tag/v2.1.0","tag_name":"v2.1.0","author":{"html_url":"https://github.com/someone"}}"#;
+    let reply = r#"{"url":"https://api.github.com/x","html_url":"https://github.com/NativeCompute/NativeDraft/releases/tag/v2.1.0","tag_name":"v2.1.0","author":{"html_url":"https://github.com/someone"}}"#;
     let r = parse(reply, crate::INFO.repo).unwrap();
     assert_eq!(r.version, "2.1.0");
-    assert_eq!(r.url, "https://github.com/NativeCompute/blackline/releases/tag/v2.1.0");
+    assert_eq!(r.url, "https://github.com/NativeCompute/NativeDraft/releases/tag/v2.1.0");
     assert!(parse("not json", crate::INFO.repo).is_none());
     assert!(parse("{}", crate::INFO.repo).is_none());
     assert!(Settings::default().check_updates);
@@ -1147,8 +1155,8 @@ fn the_app_icon_is_drawn_from_the_mark() {
     assert_eq!(&ico[..4], &[0, 0, 1, 0]);
     assert_eq!(u16::from_le_bytes([ico[4], ico[5]]), 6, "six sizes");
     assert_eq!(ico[6 + 16 * 5], 0, "the last is 256 px, written as 0");
-    let shipped = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/packaging/blackline.ico")).unwrap();
-    assert_eq!(shipped, ico, "packaging/blackline.ico is regenerated from the mark");
+    let shipped = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/packaging/nativedraft.ico")).unwrap();
+    assert_eq!(shipped, ico, "packaging/nativedraft.ico is regenerated from the mark");
 }
 
 // blue pages format here---
@@ -1707,17 +1715,17 @@ fn a_settings_file_reads_and_writes_the_same_on_every_platform() {
 fn the_mac_install_command_fetches_the_latest_release_script() {
     assert_eq!(
         crate::MAC_INSTALL,
-        "curl -fsSL https://github.com/NativeCompute/blackline/releases/latest/download/install-macos.sh | bash"
+        "curl -fsSL https://github.com/NativeCompute/NativeDraft/releases/latest/download/install-macos.sh | bash"
     );
 }
 
 #[test]
 fn the_mac_bundle_files_come_from_the_app_itself() {
     let plist = crate::logo::info_plist();
-    assert!(plist.contains("<string>net.nativecompute.blackline</string>"));
-    assert!(plist.contains("<key>CFBundleExecutable</key>\n\t<string>blackline</string>"));
+    assert!(plist.contains("<string>net.nativecompute.blackline</string>"), "the same bundle id as Blackline, so the Mac keeps its sign-in and permissions");
+    assert!(plist.contains("<key>CFBundleExecutable</key>\n\t<string>nativedraft</string>"));
     assert!(plist.contains(&format!("<string>{}</string>", env!("CARGO_PKG_VERSION"))));
-    assert!(plist.contains("<key>CFBundleIconFile</key>\n\t<string>Blackline</string>"));
+    assert!(plist.contains("<key>CFBundleIconFile</key>\n\t<string>NativeDraft</string>"));
     assert!(plist.contains("<key>NSHighResolutionCapable</key>\n\t<true/>"));
     let icns = crate::logo::icns();
     assert_eq!(&icns[..4], b"icns");

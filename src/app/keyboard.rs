@@ -79,7 +79,7 @@ impl App {
             }
             if !changed {
                 ui.label(
-                    egui::RichText::new("All shortcuts are Blackline's own.")
+                    egui::RichText::new("All shortcuts are NativeDraft's own.")
                         .font(theme::font(theme::T_CAP))
                         .color(p.text_faint),
                 );

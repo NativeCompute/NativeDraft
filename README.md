@@ -1,4 +1,4 @@
-# Blackline
+# NativeDraft
 
 **A screenwriting studio for Linux, macOS and Windows.** Free and open source, by
 [NativeCompute](https://nativecompute.net).
@@ -7,12 +7,12 @@ It behaves like a notes app — open it, type, it saves itself — but every
 paragraph is a typed screenplay element, laid out to standard master-scene
 geometry and exportable as a print-ready PDF, a Final Draft file or Fountain.
 
-Scripts are stored as plain markdown — in `~/.local/share/blackline/scripts`
-on Linux, `~/Library/Application Support/Blackline/scripts` on a Mac,
-`%APPDATA%\Blackline\scripts` on Windows — so your work stays greppable,
+Scripts are stored as plain markdown — in `~/.local/share/nativedraft/scripts`
+on Linux, `~/Library/Application Support/NativeDraft/scripts` on a Mac,
+`%APPDATA%\NativeDraft\scripts` on Windows — so your work stays greppable,
 diffable, and yours.
 
-Blackline is drawn in NativeCompute's design language, the same one as
+NativeDraft is drawn in NativeCompute's design language, the same one as
 [NativeCompute's own website](https://nativecompute.net): solid tiles on a
 soft wallpaper, clear glass for the chrome that floats over them, one coral
 accent with ink text on it, and four bright tiles (coral, lilac, sun and sky)
@@ -20,19 +20,32 @@ for the things worth a glance. Bricolage Grotesque sets the display type and
 Plus Jakarta Sans everything else, labels and figures included; the script
 itself is Courier Prime. It follows your computer's light or dark setting.
 
-![Writing: the library sidebar, the page with its title block, and Scenes, Notes, Changes and Cast in tabs on the right](docs/blackline-write.png)
+![Writing: the library sidebar, the page with its title block, and Scenes, Notes, Changes and Cast in tabs on the right](docs/nativedraft-write.png)
 
-![Home: the glass hero, where you left off, this week's words, the next deadline and your scripts](docs/blackline-home.png)
+![Home: the glass hero, where you left off, this week's words, the next deadline and your scripts](docs/nativedraft-home.png)
 
-![Home in light](docs/blackline-home-light.png)
+![Home in light](docs/nativedraft-home-light.png)
 
-![Cards: one column per storyline, with the story's beats above](docs/blackline-cards.png)
+![Cards: one column per storyline, with the story's beats above](docs/nativedraft-cards.png)
 
-![Search or jump to: scripts, scenes, lines and commands in one list](docs/blackline-palette.png)
+![Search or jump to: scripts, scenes, lines and commands in one list](docs/nativedraft-palette.png)
 
 ---
 
 ## Coming next: a new look
+
+**Blackline is now NativeDraft.** Same app, same scripts, a new name:
+
+- **Your scripts stay where they are.** If you used Blackline, NativeDraft opens
+  your library from the Blackline folder (`~/.local/share/blackline`,
+  `~/Library/Application Support/Blackline` or `%APPDATA%\Blackline`) and
+  never moves or copies it. New installs get a `nativedraft` folder.
+- **It arrives as an update.** Blackline offers NativeDraft like any other
+  update. On Linux, `~/.local/bin/blackline` keeps working as a link to
+  `nativedraft`; on a Mac, `NativeDraft.app` takes the place of `Blackline.app`;
+  on Windows the program keeps its file name until you install fresh.
+- **Settings, sign-in and NativeCloud** carry over: your cloud scripts, your
+  computer's sign-in and anything not yet synced are all still there.
 
 Not released yet; this is what the next version brings.
 
@@ -63,7 +76,7 @@ Not released yet; this is what the next version brings.
   eyebrows such as *Continue writing*.
 - **Light, dark, or your system.** Settings → Appearance has System, Light and
   Dark. System follows your computer and changes when it does. When the
-  computer says nothing (some Linux desktops), Blackline goes dark.
+  computer says nothing (some Linux desktops), NativeDraft goes dark.
 - **A new Home.** A hero with glass art and a greeting, then a coral tile that
   opens the script you were in on the page and scene you left, the week's
   words in lilac, the next deadline in sun, your scripts as a list, and either
@@ -77,7 +90,7 @@ Not released yet; this is what the next version brings.
   window, the dock and the installer.
 - **Reports** opens on four tiles: pages, scenes, speaking parts and locations.
 
-![Reports: the four figures, then characters, scenes, locations, day and night](docs/blackline-reports.png)
+![Reports: the four figures, then characters, scenes, locations, day and night](docs/nativedraft-reports.png)
 
 ---
 
@@ -147,13 +160,13 @@ Named after the first round of production changes, which go out on blue paper.
 Every script from an earlier Blackline opens and saves exactly as before. The
 new markers are only written into a script once you use the feature.
 
-![Reports: characters, scenes, locations, day and night](docs/blackline-reports.png)
+![Reports: characters, scenes, locations, day and night](docs/nativedraft-reports.png)
 
-![Revision mode: asterisks, the revision header and A-pages](docs/blackline-revision.png)
+![Revision mode: asterisks, the revision header and A-pages](docs/nativedraft-revision.png)
 
-![Find across all scripts from Home](docs/blackline-find.png)
+![Find across all scripts from Home](docs/nativedraft-find.png)
 
-![The tour](docs/blackline-tour.png)
+![The tour](docs/nativedraft-tour.png)
 
 ---
 
@@ -165,43 +178,43 @@ macOS 11 Big Sur or newer, on Apple Silicon or Intel. Open **Terminal** (in
 Applications → Utilities), paste this line and press Return:
 
 ```bash
-curl -fsSL https://github.com/NativeCompute/blackline/releases/latest/download/install-macos.sh | bash
+curl -fsSL https://github.com/NativeCompute/NativeDraft/releases/latest/download/install-macos.sh | bash
 ```
 
 It downloads the latest release, checks it against its checksum, puts
-**Blackline** in your Applications folder (`~/Applications` if your account
+**NativeDraft** in your Applications folder (`~/Applications` if your account
 cannot write to `/Applications`) and opens it. Nothing needs your password.
 
-- **Updating:** click **Update now** when Blackline says a new version is out
-  (see [Updates](#updates)), or run the same line again. If Blackline is
+- **Updating:** click **Update now** when NativeDraft says a new version is out
+  (see [Updates](#updates)), or run the same line again. If NativeDraft is
   open, the line waits for you to quit it (`Cmd+Q`) and carries on.
-- **Your scripts** live in `~/Library/Application Support/Blackline/scripts`.
+- **Your scripts** live in `~/Library/Application Support/NativeDraft/scripts`.
   Before every install the whole library is copied to
-  `~/Library/Application Support/Blackline-backup-<date>`; nothing in it is
+  `~/Library/Application Support/NativeDraft-backup-<date>`; nothing in it is
   moved or changed.
 - **Uninstalling:** the same line, ending in `bash -s -- --uninstall`:
 
   ```bash
-  curl -fsSL https://github.com/NativeCompute/blackline/releases/latest/download/install-macos.sh | bash -s -- --uninstall
+  curl -fsSL https://github.com/NativeCompute/NativeDraft/releases/latest/download/install-macos.sh | bash -s -- --uninstall
   ```
 
-  or drag Blackline from Applications to the Bin. Your scripts stay where
+  or drag NativeDraft from Applications to the Bin. Your scripts stay where
   they are.
 
 **Downloading the .zip instead.** The release also has
-`blackline-<version>-macos-universal.zip`. Unzip it and drag **Blackline** into
-Applications. Blackline is not signed with a paid Apple developer certificate,
+`nativedraft-<version>-macos-universal.zip`. Unzip it and drag **NativeDraft** into
+Applications. NativeDraft is not signed with a paid Apple developer certificate,
 so the first time you open a copy that came through a browser, macOS stops it:
 
 - **macOS 15 Sequoia and later:** open it once and click *Done* when macOS
   says it could not verify it. Then open **System Settings → Privacy &
-  Security**, scroll down to *“Blackline” was blocked*, click **Open Anyway**
+  Security**, scroll down to *“NativeDraft” was blocked*, click **Open Anyway**
   and confirm.
-- **macOS 11 Big Sur to 14 Sonoma:** Control-click (or right-click) Blackline
+- **macOS 11 Big Sur to 14 Sonoma:** Control-click (or right-click) NativeDraft
   in Applications, choose **Open**, then **Open** again.
 
 You do this once. Or skip it with one line in Terminal:
-`xattr -dr com.apple.quarantine /Applications/Blackline.app`. The Terminal
+`xattr -dr com.apple.quarantine /Applications/NativeDraft.app`. The Terminal
 install above never needs any of this.
 
 **From source on a Mac.** You need Apple's command line tools
@@ -209,26 +222,26 @@ install above never needs any of this.
 https://sh.rustup.rs | sh`). Then:
 
 ```bash
-git clone https://github.com/NativeCompute/blackline.git
-cd blackline
+git clone https://github.com/NativeCompute/NativeDraft.git
+cd nativedraft
 ./install.sh
 ```
 
 On a Mac, `install.sh` hands over to `install-macos.sh --from-source`, which
-builds `Blackline.app` for your Mac and installs it the same way. If a tool is
+builds `NativeDraft.app` for your Mac and installs it the same way. If a tool is
 missing it says which and how to get it.
 
 ### Linux and Windows, from a release
 
 Download the latest build from
-[Releases](https://github.com/NativeCompute/blackline/releases):
+[Releases](https://github.com/NativeCompute/NativeDraft/releases):
 
-- **Linux** — `blackline-<version>-linux-x86_64.tar.gz`. Unpack it and run
+- **Linux** — `nativedraft-<version>-linux-x86_64.tar.gz`. Unpack it and run
   `./install.sh` inside. It installs the binary to `~/.local/bin`, adds a
   launcher entry and icon, and copies your library aside first (see below).
   Nothing is built and nothing is installed with `apt`.
-- **Windows** — `blackline-<version>-windows-x86_64.zip`. Unpack it anywhere
-  and run `blackline.exe`. Your scripts live in `%APPDATA%\Blackline`.
+- **Windows** — `nativedraft-<version>-windows-x86_64.zip`. Unpack it anywhere
+  and run `nativedraft.exe`. Your scripts live in `%APPDATA%\NativeDraft`.
 
 ### From source on Linux
 
@@ -240,9 +253,9 @@ Plasma** or GNOME.
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
 
-# 2. Blackline
-git clone https://github.com/NativeCompute/blackline.git
-cd blackline
+# 2. NativeDraft
+git clone https://github.com/NativeCompute/NativeDraft.git
+cd nativedraft
 ./install.sh
 ```
 
@@ -255,24 +268,24 @@ libxrandr-dev libxi-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev
 ```
 
 then builds with `cargo build --release`, installs the binary to
-`~/.local/bin/blackline`, and registers a launcher entry and icon so it shows
+`~/.local/bin/nativedraft`, and registers a launcher entry and icon so it shows
 up in the KDE application menu (the menu cache is rebuilt for you). The icon is
-drawn by the app itself (`blackline --emit-icon`), so it always matches the
+drawn by the app itself (`nativedraft --emit-icon`), so it always matches the
 mark inside the app.
 
 If `~/.local/bin` is not on your `PATH`, the script says so and tells you the
 line to add.
 
-**Upgrading** from the first Blackline: `git pull` (or re-clone) and run
-`./install.sh` again. It replaces `~/.local/bin/blackline` in place. Your
+**Upgrading** from the first NativeDraft: `git pull` (or re-clone) and run
+`./install.sh` again. It replaces `~/.local/bin/nativedraft` in place. Your
 scripts are untouched and open exactly as before — the file format only grew.
 Before every install it also copies your whole library (scripts, snapshots,
-settings) to `~/.local/share/blackline-backup-<date>`. It only copies: nothing
+settings) to `~/.local/share/nativedraft-backup-<date>`. It only copies: nothing
 in your library is moved or changed. Delete old copies whenever you like.
 
 **Uninstalling:** `./install.sh --uninstall` on Linux; on Windows, delete the
 folder you unpacked. Your scripts stay in
-`~/.local/share/blackline`.
+`~/.local/share/nativedraft`.
 
 Fonts need nothing extra: Bricolage Grotesque (display), Plus Jakarta Sans
 (the interface), JetBrains Mono (readouts) and Courier Prime (the page) ship
@@ -282,11 +295,11 @@ inside the binary.
 
 ## The window
 
-Blackline has no desktop title bar. It draws its own: the mark, the name and
+NativeDraft has no desktop title bar. It draws its own: the mark, the name and
 the three window buttons along the top, the whole strip draggable, a
 double-click to maximise, and invisible grips down every edge for resizing.
 
-On a Mac, Blackline uses the Mac's own window frame instead: the red, yellow
+On a Mac, NativeDraft uses the Mac's own window frame instead: the red, yellow
 and green buttons sit at the top left over the title strip, and resizing,
 full screen and window tiling are the system's.
 
@@ -448,7 +461,7 @@ unit a shooting schedule is drawn up in.
 ## Files
 
 ```
-~/.local/share/blackline/
+~/.local/share/nativedraft/
     scripts/       one .md per screenplay
     exports/       pdf / fdx / fountain / txt output
     snapshots/     dated copies, one folder per script
@@ -490,7 +503,7 @@ A scene's index card — its synopsis and colour — rides directly under its
 heading as an HTML comment, which markdown viewers hide. A starred script has
 `starred: yes` in its front matter, and a picked cover `cover: sky` (coral,
 lilac, sun or sky). They are only written when used, so a script without them
-is byte-for-byte what the first Blackline wrote. Older versions ignore
+is byte-for-byte what the first NativeDraft wrote. Older versions ignore
 `cover:` and drop it the next time they save.
 
 Blue Pages adds a few more, on the same terms:
@@ -531,8 +544,8 @@ The choices are remembered, and Quick Export (`Ctrl+E`) uses them for the
 whole script.
 
 **Import** — the arrow beside *New script*, the `⋯` menu, dropping a file onto
-the window, or `blackline some-file.fountain` — reads Fountain, Final Draft
-and Blackline markdown into a new script. When the file had anything Blackline
+the window, or `nativedraft some-file.fountain` — reads Fountain, Final Draft
+and NativeDraft markdown into a new script. When the file had anything NativeDraft
 could not keep exactly (scene numbers, deeper sections, page breaks, centred
 text, lyrics, title page fields, Final Draft paragraph types or script notes),
 a window lists each kind with a count and a *Show me* link to where it was. The file picker is the system's own
@@ -549,8 +562,8 @@ too, so nothing is ever lost.
 
 NativeCloud is the NativeCompute account that keeps scripts in the cloud, syncs them between your computers and lets a team write together. It is off until a build ships with a NativeCloud address, and nothing changes for you until you sign in.
 
-- **Sign in with your browser** under Settings → *Account*. Blackline opens cloud.nativecompute.net, you sign in or create your account there, confirm *Sign in to Blackline on this computer?*, and the browser hands you straight back, signed in. Blackline never asks for your password. If the browser can't reach Blackline, the page shows an 8-character code to type in instead.
-- **Your account lives on the web.** Profile, email and password, your computers, exporting everything and deleting the account are all at cloud.nativecompute.net; *Manage account on the web* opens it already signed in. Blackline keeps *Sync my settings* and *Sign out*.
+- **Sign in with your browser** under Settings → *Account*. NativeDraft opens cloud.nativecompute.net, you sign in or create your account there, confirm *Sign in to NativeDraft on this computer?*, and the browser hands you straight back, signed in. NativeDraft never asks for your password. If the browser can't reach NativeDraft, the page shows an 8-character code to type in instead.
+- **Your account lives on the web.** Profile, email and password, your computers, exporting everything and deleting the account are all at cloud.nativecompute.net; *Manage account on the web* opens it already signed in. NativeDraft keeps *Sync my settings* and *Sign out*.
 - **Organizations.** A team is an organization with spaces inside it, one per show or season. Settings → *Organizations* lists yours with their spaces and people, takes a quick invite, and opens the organization on the web for everything else: roles, removals, guests, plans and settings. Invites for you show up in both tabs with *Join* and *Decline*.
 - **Choose what syncs.** When you first sign in, a list of the scripts on this computer asks which should move to *My cloud*. None are ticked, so nothing leaves the computer unless you choose it.
 - **Sources.** The library has a switcher: *On this computer*, *My cloud* and each space you're in, grouped under its organization. A new script goes wherever you're looking. *Manage on the web* beside it opens that space's scripts in the browser, with their history.
@@ -558,7 +571,7 @@ NativeCloud is the NativeCompute account that keeps scripts in the cloud, syncs 
 - **One writer at a time.** Opening a shared script takes the edit lock. Anyone else reads it live, sees *Ben is editing · read only*, and gets *Edit now* when the lock frees up. Guests who can only read a space always open its scripts read only.
 - **Offline.** Every cloud script is also a file on this computer, so you can keep writing offline; the edits go up when you're back. If someone changed the script meanwhile, their version stays and yours is kept as a snapshot, under `⋯` → *Snapshots…*.
 
-To try it without a server, `cargo run --example cloud-demo` opens Blackline against an in-memory NativeCloud with an organization, two spaces, three people and a few scripts. It uses a throwaway data folder and doesn't touch your library. Options: `--home team`, `--open locked`, `--settings account`, `--settings orgs`, `--light`.
+To try it without a server, `cargo run --example cloud-demo` opens NativeDraft against an in-memory NativeCloud with an organization, two spaces, three people and a few scripts. It uses a throwaway data folder and doesn't touch your library. Options: `--home team`, `--open locked`, `--settings account`, `--settings orgs`, `--light`.
 
 ---
 
@@ -577,7 +590,7 @@ goal (shown as a track in the status pill), the splash screen, what Quick Export
 with the PDF, and how long the app waits before saving.
 
 The look is saved as `appearance = system`, `light` or `dark`. Older versions
-read `light_mode`, so Blackline writes that too; a settings file with only
+read `light_mode`, so NativeDraft writes that too; a settings file with only
 `light_mode` in it is read as the look it chose, and one with neither follows
 the system.
 
@@ -610,23 +623,23 @@ you set one, and the button stays hidden until then.
 
 ## Updates
 
-Blackline checks once per launch whether a newer version has been released
-on [GitHub](https://github.com/NativeCompute/blackline/releases). It sends one
+NativeDraft checks once per launch whether a newer version has been released
+on [GitHub](https://github.com/NativeCompute/NativeDraft/releases). It sends one
 request to GitHub's public API and nothing else — no account, no identifier,
 just the app's version in the request header. The splash card says how the
 check went. Turn the check off in Settings → About.
 
-When there is a newer version, Blackline asks before it opens: the splash
+When there is a newer version, NativeDraft asks before it opens: the splash
 card turns into a short question with **Update now**, **Not now** and **Skip
 this version** (with the splash turned off, the same card appears over the
 window, and nothing else can be used until it is answered). Click **Update
 now**, and:
 
-1. Blackline closes (Update now in Settings → About saves anything unsaved
+1. NativeDraft closes (Update now in Settings → About saves anything unsaved
    first);
 2. a small updater window takes over: it downloads that exact release, checks
    it against its checksum, copies your library aside, installs the new
-   version and opens Blackline again;
+   version and opens NativeDraft again;
 3. if anything goes wrong, it says what and why, and the version you had is
    still installed. Nothing is changed until the download has been checked
    and the new version has been seen to run.
@@ -634,11 +647,11 @@ now**, and:
 Your scripts are never touched. Every step is written to `update.log` in the
 library folder.
 
-*Update now* is offered on a Mac when Blackline is in Applications, on Linux
+*Update now* is offered on a Mac when NativeDraft is in Applications, on Linux
 when it was installed with `install.sh`, and on Windows when the folder with
-`blackline.exe` is writable. Anywhere else, for instance a copy built from
+`nativedraft.exe` is writable. Anywhere else, for instance a copy built from
 source, the card offers *Download* instead. *Not now* asks again next time
-Blackline opens; *Skip this version* never asks about that version again.
+NativeDraft opens; *Skip this version* never asks about that version again.
 Settings → About still offers *Update now* any time. Nothing is ever
 downloaded or installed without you clicking.
 
@@ -688,7 +701,7 @@ count — and never written into your script.
 
 ## Contributing
 
-Blackline is open source under the MIT licence, and contributions are
+NativeDraft is open source under the MIT licence, and contributions are
 welcome: bug reports, fixes, features and translations of the docs. Start with
 [CONTRIBUTING.md](CONTRIBUTING.md); security problems go through
 [SECURITY.md](SECURITY.md), not the public tracker. Everyone taking part
@@ -701,10 +714,10 @@ follows the [code of conduct](CODE_OF_CONDUCT.md).
 ```bash
 cargo test          # 197 tests: behaviour, files, formats, headless UI
 cargo build --release
-./target/release/blackline --emit-icon icon.svg   # the mark, as the app draws it
-./target/release/blackline --emit-ico packaging/blackline.ico   # the Windows icon
-./target/release/blackline --smoke /tmp/smoke     # the real window, every screen, checked
-packaging/macos/bundle.sh                         # on a Mac: the universal, signed Blackline.app
+./target/release/nativedraft --emit-icon icon.svg   # the mark, as the app draws it
+./target/release/nativedraft --emit-ico packaging/nativedraft.ico   # the Windows icon
+./target/release/nativedraft --smoke /tmp/smoke     # the real window, every screen, checked
+packaging/macos/bundle.sh                         # on a Mac: the universal, signed NativeDraft.app
 ```
 
 `--smoke <folder>` opens the real window with a throwaway library in that
@@ -745,12 +758,12 @@ the dark and light casts are all exercised for real.
 | `src/app/team.rs` `src/people.rs` | Screens for a shared library: read-only scripts, history, members, avatars. Not shown for a library on disk |
 | `src/app/voices.rs` | Choosing character colours: Random or Custom, the colour picker |
 | `src/keys.rs` `src/app/keyboard.rs` | Every shortcut and its default chords, the ones you choose instead, and Settings → Keyboard |
-| `src/theme.rs` | Blackline's own colours on top of NCF: element and character colours, the floating toolbar and sheets, the page font, the older palette names |
-| `src/ui.rs` `chrome.rs` `splash.rs` `logo.rs` | Blackline's name and mark handed to NCF's controls, title bar, splash and icons |
+| `src/theme.rs` | NativeDraft's own colours on top of NCF: element and character colours, the floating toolbar and sheets, the page font, the older palette names |
+| `src/ui.rs` `chrome.rs` `splash.rs` `logo.rs` | NativeDraft's name and mark handed to NCF's controls, title bar, splash and icons |
 
 The look, the controls, notices, icons, the update check and the text cursor
 come from [NCF](https://github.com/NativeCompute/ncf), the NativeCompute
-Framework, pinned in `Cargo.toml`. Blackline is pinned to `eframe`/`egui` 0.29
+Framework, pinned in `Cargo.toml`. NativeDraft is pinned to `eframe`/`egui` 0.29
 through it.
 
 MIT licensed. Courier Prime is bundled under the SIL Open Font License; see

@@ -1,6 +1,6 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-use blackline::{app, logo, smoke, storage, theme};
+use nativedraft::{app, logo, smoke, storage, theme};
 use std::panic::AssertUnwindSafe;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -25,7 +25,7 @@ fn emit_png(args: &[String]) -> bool {
         return false;
     };
     let size = args.get(i + 1).and_then(|s| s.parse::<u32>().ok()).unwrap_or(512).clamp(16, 1024);
-    let path = args.get(i + 2).cloned().unwrap_or_else(|| "blackline.png".to_string());
+    let path = args.get(i + 2).cloned().unwrap_or_else(|| "nativedraft.png".to_string());
     if let Err(e) = std::fs::write(&path, logo::png(size)) {
         eprintln!("could not write {path}: {e}");
         std::process::exit(1);
@@ -35,40 +35,40 @@ fn emit_png(args: &[String]) -> bool {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    if emit(&args, "--emit-icon", "blackline.svg", || {
+    if emit(&args, "--emit-icon", "nativedraft.svg", || {
         theme::set_palette(true);
         logo::svg().into_bytes()
-    }) || emit(&args, "--emit-ico", "blackline.ico", logo::ico)
-        || emit(&args, "--emit-icns", "Blackline.icns", logo::icns)
+    }) || emit(&args, "--emit-ico", "nativedraft.ico", logo::ico)
+        || emit(&args, "--emit-icns", "NativeDraft.icns", logo::icns)
         || emit(&args, "--emit-info-plist", "Info.plist", || logo::info_plist().into_bytes())
         || emit_png(&args)
     {
         return;
     }
     if args.iter().any(|a| a == "--version" || a == "-V") {
-        println!("blackline {}", env!("CARGO_PKG_VERSION"));
+        println!("nativedraft {}", env!("CARGO_PKG_VERSION"));
         return;
     }
     if let Some(demo) = ncf::updater::demo_from_args(&args) {
-        std::process::exit(ncf::updater::run_demo(blackline::INFO, demo));
+        std::process::exit(ncf::updater::run_demo(nativedraft::INFO, demo));
     }
     if let Some(plan) = ncf::updater::from_args(&args, ncf::OS) {
         match plan {
-            Ok(plan) => std::process::exit(ncf::updater::run(blackline::INFO, plan)),
+            Ok(plan) => std::process::exit(ncf::updater::run(nativedraft::INFO, plan)),
             Err(e) => {
                 eprintln!("{e}");
                 std::process::exit(2);
             }
         }
     }
-    ncf::updater::tidy("blackline");
+    ncf::updater::tidy_app(&nativedraft::INFO);
 
     let update_smoke = args.iter().position(|a| a == "--smoke-update").map(|i| {
         let version = args.get(i + 2).cloned().unwrap_or_default();
         if let Some(source) = args.get(i + 3) {
             std::env::set_var("NCF_UPDATE_SOURCE", source);
         }
-        let dir = std::path::PathBuf::from(args.get(i + 1).cloned().unwrap_or_else(|| "blackline-smoke".to_string()));
+        let dir = std::path::PathBuf::from(args.get(i + 1).cloned().unwrap_or_else(|| "nativedraft-smoke".to_string()));
         let dir = std::fs::create_dir_all(&dir).and_then(|_| dir.canonicalize()).unwrap_or(dir);
         std::env::set_var("NCF_UPDATE_SHOT", dir.join("updater.png"));
         (dir, version)
@@ -76,7 +76,7 @@ fn main() {
     let smoke = args
         .iter()
         .position(|a| a == "--smoke")
-        .map(|i| std::path::PathBuf::from(args.get(i + 1).cloned().unwrap_or_else(|| "blackline-smoke".to_string())))
+        .map(|i| std::path::PathBuf::from(args.get(i + 1).cloned().unwrap_or_else(|| "nativedraft-smoke".to_string())))
         .or_else(|| update_smoke.as_ref().map(|(dir, _)| dir.clone()));
     let only = args
         .iter()
@@ -94,13 +94,13 @@ fn main() {
     let wants_splash = storage::read_settings().splash;
     let (size, min) = ncf::app::first_size(wants_splash, ncf::OS);
     let builder = eframe::egui::ViewportBuilder::default()
-        .with_title("Blackline")
+        .with_title("NativeDraft")
         .with_icon(std::sync::Arc::new(eframe::egui::IconData {
             rgba: logo::rgba(128),
             width: 128,
             height: 128,
         }))
-        .with_app_id("blackline")
+        .with_app_id("nativedraft")
         .with_drag_and_drop(true)
         .with_inner_size(size)
         .with_min_inner_size(min);
@@ -133,7 +133,7 @@ fn main() {
         let update_version = update_smoke.as_ref().map(|(_, v)| v.clone());
         let run = std::panic::catch_unwind(AssertUnwindSafe(|| {
             eframe::run_native(
-                "Blackline",
+                "NativeDraft",
                 options,
                 Box::new(move |cc| {
                     flag.store(true, Ordering::SeqCst);
@@ -183,9 +183,9 @@ fn renderers() -> Vec<eframe::Renderer> {
 
 fn report(failures: &[String], started: bool) {
     let what = if started {
-        "Blackline stopped unexpectedly. Your scripts are saved as you type, so nothing should be lost."
+        "NativeDraft stopped unexpectedly. Your scripts are saved as you type, so nothing should be lost."
     } else {
-        "Blackline couldn't open its window. This usually means the graphics driver is missing or too old. Updating it usually fixes this; in a virtual machine, turn on 3D acceleration."
+        "NativeDraft couldn't open its window. This usually means the graphics driver is missing or too old. Updating it usually fixes this; in a virtual machine, turn on 3D acceleration."
     };
     let detail = failures.join("\n");
     let mut text = format!("{what}\n\n{detail}");
@@ -197,5 +197,5 @@ fn report(failures: &[String], started: bool) {
         eprintln!("{text}");
         std::process::exit(1);
     }
-    ncf::platform::alert("Blackline", &text);
+    ncf::platform::alert("NativeDraft", &text);
 }

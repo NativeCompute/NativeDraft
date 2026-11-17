@@ -73,10 +73,10 @@ jobs:
         run: cargo build --release
       - name: Run the real app with Metal
         timeout-minutes: 5
-        run: ./target/release/blackline --smoke "$RUNNER_TEMP/smoke-wgpu" --renderer wgpu
+        run: ./target/release/nativedraft --smoke "$RUNNER_TEMP/smoke-wgpu" --renderer wgpu
       - name: Run the real app with OpenGL
         timeout-minutes: 5
-        run: ./target/release/blackline --smoke "$RUNNER_TEMP/smoke-glow" --renderer glow
+        run: ./target/release/nativedraft --smoke "$RUNNER_TEMP/smoke-glow" --renderer glow
       - name: What the app saw
         if: always()
         run: cat "$RUNNER_TEMP"/smoke-*/report.txt || true
@@ -104,7 +104,7 @@ jobs:
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
           WINIT_UNIX_BACKEND: x11
-        run: xvfb-run -a -s "-screen 0 1400x1000x24" ./target/release/blackline --smoke "$RUNNER_TEMP/smoke"
+        run: xvfb-run -a -s "-screen 0 1400x1000x24" ./target/release/nativedraft --smoke "$RUNNER_TEMP/smoke"
       - name: What the app saw
         if: always()
         run: cat "$RUNNER_TEMP"/smoke/report.txt || true
@@ -127,7 +127,7 @@ jobs:
         with:
           targets: aarch64-apple-darwin, x86_64-apple-darwin
       - uses: Swatinem/rust-cache@v2
-      - name: Build, sign and zip Blackline.app
+      - name: Build, sign and zip NativeDraft.app
         run: packaging/macos/bundle.sh --out dist
       - name: Stage the release files
         run: cp install-macos.sh dist/
@@ -135,17 +135,17 @@ jobs:
         with:
           name: macos-app
           path: |
-            dist/blackline-macos.zip
-            dist/blackline-macos.zip.sha256
+            dist/nativedraft-macos.zip
+            dist/nativedraft-macos.zip.sha256
             dist/install-macos.sh
       - name: A contributor's ./install.sh builds and installs from source
         env:
-          BLACKLINE_APP_DIR: ${{ runner.temp }}/from-source
-          BLACKLINE_NO_OPEN: "1"
+          NATIVEDRAFT_APP_DIR: ${{ runner.temp }}/from-source
+          NATIVEDRAFT_NO_OPEN: "1"
         run: |
           /bin/bash ./install.sh
-          "$BLACKLINE_APP_DIR/Blackline.app/Contents/MacOS/blackline" --version
-          codesign --verify --deep --strict "$BLACKLINE_APP_DIR/Blackline.app"
+          "$NATIVEDRAFT_APP_DIR/NativeDraft.app/Contents/MacOS/nativedraft" --version
+          codesign --verify --deep --strict "$NATIVEDRAFT_APP_DIR/NativeDraft.app"
       - name: Build the next version too, for the update check
         run: |
           old="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)"
@@ -159,8 +159,8 @@ jobs:
         with:
           name: macos-app-next
           path: |
-            dist-next/blackline-macos.zip
-            dist-next/blackline-macos.zip.sha256
+            dist-next/nativedraft-macos.zip
+            dist-next/nativedraft-macos.zip.sha256
             dist-next/install-macos.sh
             dist-next/versions
 
@@ -186,10 +186,10 @@ jobs:
         with:
           name: install-${{ matrix.os }}
           path: |
-            ${{ runner.temp }}/blackline-verify/*/report.txt
-            ${{ runner.temp }}/blackline-verify/*/shots/
-            ${{ runner.temp }}/blackline-verify/*.log
-            ${{ runner.temp }}/blackline-verify/*.err
+            ${{ runner.temp }}/nativedraft-verify/*/report.txt
+            ${{ runner.temp }}/nativedraft-verify/*/shots/
+            ${{ runner.temp }}/nativedraft-verify/*.log
+            ${{ runner.temp }}/nativedraft-verify/*.err
 
   macos-update:
     name: macOS ${{ matrix.os }} — Update now, from one release to the next
@@ -219,10 +219,10 @@ jobs:
         with:
           name: update-${{ matrix.os }}
           path: |
-            ${{ runner.temp }}/blackline-update-check/smoke/report.txt
-            ${{ runner.temp }}/blackline-update-check/smoke/updater.png
-            ${{ runner.temp }}/blackline-update-check/smoke/data/Blackline/update.log
-            ${{ runner.temp }}/blackline-update-check/*.log
+            ${{ runner.temp }}/nativedraft-update-check/smoke/report.txt
+            ${{ runner.temp }}/nativedraft-update-check/smoke/updater.png
+            ${{ runner.temp }}/nativedraft-update-check/smoke/data/NativeDraft/update.log
+            ${{ runner.temp }}/nativedraft-update-check/*.log
 
   linux-update:
     name: Linux — Update now, from one release to the next
@@ -240,10 +240,10 @@ jobs:
           rel="$RUNNER_TEMP/releases"
           mkdir -p "$rel"
           pack() {
-            name="blackline-v$1-linux-x86_64"
+            name="nativedraft-v$1-linux-x86_64"
             mkdir -p "$RUNNER_TEMP/pack/$name/packaging"
-            cp target/release/blackline install.sh README.md LICENSE "$RUNNER_TEMP/pack/$name/"
-            cp packaging/blackline.desktop packaging/blackline.svg "$RUNNER_TEMP/pack/$name/packaging/"
+            cp target/release/nativedraft install.sh README.md LICENSE "$RUNNER_TEMP/pack/$name/"
+            cp packaging/nativedraft.desktop packaging/nativedraft.svg "$RUNNER_TEMP/pack/$name/packaging/"
             tar -czf "$rel/$name.tar.gz" -C "$RUNNER_TEMP/pack" "$name"
             (cd "$rel" && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
           }
@@ -266,10 +266,10 @@ jobs:
         with:
           name: update-linux
           path: |
-            ${{ runner.temp }}/blackline-update-check/smoke/report.txt
-            ${{ runner.temp }}/blackline-update-check/smoke/updater.png
-            ${{ runner.temp }}/blackline-update-check/smoke/data/blackline/update.log
-            ${{ runner.temp }}/blackline-update-check/*.log
+            ${{ runner.temp }}/nativedraft-update-check/smoke/report.txt
+            ${{ runner.temp }}/nativedraft-update-check/smoke/updater.png
+            ${{ runner.temp }}/nativedraft-update-check/smoke/data/nativedraft/update.log
+            ${{ runner.temp }}/nativedraft-update-check/*.log
 
   windows-update:
     name: Windows — Update now, from one release to the next
@@ -287,10 +287,10 @@ jobs:
           $rel = Join-Path $env:RUNNER_TEMP "releases"
           New-Item -ItemType Directory -Path $rel -Force | Out-Null
           function Pack($version) {
-            $name = "blackline-v$version-windows-x86_64"
+            $name = "nativedraft-v$version-windows-x86_64"
             $stage = Join-Path $env:RUNNER_TEMP "pack\$name"
             New-Item -ItemType Directory -Path $stage -Force | Out-Null
-            Copy-Item target/release/blackline.exe, README.md, LICENSE -Destination $stage
+            Copy-Item target/release/nativedraft.exe, README.md, LICENSE -Destination $stage
             Compress-Archive -Path $stage -DestinationPath (Join-Path $rel "$name.zip")
             $hash = (Get-FileHash -Algorithm SHA256 (Join-Path $rel "$name.zip")).Hash.ToLower()
             "$hash  $name.zip" | Out-File -Encoding ascii -NoNewline (Join-Path $rel "$name.zip.sha256")

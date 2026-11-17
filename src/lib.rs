@@ -36,19 +36,20 @@ pub mod ui;
 pub use eframe;
 pub use ncf::{alerts, anim, caret, icons, update};
 
-pub const MARK: ncf::mark::AppMark = ncf::mark::AppMark::raster("Blackline", include_bytes!("../assets/icon/mark.png"));
+pub const MARK: ncf::mark::AppMark = ncf::mark::AppMark::raster("NativeDraft", include_bytes!("../assets/icon/mark.png"));
 
 pub const INFO: ncf::AppInfo = ncf::AppInfo {
-    name: "Blackline",
+    name: "NativeDraft",
     id: "blackline",
     version: env!("CARGO_PKG_VERSION"),
     tagline: "Screenwriting in industry format",
-    repo: "NativeCompute/blackline",
+    repo: "NativeCompute/NativeDraft",
     mark: MARK,
+    formerly: &["Blackline"],
 };
 
 pub const NATIVECOMPUTE_URL: &str = ncf::NATIVECOMPUTE_URL;
 pub const YOUTRACK_INFO_URL: &str = "https://www.jetbrains.com/youtrack/";
-pub const MAC_INSTALL: &str = "curl -fsSL https://github.com/NativeCompute/blackline/releases/latest/download/install-macos.sh | bash";
+pub const MAC_INSTALL: &str = "curl -fsSL https://github.com/NativeCompute/NativeDraft/releases/latest/download/install-macos.sh | bash";
 
 pub const WEB: bool = cfg!(target_arch = "wasm32");

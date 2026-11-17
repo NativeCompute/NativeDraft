@@ -1,6 +1,6 @@
-# Contributing to Blackline
+# Contributing to NativeDraft
 
-Thanks for helping. Blackline is a screenwriting app first, so the bar for any
+Thanks for helping. NativeDraft is a screenwriting app first, so the bar for any
 change is simple: **a writer's scripts are never lost, changed or rewritten
 behind their back.** Everything below follows from that.
 
@@ -41,7 +41,7 @@ On Linux, `./install.sh` builds and installs it for your user.
 5. **The design language is NativeCompute's.** Colours, type and controls come
    from [NCF](https://github.com/NativeCompute/ncf) through `src/theme.rs` and
    `src/ui.rs`; do not hard-code a colour or draw a one-off control. A control
-   Blackline needs that NCF lacks belongs in NCF. Rounded surfaces from NCF's
+   NativeDraft needs that NCF lacks belongs in NCF. Rounded surfaces from NCF's
    radius scale, NCF's shadows, one coral accent with ink text on it, the
    bright tiles only where something is worth a glance, and both light and dark
    checked (`--smoke` takes shots of each). Glass is for the chrome that floats

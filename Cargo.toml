@@ -1,5 +1,5 @@
 [package]
-name = "blackline"
+name = "nativedraft"
 version = "2.3.0"
 edition = "2021"
 rust-version = "1.76"
@@ -7,7 +7,7 @@ description = "A screenwriting studio — markdown in, industry format out."
 license = "MIT"
 authors = ["NativeCompute"]
 homepage = "https://nativecompute.net"
-repository = "https://github.com/NativeCompute/blackline"
+repository = "https://github.com/NativeCompute/NativeDraft"
 
 [dependencies]
 ncf = { git = "https://github.com/NativeCompute/ncf", branch = "major/redesign" }

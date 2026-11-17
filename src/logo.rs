@@ -25,5 +25,5 @@ pub fn icns() -> Vec<u8> {
 }
 
 pub fn info_plist() -> String {
-    ncf::bundle::info_plist(&crate::INFO, "blackline", "Blackline")
+    ncf::bundle::info_plist(&crate::INFO, "nativedraft", "NativeDraft")
 }

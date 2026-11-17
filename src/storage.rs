@@ -33,13 +33,12 @@ pub fn library_root() -> PathBuf {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn library_in(home: &Path) -> PathBuf {
-    let name = ncf::platform::folder_name("Blackline", ncf::OS);
-    let fresh = home.join(name);
+    let found = crate::INFO.folder_in(home, ncf::OS);
     let legacy = home.join("northstar");
-    if !fresh.exists() && legacy.is_dir() {
+    if !found.exists() && legacy.is_dir() {
         legacy
     } else {
-        fresh
+        found
     }
 }
 
@@ -807,7 +806,7 @@ pub fn write_error_log(detail: &str) -> Option<PathBuf> {
     let root = library_root();
     let log = root.join("error.log");
     let line = format!(
-        "{} blackline {}\n{}\n\n",
+        "{} nativedraft {}\n{}\n\n",
         chrono::Local::now().to_rfc3339(),
         env!("CARGO_PKG_VERSION"),
         detail

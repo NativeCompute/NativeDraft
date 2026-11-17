@@ -1,6 +1,6 @@
 # Code of conduct
 
-Blackline follows the
+NativeDraft follows the
 [Contributor Covenant, version 2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).
 
 In short: be welcoming, be kind, and assume good faith. Harassment, personal

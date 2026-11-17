@@ -1,8 +1,8 @@
-use blackline::app::App;
-use blackline::backend::{Source, Store};
-use blackline::cloud::CloudStore;
-use blackline::model::{Document, Element};
-use blackline::storage;
+use nativedraft::app::App;
+use nativedraft::backend::{Source, Store};
+use nativedraft::cloud::CloudStore;
+use nativedraft::model::{Document, Element};
+use nativedraft::storage;
 use ncf::cloud::fake::{self, FakeCloud};
 use ncf::cloud::{self as nc, Device, Engine, Heartbeat, Outbox, Worker};
 
@@ -22,12 +22,12 @@ fn script(title: &str, author: &str, scenes: &[(&str, &str, &str, &str)]) -> Str
 
 fn main() -> eframe::Result<()> {
     let args: Vec<String> = std::env::args().collect();
-    let home = std::env::temp_dir().join(format!("blackline-cloud-demo-{}", std::process::id()));
-    let _ = std::fs::create_dir_all(home.join("blackline"));
+    let home = std::env::temp_dir().join(format!("nativedraft-cloud-demo-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(home.join("nativedraft"));
     std::env::set_var("XDG_DATA_HOME", &home);
     let light = args.iter().any(|a| a == "--light");
     let _ = std::fs::write(
-        home.join("blackline/settings.conf"),
+        home.join("nativedraft/settings.conf"),
         format!("splash = no\nonboarded = new-look\ncloud_asked = yes\nappearance = {}\n", if light { "light" } else { "dark" }),
     );
     let pick = |flag: &str| args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).cloned().unwrap_or_default();
@@ -66,7 +66,7 @@ fn main() -> eframe::Result<()> {
     for _ in 0..4 {
         let _ = store.events();
     }
-    let local = blackline::backend::LocalBackend::new();
+    let local = nativedraft::backend::LocalBackend::new();
     drop(local);
     let _ = storage::save(&storage::scripts_dir().join("old-draft.md"), &storage::from_markdown(&script("Old Draft", "Ann Lee", &[("INT. ATTIC - DAY", "Boxes.", "ANN", "Found it.")])));
     match view.as_str() {
@@ -77,15 +77,15 @@ fn main() -> eframe::Result<()> {
     let key = store.key_for(&h.id);
 
     let options = eframe::NativeOptions {
-        viewport: eframe::egui::ViewportBuilder::default().with_title("Blackline · NativeCloud demo").with_inner_size([1320.0, 860.0]),
+        viewport: eframe::egui::ViewportBuilder::default().with_title("NativeDraft · NativeCloud demo").with_inner_size([1320.0, 860.0]),
         ..Default::default()
     };
     eframe::run_native(
-        "Blackline",
+        "NativeDraft",
         options,
         Box::new(move |cc| {
             let mut app = App::with_store(&cc.egui_ctx, Box::new(store));
-            app.attach_account(fake::account_for(blackline::INFO, ann, "Ann's Mac"));
+            app.attach_account(fake::account_for(nativedraft::INFO, ann, "Ann's Mac"));
             if let Some(a) = app.account() {
                 a.sync_settings = false;
             }

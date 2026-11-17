@@ -675,7 +675,7 @@ mod tests {
 
     #[test]
     fn the_smoke_library_is_a_throwaway_folder() {
-        let dir = std::env::temp_dir().join(format!("blackline-smoke-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("nativedraft-smoke-{}", std::process::id()));
         assert!(library(&dir).starts_with(dir.join("data")));
         assert!(crate::storage::from_markdown(OLD_SCRIPT).blocks.len() > 5);
         assert_eq!(crate::storage::to_markdown(&crate::storage::from_markdown(OLD_SCRIPT)), OLD_SCRIPT, "the old fixture round-trips byte for byte");

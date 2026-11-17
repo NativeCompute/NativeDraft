@@ -1,20 +1,23 @@
 #!/bin/bash
 if [ -z "${BASH_VERSION:-}" ]; then
-  echo "Run this with bash: curl -fsSL https://github.com/NativeCompute/blackline/releases/latest/download/install-macos.sh | bash" >&2
+  echo "Run this with bash: curl -fsSL https://github.com/NativeCompute/NativeDraft/releases/latest/download/install-macos.sh | bash" >&2
   exit 1
 fi
 set -euo pipefail
 
-BLACKLINE_SOURCE="${BLACKLINE_SOURCE:-${NCF_INSTALL_SOURCE:-}}"
-BLACKLINE_APP_DIR="${BLACKLINE_APP_DIR:-${NCF_INSTALL_APP_DIR:-}}"
-BLACKLINE_NO_OPEN="${BLACKLINE_NO_OPEN:-${NCF_INSTALL_NO_OPEN:-}}"
-BLACKLINE_WAIT_SECONDS="${BLACKLINE_WAIT_SECONDS:-${NCF_INSTALL_WAIT:-}}"
+NATIVEDRAFT_SOURCE="${NATIVEDRAFT_SOURCE:-${BLACKLINE_SOURCE:-${NCF_INSTALL_SOURCE:-}}}"
+NATIVEDRAFT_APP_DIR="${NATIVEDRAFT_APP_DIR:-${BLACKLINE_APP_DIR:-${NCF_INSTALL_APP_DIR:-}}}"
+NATIVEDRAFT_NO_OPEN="${NATIVEDRAFT_NO_OPEN:-${BLACKLINE_NO_OPEN:-${NCF_INSTALL_NO_OPEN:-}}}"
+NATIVEDRAFT_WAIT_SECONDS="${NATIVEDRAFT_WAIT_SECONDS:-${BLACKLINE_WAIT_SECONDS:-${NCF_INSTALL_WAIT:-}}}"
 
-SOURCE="${BLACKLINE_SOURCE:-https://github.com/NativeCompute/blackline/releases/latest/download}"
-ZIP="blackline-macos.zip"
-APP_NAME="Blackline.app"
+SOURCE="${NATIVEDRAFT_SOURCE:-https://github.com/NativeCompute/NativeDraft/releases/latest/download}"
+ZIP="nativedraft-macos.zip"
+OLD_ZIP="blackline-macos.zip"
+APP_NAME="NativeDraft.app"
+OLD_APP="Blackline.app"
+REPLACED_OLD=0
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-WAIT_SECONDS="${BLACKLINE_WAIT_SECONDS:-600}"
+WAIT_SECONDS="${NATIVEDRAFT_WAIT_SECONDS:-600}"
 WORK=""
 SUPPORT="$HOME/Library/Application Support"
 
@@ -23,17 +26,19 @@ warn() { printf '\033[1;33m::\033[0m %s\n' "$*" >&2; }
 die() { printf '\033[1;31m::\033[0m %s\n' "$*" >&2; exit 1; }
 
 library_dir() {
-  if [ ! -e "$SUPPORT/Blackline" ] && [ -d "$SUPPORT/northstar" ]; then
+  if [ ! -e "$SUPPORT/NativeDraft" ] && [ -d "$SUPPORT/Blackline" ]; then
+    echo "$SUPPORT/Blackline"
+  elif [ ! -e "$SUPPORT/NativeDraft" ] && [ -d "$SUPPORT/northstar" ]; then
     echo "$SUPPORT/northstar"
   else
-    echo "$SUPPORT/Blackline"
+    echo "$SUPPORT/NativeDraft"
   fi
 }
 
 app_dir() {
-  if [ -n "${BLACKLINE_APP_DIR:-}" ]; then
-    echo "$BLACKLINE_APP_DIR"
-  elif [ -e "$HOME/Applications/$APP_NAME" ] && [ ! -e "/Applications/$APP_NAME" ]; then
+  if [ -n "${NATIVEDRAFT_APP_DIR:-}" ]; then
+    echo "$NATIVEDRAFT_APP_DIR"
+  elif { [ -e "$HOME/Applications/$APP_NAME" ] || [ -e "$HOME/Applications/$OLD_APP" ]; } && [ ! -e "/Applications/$APP_NAME" ] && [ ! -e "/Applications/$OLD_APP" ]; then
     echo "$HOME/Applications"
   elif [ -d /Applications ] && [ -w /Applications ] && { [ ! -e "/Applications/$APP_NAME" ] || [ -w "/Applications/$APP_NAME" ]; }; then
     echo "/Applications"
@@ -51,30 +56,30 @@ check_mac() {
     ''|*[!0-9]*) major=0 ;;
   esac
   if [ "$major" -lt 11 ]; then
-    die "Blackline needs macOS 11 Big Sur or newer. This Mac runs macOS $version."
+    die "NativeDraft needs macOS 11 Big Sur or newer. This Mac runs macOS $version."
   fi
   case "$(uname -m)" in
     arm64|x86_64) ;;
-    *) die "Blackline runs on Apple Silicon and Intel Macs. This Mac reports $(uname -m)." ;;
+    *) die "NativeDraft runs on Apple Silicon and Intel Macs. This Mac reports $(uname -m)." ;;
   esac
 }
 
 is_running() {
-  pgrep -x blackline >/dev/null 2>&1
+  pgrep -x nativedraft >/dev/null 2>&1 || pgrep -x blackline >/dev/null 2>&1
 }
 
 wait_for_quit() {
   is_running || return 0
-  say "Blackline is open. Quit it (Cmd+Q) and the install carries on by itself."
+  say "NativeDraft is open. Quit it (Cmd+Q) and the install carries on by itself."
   local waited=0
   while is_running; do
     if [ "$waited" -ge "$WAIT_SECONDS" ]; then
-      die "Blackline is still open, so nothing was changed. Quit it and run this again."
+      die "NativeDraft is still open, so nothing was changed. Quit it and run this again."
     fi
     sleep 2
     waited=$((waited + 2))
   done
-  say "Blackline has closed"
+  say "NativeDraft has closed"
 }
 
 back_up_library() {
@@ -105,9 +110,12 @@ fetch() {
 
 download() {
   local work="$1" want got
-  say "Downloading Blackline"
-  fetch "$SOURCE/$ZIP" "$work/$ZIP" || die "Could not download $SOURCE/$ZIP. Check your connection and try again."
-  fetch "$SOURCE/$ZIP.sha256" "$work/$ZIP.sha256" || die "Could not download the checksum for $ZIP."
+  say "Downloading NativeDraft"
+  if ! fetch "$SOURCE/$ZIP" "$work/$ZIP" 2>/dev/null; then
+    fetch "$SOURCE/$OLD_ZIP" "$work/$ZIP" || die "Could not download $SOURCE/$ZIP. Check your connection and try again."
+    ZIP_SUM="$OLD_ZIP.sha256"
+  fi
+  fetch "$SOURCE/${ZIP_SUM:-$ZIP.sha256}" "$work/$ZIP.sha256" || die "Could not download the checksum for $ZIP."
   want="$(awk '{print $1; exit}' "$work/$ZIP.sha256" | tr 'A-F' 'a-f')"
   got="$(sha256 "$work/$ZIP")"
   [ -n "$want" ] && [ "$want" = "$got" ] || die "The download is damaged (its checksum does not match). Nothing was changed. Try again."
@@ -121,7 +129,7 @@ download() {
 build_from_source() {
   local work="$1" here
   here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-  [ -f "$here/Cargo.toml" ] && [ -x "$here/packaging/macos/bundle.sh" ] || die "--from-source needs a copy of the Blackline source. Clone it with: git clone https://github.com/NativeCompute/blackline"
+  [ -f "$here/Cargo.toml" ] && [ -x "$here/packaging/macos/bundle.sh" ] || die "--from-source needs a copy of the NativeDraft source. Clone it with: git clone https://github.com/NativeCompute/NativeDraft"
   if ! xcode-select -p >/dev/null 2>&1; then
     die "Building needs Apple's command line tools. Run: xcode-select --install   then run this again."
   fi
@@ -129,7 +137,7 @@ build_from_source() {
     . "$HOME/.cargo/env"
   fi
   command -v cargo >/dev/null 2>&1 || die "Building needs Rust. Install it with: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh   then open a new Terminal window and run this again."
-  say "Building Blackline (this takes a few minutes the first time)"
+  say "Building NativeDraft (this takes a few minutes the first time)"
   "$here/packaging/macos/bundle.sh" --native --out "$work/dist" >&2 || die "The build failed. Nothing was installed."
   echo "$work/dist/$APP_NAME"
 }
@@ -138,8 +146,8 @@ check_app() {
   local app="$1" version
   xattr -dr com.apple.quarantine "$app" 2>/dev/null || true
   codesign --verify --deep --strict "$app" 2>/dev/null || die "The app's signature does not check out, so it was not installed."
-  [ -x "$app/Contents/MacOS/blackline" ] || die "The app is missing its program file."
-  version="$("$app/Contents/MacOS/blackline" --version 2>/dev/null)" || die "The new app does not run on this Mac ($(uname -m), macOS $(sw_vers -productVersion)). Nothing was changed."
+  [ -x "$app/Contents/MacOS/nativedraft" ] || die "The app is missing its program file."
+  version="$("$app/Contents/MacOS/nativedraft" --version 2>/dev/null)" || die "The new app does not run on this Mac ($(uname -m), macOS $(sw_vers -productVersion)). Nothing was changed."
   echo "$version"
 }
 
@@ -147,8 +155,8 @@ place_app() {
   local app="$1" dest="$2" stage old
   mkdir -p "$dest" || die "Could not create $dest."
   [ -w "$dest" ] || die "Cannot write to $dest."
-  stage="$dest/.Blackline.app.new.$$"
-  old="$dest/.Blackline.app.old.$$"
+  stage="$dest/.NativeDraft.app.new.$$"
+  old="$dest/.NativeDraft.app.old.$$"
   rm -rf "$stage" "$old"
   ditto "$app" "$stage" || { rm -rf "$stage"; die "Could not copy the app into $dest."; }
   if [ -e "$dest/$APP_NAME" ]; then
@@ -165,22 +173,41 @@ place_app() {
   if [ -x "$LSREGISTER" ]; then
     "$LSREGISTER" -f "$dest/$APP_NAME" >/dev/null 2>&1 || true
   fi
+  remove_old_app "$dest"
+}
+
+remove_old_app() {
+  local dir
+  for dir in "$1" "/Applications" "$HOME/Applications"; do
+    if [ -e "$dir/$OLD_APP" ] && [ -w "$dir" ]; then
+      if [ -x "$LSREGISTER" ]; then
+        "$LSREGISTER" -u "$dir/$OLD_APP" >/dev/null 2>&1 || true
+      fi
+      if rm -rf "${dir:?}/$OLD_APP"; then
+        say "Blackline is now NativeDraft; removed $dir/$OLD_APP (your scripts stay where they are)"
+        REPLACED_OLD=1
+      fi
+    fi
+  done
 }
 
 uninstall() {
   wait_for_quit
   local removed=0 dir
-  for dir in "${BLACKLINE_APP_DIR:-/Applications}" "$HOME/Applications"; do
-    if [ -e "$dir/$APP_NAME" ]; then
-      if [ -x "$LSREGISTER" ]; then
-        "$LSREGISTER" -u "$dir/$APP_NAME" >/dev/null 2>&1 || true
+  local name
+  for dir in "${NATIVEDRAFT_APP_DIR:-/Applications}" "$HOME/Applications"; do
+    for name in "$APP_NAME" "$OLD_APP"; do
+      if [ -e "$dir/$name" ]; then
+        if [ -x "$LSREGISTER" ]; then
+          "$LSREGISTER" -u "$dir/$name" >/dev/null 2>&1 || true
+        fi
+        rm -rf "${dir:?}/$name" || die "Could not remove $dir/$name."
+        say "Removed $dir/$name"
+        removed=1
       fi
-      rm -rf "${dir:?}/$APP_NAME" || die "Could not remove $dir/$APP_NAME."
-      say "Removed $dir/$APP_NAME"
-      removed=1
-    fi
+    done
   done
-  [ "$removed" = 1 ] || say "Blackline was not installed in /Applications or ~/Applications"
+  [ "$removed" = 1 ] || say "NativeDraft was not installed in /Applications or ~/Applications"
   say "Your scripts are still in $(library_dir)"
 }
 
@@ -206,7 +233,7 @@ main() {
   fi
 
   local app version dest
-  WORK="$(mktemp -d "${TMPDIR:-/tmp}/blackline-install.XXXXXX")"
+  WORK="$(mktemp -d "${TMPDIR:-/tmp}/nativedraft-install.XXXXXX")"
   trap 'rm -rf "$WORK"' EXIT
 
   if [ "$mode" = "source" ]; then
@@ -227,10 +254,10 @@ main() {
     warn "An older copy is still in /Applications and could not be replaced from this account."
   fi
   say "Scripts live in $(library_dir)/scripts"
-  say "To remove it later: curl -fsSL https://github.com/NativeCompute/blackline/releases/latest/download/install-macos.sh | bash -s -- --uninstall"
+  say "To remove it later: curl -fsSL https://github.com/NativeCompute/NativeDraft/releases/latest/download/install-macos.sh | bash -s -- --uninstall"
 
-  if [ -z "${BLACKLINE_NO_OPEN:-}" ]; then
-    open "$dest/$APP_NAME" || warn "Open Blackline from $dest."
+  if [ -z "${NATIVEDRAFT_NO_OPEN:-}" ] || [ "$REPLACED_OLD" = 1 ]; then
+    open "$dest/$APP_NAME" || warn "Open NativeDraft from $dest."
   fi
 }
 

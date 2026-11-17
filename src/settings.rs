@@ -169,7 +169,7 @@ impl Settings {
     pub fn serialize(&self) -> String {
         let b = |v: bool| if v { "yes" } else { "no" };
         format!(
-            "# Blackline settings.\n\
+            "# NativeDraft settings.\n\
              appearance = {}\n\
              light_mode = {}\n\
              animations = {}\n\

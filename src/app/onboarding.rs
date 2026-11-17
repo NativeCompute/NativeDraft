@@ -70,7 +70,7 @@ impl App {
         match kind {
             Kind::Full => vec![
                 Step {
-                    title: "Welcome to Blackline",
+                    title: "Welcome to NativeDraft",
                     body: "A screenplay editor that keeps to industry format, so you can keep your mind on the story. This takes a minute, and you can skip it any time.".into(),
                     sketch: Sketch::Welcome,
                 },
@@ -134,7 +134,7 @@ impl App {
                     },
                     Step {
                         title: "Light, dark, or your system",
-                        body: "Blackline now follows your computer's light or dark setting and changes when it does. To keep one look, pick Light or Dark under Settings, Appearance.".into(),
+                        body: "NativeDraft now follows your computer's light or dark setting and changes when it does. To keep one look, pick Light or Dark under Settings, Appearance.".into(),
                         sketch: Sketch::Appearance,
                     },
                     Step {

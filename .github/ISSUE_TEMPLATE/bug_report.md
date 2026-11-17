@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Something in Blackline does not work as it should
+about: Something in NativeDraft does not work as it should
 labels: bug
 ---
 
@@ -14,7 +14,7 @@ labels: bug
 3.
 
 **Where**
-- Blackline version (Settings → About, or `blackline --version`):
+- NativeDraft version (Settings → About, or `nativedraft --version`):
 - Desktop (Linux distribution and desktop, or Windows version) or browser (which one):
 
 **A script that shows it** (optional — export it as Fountain and attach it,

@@ -722,7 +722,7 @@ impl App {
 
     fn home_empty(&mut self, ui: &mut egui::Ui) {
         let (title, body, action) = if self.can_write() {
-            ("No scripts here yet", "Start one, or bring one in: Fountain, Final Draft and Blackline's own files all import.", Some("New script"))
+            ("No scripts here yet", "Start one, or bring one in: Fountain, Final Draft and NativeDraft's own files all import.", Some("New script"))
         } else {
             ("No scripts in this space yet", "When someone on the team starts a script, it shows up here.", None)
         };

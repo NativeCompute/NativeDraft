@@ -1083,7 +1083,7 @@ impl App {
     pub(super) fn ask_update(&mut self, version: &str) {
         self.deck.ask(
             &format!("Update to {version}?"),
-            &format!("Blackline closes, updates itself to {version} and opens again. Anything unsaved is saved first, and your scripts stay where they are."),
+            &format!("NativeDraft closes, updates itself to {version} and opens again. Anything unsaved is saved first, and your scripts stay where they are."),
             "Update now",
             Tone::Info,
             Ask::Update(version.to_string()),
@@ -1098,7 +1098,7 @@ impl App {
         };
         self.save_before_quit();
         if self.dirty {
-            self.deck.say("Not updating yet", "The script could not be saved, so Blackline stays open. Save it somewhere first.", Tone::Danger);
+            self.deck.say("Not updating yet", "The script could not be saved, so NativeDraft stays open. Save it somewhere first.", Tone::Danger);
             return;
         }
         match ncf::updater::start(&plan) {
@@ -2887,7 +2887,7 @@ impl App {
                         .font(theme::font_bold(theme::T_H + 1.0))
                         .color(p.text),
                 );
-                ui::hud(&mut h, if p.dark { "Blackline / dark" } else { "Blackline / light" }, None);
+                ui::hud(&mut h, if p.dark { "NativeDraft / dark" } else { "NativeDraft / light" }, None);
                 h.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     if ui::icon_button(ui, Icon::Close, "Close · Esc", 28.0) {
                         close = true;
@@ -2919,7 +2919,7 @@ impl App {
                 theme::tracked_text(
                     ui.painter(),
                     foot - Vec2::new(0.0, 6.0),
-                    concat!("Blackline ", env!("CARGO_PKG_VERSION")),
+                    concat!("NativeDraft ", env!("CARGO_PKG_VERSION")),
                     theme::font_hud(theme::T_MICRO),
                     p.text_faint,
                     0.8,
@@ -3324,7 +3324,7 @@ impl App {
         if ui::toggle_row(
             ui,
             "Check for updates on launch",
-            "Asks GitHub once whether a newer Blackline is out. Nothing is downloaded or installed by itself.",
+            "Asks GitHub once whether a newer NativeDraft is out. Nothing is downloaded or installed by itself.",
             &mut v,
         ) {
             self.settings.check_updates = v;
@@ -3332,7 +3332,7 @@ impl App {
         let line = match &self.update {
             crate::update::Status::Off => None,
             crate::update::Status::Checking => Some("Checking…".to_string()),
-            crate::update::Status::Latest => Some(format!("Blackline {} is the latest version.", env!("CARGO_PKG_VERSION"))),
+            crate::update::Status::Latest => Some(format!("NativeDraft {} is the latest version.", env!("CARGO_PKG_VERSION"))),
             crate::update::Status::Failed => Some("Could not reach GitHub to check.".to_string()),
             crate::update::Status::Newer(_) => None,
         };
@@ -3340,7 +3340,7 @@ impl App {
             ui.label(egui::RichText::new(line).font(theme::font(theme::T_CAP)).color(p.text_faint));
         }
         if let crate::update::Status::Newer(r) = self.update.clone() {
-            if ui::link(ui, &format!("Blackline {} is out — download it", r.version)) {
+            if ui::link(ui, &format!("NativeDraft {} is out — download it", r.version)) {
                 self.store.open_url(&r.url);
             }
         }
@@ -3359,7 +3359,7 @@ impl App {
         }
         ui.add_space(4.0);
         ui.label(
-            egui::RichText::new("Blackline is free and open source.")
+            egui::RichText::new("NativeDraft is free and open source.")
                 .font(theme::font(theme::T_CAP))
                 .color(p.text_dim),
         );

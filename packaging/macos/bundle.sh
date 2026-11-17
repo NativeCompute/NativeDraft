@@ -37,40 +37,40 @@ for arch in $ARCHES; do
   fi
   say "Building for $arch"
   cargo build --release --target "$triple"
-  binaries+=("$TARGET_DIR/$triple/release/blackline")
+  binaries+=("$TARGET_DIR/$triple/release/nativedraft")
 done
 
-APP="$OUT/Blackline.app"
+APP="$OUT/NativeDraft.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 if [ ${#binaries[@]} -gt 1 ]; then
-  lipo -create -output "$APP/Contents/MacOS/blackline" "${binaries[@]}"
+  lipo -create -output "$APP/Contents/MacOS/nativedraft" "${binaries[@]}"
 else
-  cp "${binaries[0]}" "$APP/Contents/MacOS/blackline"
+  cp "${binaries[0]}" "$APP/Contents/MacOS/nativedraft"
 fi
-chmod 755 "$APP/Contents/MacOS/blackline"
+chmod 755 "$APP/Contents/MacOS/nativedraft"
 
 for arch in $ARCHES; do
-  lipo "$APP/Contents/MacOS/blackline" -verify_arch "$arch" || die "The app is missing its $arch build."
-  minos="$(otool -arch "$arch" -l "$APP/Contents/MacOS/blackline" | awk '/LC_BUILD_VERSION/{found=1} found && /minos/{print $2; exit}')"
+  lipo "$APP/Contents/MacOS/nativedraft" -verify_arch "$arch" || die "The app is missing its $arch build."
+  minos="$(otool -arch "$arch" -l "$APP/Contents/MacOS/nativedraft" | awk '/LC_BUILD_VERSION/{found=1} found && /minos/{print $2; exit}')"
   [ "$minos" = "11.0" ] || die "The $arch build needs macOS $minos, not 11.0."
   say "$arch build runs on macOS $minos and newer"
 done
 
-"$APP/Contents/MacOS/blackline" --emit-info-plist "$APP/Contents/Info.plist" >/dev/null
-"$APP/Contents/MacOS/blackline" --emit-icns "$APP/Contents/Resources/Blackline.icns" >/dev/null
+"$APP/Contents/MacOS/nativedraft" --emit-info-plist "$APP/Contents/Info.plist" >/dev/null
+"$APP/Contents/MacOS/nativedraft" --emit-icns "$APP/Contents/Resources/NativeDraft.icns" >/dev/null
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 plutil -lint "$APP/Contents/Info.plist"
-[ "$(plutil -extract CFBundleExecutable raw "$APP/Contents/Info.plist")" = "blackline" ] || die "Info.plist names the wrong program."
-sips -g pixelWidth "$APP/Contents/Resources/Blackline.icns" >/dev/null || die "The icon file does not open."
+[ "$(plutil -extract CFBundleExecutable raw "$APP/Contents/Info.plist")" = "nativedraft" ] || die "Info.plist names the wrong program."
+sips -g pixelWidth "$APP/Contents/Resources/NativeDraft.icns" >/dev/null || die "The icon file does not open."
 
 codesign --force --deep --sign - "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
 say "Signed"
 
-ZIP="blackline-macos.zip"
+ZIP="nativedraft-macos.zip"
 rm -f "$OUT/$ZIP" "$OUT/$ZIP.sha256"
-(cd "$OUT" && ditto -c -k --sequesterRsrc --keepParent Blackline.app "$ZIP")
+(cd "$OUT" && ditto -c -k --sequesterRsrc --keepParent NativeDraft.app "$ZIP")
 (cd "$OUT" && shasum -a 256 "$ZIP" > "$ZIP.sha256")
 say "Made $OUT/$ZIP ($(du -h "$OUT/$ZIP" | cut -f1))"

@@ -20,12 +20,12 @@ struct Harness {
 fn sandbox(settings: &str) -> std::sync::MutexGuard<'static, ()> {
     let guard = VAULT.lock().unwrap_or_else(|e| e.into_inner());
     let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    let dir = std::env::temp_dir().join(format!("blackline-ui-{}-{n}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("nativedraft-ui-{}-{n}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    let _ = std::fs::create_dir_all(dir.join("blackline"));
+    let _ = std::fs::create_dir_all(dir.join("nativedraft"));
     std::env::set_var("XDG_DATA_HOME", &dir);
     let _ = std::fs::write(
-        dir.join("blackline/settings.conf"),
+        dir.join("nativedraft/settings.conf"),
         format!("splash = no\nanimations = no\nautosave_ms = 150\nonboarded = new-look\n{settings}"),
     );
     guard
@@ -1373,7 +1373,7 @@ fn update_now_asks_first_and_a_copy_that_cannot_update_itself_stays_open() {
     h.press(Key::Enter, Modifiers::NONE);
     h.frames(3);
     assert!(!h.app.debug_pending_ask());
-    assert!(!h.app.debug_quitting_for_update(), "nothing to hand over to, so Blackline stays open");
+    assert!(!h.app.debug_quitting_for_update(), "nothing to hand over to, so NativeDraft stays open");
 }
 
 #[test]
@@ -1571,4 +1571,28 @@ fn debug_mode_adds_a_script_from_outside_and_imports_a_problem_file() {
     h.app.use_tool(Tool::Tour);
     h.frames(1);
     assert!(h.app.debug_tour().is_some());
+}
+
+#[test]
+fn a_blackline_library_opens_where_it_is_and_nothing_in_it_changes() {
+    let guard = VAULT.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = std::env::temp_dir().join(format!("nativedraft-ui-blackline-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let old = dir.join(if cfg!(windows) || cfg!(target_os = "macos") { "Blackline" } else { "blackline" });
+    std::fs::create_dir_all(old.join("scripts")).unwrap();
+    std::fs::write(old.join("settings.conf"), "splash = no\nanimations = no\nonboarded = new-look\n").unwrap();
+    let script = "---\ntitle: Old Friend\nauthor: A. Writer\n---\n\n## INT. KITCHEN - NIGHT\n\nThe kettle screams.\n";
+    std::fs::write(old.join("scripts/old-friend.md"), script).unwrap();
+    std::env::set_var("XDG_DATA_HOME", &dir);
+    assert_eq!(storage::library_root(), old);
+    let ctx = egui::Context::default();
+    let _ = ctx.run(RawInput { screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), vec2(1320.0, 900.0))), ..Default::default() }, |_| {});
+    let app = App::with_context(&ctx);
+    let mut h = Harness { ctx, app, size: vec2(1320.0, 900.0), _guard: guard };
+    h.frames(5);
+    assert!(h.app.entries().iter().any(|e| e.title == "Old Friend"), "the old script is on Home");
+    h.idle();
+    assert_eq!(std::fs::read_to_string(old.join("scripts/old-friend.md")).unwrap(), script, "byte for byte");
+    assert!(!dir.join("nativedraft").exists() && !dir.join("NativeDraft").exists(), "no second library appears");
+    let _ = std::fs::remove_dir_all(&dir);
 }
