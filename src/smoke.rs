@@ -13,13 +13,17 @@ pub const NEW_SCRIPT: &str = "---\ntitle: Crossfire\nauthor: Sam\ncontact: \ndra
 
 pub const ODD_FOUNTAIN: &str = "Title: Odd Bits\nCopyright: 2026 Somebody\n\nINT. ROOM - DAY #12#\n\nShe waits.\n\n~La la la\n\n===\n\nShe leaves.\n";
 
-const HEIST: &str = "---\ntitle: The Harbour Job\nauthor: Sam Reyes\ndraft: Draft 2\nstorylines: 0=Maria; 1=The heist; 2=Cole\ndeadline: DEADLINE\n---\n\n## INT. KITCHEN - NIGHT\n\n<!-- scene: tint=0 | Maria tells Jonas to stop. He won't. -->\n\nThe kettle screams. Nobody moves.\n\n## EXT. ROOFTOP - NIGHT\n\n<!-- scene: tint=0 | A cigarette she doesn't want. -->\n\nMaria at the edge, the city below.\n\n## INT. KITCHEN - DAY\n\n<!-- scene: tint=1 | Morning light. The plan, on a napkin. -->\n\nCoffee rings on a hand-drawn map.\n\n## INT./EXT. CAR - DAWN\n\n<!-- scene: tint=2 | The handoff goes wrong. -->\n\nCole drums the wheel. The bag isn't there.\n\n## EXT. HARBOUR - NIGHT\n\n<!-- scene: tint=1 | Cole meets the crew. Someone talked. -->\n\nFog over the cranes. Five shapes on the quay.\n\n## INT. VAULT - NIGHT\n\n<!-- scene: tint=0 | The lock gives way. Someone's here. -->\n\nThe dial clicks home.\n\n";
+const HEIST: &str = "---\ntitle: The Harbour Job\nauthor: Sam Reyes\ndraft: Draft 2\nstorylines: 0=Maria; 1=The heist; 2=Cole\ndeadline: DEADLINE\n---\n\n## INT. KITCHEN - NIGHT\n\n<!-- scene: tint=0 | Maria tells Jonas to stop. He won't. -->\n\nThe kettle screams. Nobody moves.\n\n## EXT. ROOFTOP - NIGHT\n\n<!-- scene: tint=0 | A cigarette she doesn't want. | id=roof01 -->\n\nMaria at the edge, the city below.\n\n## INT. KITCHEN - DAY\n\n<!-- scene: tint=1 | Morning light. The plan, on a napkin. -->\n\nCoffee rings on a hand-drawn map.\n\n## INT./EXT. CAR - DAWN\n\n<!-- scene: tint=2 | The handoff goes wrong. | id=carr01 -->\n\nCole drums the wheel. The bag isn't there.\n\n## EXT. HARBOUR - NIGHT\n\n<!-- scene: tint=1 | Cole meets the crew. Someone talked. -->\n\nFog over the cranes. Five shapes on the quay.\n\n## INT. VAULT - NIGHT\n\n<!-- scene: tint=0 | The lock gives way. Someone's here. | id=vault1 -->\n\nThe dial clicks home.\n\n";
 
 pub const UNSAVED: &str = " SMOKE-UNSAVED-EDIT";
 
 const SETTINGS: &str = "appearance = dark\nsplash = yes\nanimations = yes\ncheck_updates = no\nautosave_ms = 10000\nafter_export = nothing\n";
 
 static NOTES: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+const SAYS_NO: &str = "---\ntitle: Maria says no\nauthor: \ncontact: \ndraft: \ntimeline-id: says01\ntimeline: Maria says no\nparent: main\nfrom: roof01\nchoice: Maria walks away\nstay: Maria stays in\nmerges-into: vault1\ncolor: 1\n---\n\n## INT. BUS STATION - NIGHT\n<!-- scene: She buys a ticket she won't use. | id=busst1 -->\n\nMaria counts coins at the window. The last bus north idles.\n\n**MARIA**\n\n> One, please. One way.\n\n## @same carr01\n\n## EXT. MARINA - NIGHT\n\nShe comes back for him anyway. The masts knock in the wind.\n\n";
+
+const COLE_RUNS: &str = "---\ntitle: Cole runs\nauthor: \ncontact: \ndraft: \ntimeline-id: cole01\ntimeline: Cole runs\nparent: says01\nfrom: busst1\nchoice: Cole takes the bus instead\ncolor: 4\n---\n\n## EXT. TRAIN YARD - NIGHT\n\nCole between the freight cars, the bag over his shoulder.\n\n## INT. FREIGHT CAR - DAWN\n\nHe watches the harbour lights go out, one by one.\n\n";
 
 fn note(line: String) {
     eprintln!("smoke: {line}");
@@ -106,6 +110,9 @@ pub fn prepare(dir: &Path) -> Result<(), String> {
     std::fs::write(lib.join("scripts/the-long-way-down.md"), OLD_SCRIPT).map_err(|e| e.to_string())?;
     std::fs::write(lib.join("scripts/crossfire.md"), NEW_SCRIPT).map_err(|e| e.to_string())?;
     std::fs::write(lib.join("scripts/the-harbour-job.md"), heist_now()).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(lib.join("scripts/the-harbour-job.timelines")).map_err(|e| e.to_string())?;
+    std::fs::write(lib.join("scripts/the-harbour-job.timelines/maria-says-no.md"), SAYS_NO).map_err(|e| e.to_string())?;
+    std::fs::write(lib.join("scripts/the-harbour-job.timelines/cole-runs.md"), COLE_RUNS).map_err(|e| e.to_string())?;
     std::fs::write(dir.join("odd.fountain"), ODD_FOUNTAIN).map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -136,6 +143,8 @@ enum Step {
     Write,
     Cards,
     Storylines,
+    Timelines,
+    Branch,
     Read,
     Reports,
     Export,
@@ -148,19 +157,22 @@ enum Step {
     LightWrite,
     LightCards,
     LightStorylines,
+    LightTimelines,
     LightRead,
     LightSettings,
     LightPalette,
     Quit,
 }
 
-const STEPS: [Step; 22] = [
+const STEPS: [Step; 25] = [
     Step::Splash,
     Step::Tour,
     Step::Home,
     Step::Write,
     Step::Cards,
     Step::Storylines,
+    Step::Timelines,
+    Step::Branch,
     Step::Read,
     Step::Reports,
     Step::Export,
@@ -173,6 +185,7 @@ const STEPS: [Step; 22] = [
     Step::LightWrite,
     Step::LightCards,
     Step::LightStorylines,
+    Step::LightTimelines,
     Step::LightRead,
     Step::LightSettings,
     Step::LightPalette,
@@ -295,6 +308,15 @@ impl Smoke {
                 let lib = library(&self.dir);
                 app.debug_open_from_home(lib.join("scripts/the-harbour-job.md"));
                 app.set_mode(Mode::Cards);
+            }
+            Step::Timelines | Step::LightTimelines => {
+                let lib = library(&self.dir);
+                app.debug_open_from_home(lib.join("scripts/the-harbour-job.md"));
+                app.set_mode(Mode::Timelines);
+            }
+            Step::Branch => {
+                let lib = library(&self.dir);
+                app.debug_open_from_home(lib.join("scripts/the-harbour-job.timelines/maria-says-no.md"));
             }
             Step::Read => {
                 let lib = library(&self.dir);
@@ -591,7 +613,12 @@ pub fn finish(dir: &Path) -> i32 {
         })
         .unwrap_or(false);
     lines.push(format!("{} Quick Export wrote a PDF", if pdf { "ok" } else { "FAIL" }));
-    let imported = std::fs::read_dir(lib.join("scripts")).map(|rd| rd.flatten().count()).unwrap_or(0) >= 3;
+    let imported = std::fs::read_dir(lib.join("scripts"))
+        .map(|rd| rd.flatten().filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("md")).count())
+        .unwrap_or(0)
+        >= 4;
+    let says_no = std::fs::read_to_string(lib.join("scripts/the-harbour-job.timelines/maria-says-no.md")).unwrap_or_default();
+    lines.push(format!("{} a timeline opened and shown in the graph is byte-identical", if says_no == SAYS_NO { "ok" } else { "FAIL" }));
     lines.push(format!("{} the import became a script", if imported { "ok" } else { "FAIL" }));
     let all_steps = shots >= STEPS.len();
     lines.push(format!("{} {} of {} screens captured", if all_steps { "ok" } else { "FAIL" }, shots.min(STEPS.len()), STEPS.len()));

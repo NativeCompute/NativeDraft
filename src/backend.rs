@@ -391,6 +391,9 @@ mod local {
 
         fn follow_title(&mut self, key: &Path, title: &str) -> PathBuf {
             let mut path = key.to_path_buf();
+            if storage::is_timeline_path(key) {
+                return path;
+            }
             let wanted = storage::slugify(title);
             let current_stem = path
                 .file_stem()
@@ -417,6 +420,8 @@ mod local {
         }
 
         fn duplicate(&mut self, key: &Path) -> Result<Option<String>, String> {
+            let main = storage::main_of(key);
+            let key = main.as_deref().unwrap_or(key);
             let mut doc = storage::load(key).map_err(|e| e.to_string())?;
             doc.meta.title = format!("{} (copy)", doc.meta.title);
             doc.meta.starred = false;

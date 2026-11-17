@@ -585,6 +585,8 @@ impl App {
             ("Waiting to sync".to_string(), Some(2), false)
         } else if let Some(r) = e.revision {
             (format!("{} pages", crate::revision::name(r)), Some(3), false)
+        } else if e.timelines > 0 {
+            (format!("{} timelines", e.timelines + 1), Some(1), false)
         } else if !e.draft.is_empty() {
             (ui::elide(&e.draft, 22), None, false)
         } else {

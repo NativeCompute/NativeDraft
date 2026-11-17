@@ -86,6 +86,7 @@ impl App {
         let write = self.can_write();
         match c {
             Command::NewScript | Command::NewScene | Command::NewAct | Command::DualDialogue | Command::AddNote | Command::Element(_) => write,
+            Command::NewTimeline => write && self.timelines_ok(),
             _ => true,
         }
     }
@@ -109,6 +110,29 @@ impl App {
                 let name = if sc.heading.trim().is_empty() { format!("Scene {}", i + 1) } else { sc.heading.clone() };
                 if let Some(s) = score(&name, q) {
                     rows.push((s, Row { section: "Scenes", icon: Icon::List, title: name, sub: format!("Scene {}", i + 1), chord: String::new(), pick: Pick::Scene(sc.id) }));
+                }
+            }
+        }
+        if let (false, Some(b)) = (self.home, self.live().filter(|b| !b.is_empty())) {
+            for t in b.order() {
+                let name = b.name(t);
+                let here = t == self.tl;
+                if let Some(s) = score(&name, q) {
+                    let sub = if here { "Timeline · open".to_string() } else { "Timeline".to_string() };
+                    rows.push((s + 20, Row { section: "Timelines", icon: Icon::Graph, title: name.clone(), sub, chord: String::new(), pick: Pick::Script(b.path(t).to_path_buf()) }));
+                }
+                if q.is_empty() || here {
+                    continue;
+                }
+                let doc = b.doc(t);
+                let first = crate::timelines::first_number(&b, t);
+                for (k, sc) in doc.scenes().iter().enumerate() {
+                    if sc.heading.trim().is_empty() {
+                        continue;
+                    }
+                    if let Some(s) = score(&sc.heading, q) {
+                        rows.push((s - 10, Row { section: "Scenes", icon: Icon::List, title: sc.heading.clone(), sub: format!("{name} · scene {}", first + k), chord: String::new(), pick: Pick::Line(b.path(t).to_path_buf(), sc.start) }));
+                    }
                 }
             }
         }
@@ -138,12 +162,13 @@ impl App {
         if !q.is_empty() {
             let order = |s: &str| match s {
                 "Scripts" => 0,
-                "Scenes" => 1,
-                "Commands" => 2,
-                _ => 3,
+                "Timelines" => 1,
+                "Scenes" => 2,
+                "Commands" => 3,
+                _ => 4,
             };
             let best = |s: &str| rows.iter().filter(|r| r.1.section == s).map(|r| r.0).max().unwrap_or(i32::MIN);
-            let rank: Vec<(&'static str, i32)> = ["Scripts", "Scenes", "Commands", "In the pages"].iter().map(|s| (*s, best(s))).collect();
+            let rank: Vec<(&'static str, i32)> = ["Scripts", "Timelines", "Scenes", "Commands", "In the pages"].iter().map(|s| (*s, best(s))).collect();
             let rank_of = |s: &str| rank.iter().find(|r| r.0 == s).map(|r| r.1).unwrap_or(i32::MIN);
             rows.sort_by(|a, b| rank_of(b.1.section).cmp(&rank_of(a.1.section)).then(order(a.1.section).cmp(&order(b.1.section))).then(b.0.cmp(&a.0)));
         }

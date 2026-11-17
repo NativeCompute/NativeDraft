@@ -71,6 +71,7 @@ impl App {
             if ui::side_link(ui, Icon::File, &title, Some("open"), !self.home).clicked() && self.home {
                 self.open_from_home(path);
             }
+            self.side_timelines(ui);
         }
         if ui::side_link(ui, Icon::Star, "Starred", Some(&starred.to_string()), self.home && self.home_starred).clicked() {
             self.home_starred = !(self.home && self.home_starred);
@@ -267,14 +268,16 @@ impl App {
         let tabs = [
             ui::SegTab { label: "Write", icon: Some(Icon::Pencil), count: None, dot: false },
             ui::SegTab { label: "Cards", icon: Some(Icon::Grid), count: None, dot: false },
+            ui::SegTab { label: "Timelines", icon: Some(Icon::Graph), count: None, dot: self.has_timelines() },
             ui::SegTab { label: "Read", icon: Some(Icon::Eye), count: None, dot: false },
         ];
         if let Some(picked) = ui::seg_tabs(ui, &tabs, self.mode.index(), None) {
             let m = Mode::from_index(picked);
-            if m == Mode::Read || self.guard_edit() {
+            if matches!(m, Mode::Read | Mode::Timelines) || self.guard_edit() {
                 self.mode = m;
             }
         }
+        self.toolbar_timeline(ui);
 
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
@@ -297,6 +300,7 @@ impl App {
             match self.mode {
                 Mode::Write => self.write_tools_right(ui),
                 Mode::Cards => self.cards_tools_right(ui),
+                Mode::Timelines => self.timelines_tools_right(ui),
                 Mode::Read => self.read_tools_right(ui),
             }
         });
@@ -478,7 +482,7 @@ impl App {
 
     // inspector here---
     pub(super) fn inspector(&mut self, ctx: &egui::Context) {
-        if !self.settings.show_scenes || self.focus_mode {
+        if !self.settings.show_scenes || self.focus_mode || self.mode == Mode::Timelines {
             self.aside_rect = Rect::NOTHING;
             self.aside_islands.clear();
             return;

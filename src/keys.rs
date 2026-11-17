@@ -29,13 +29,15 @@ pub enum Command {
     AddNote,
     Reports,
     Palette,
+    Timelines,
+    NewTimeline,
     Element(u8),
 }
 
 use Command::*;
 
 impl Command {
-    pub const ALL: [Command; 29] = [
+    pub const ALL: [Command; 31] = [
         Save,
         NewScript,
         NewScene,
@@ -58,6 +60,8 @@ impl Command {
         AddNote,
         Reports,
         Palette,
+        Timelines,
+        NewTimeline,
         Element(1),
         Element(2),
         Element(3),
@@ -91,6 +95,8 @@ impl Command {
             AddNote => "add_note".into(),
             Reports => "reports".into(),
             Palette => "palette".into(),
+            Timelines => "timelines".into(),
+            NewTimeline => "new_timeline".into(),
             Element(n) => format!("element_{n}"),
         }
     }
@@ -111,7 +117,7 @@ impl Command {
             FindScripts => "Search your scripts".into(),
             QuickExport => "Quick Export (PDF)".into(),
             ExportWindow => "Export…".into(),
-            NextView => "Next view (Write, Cards, Read)".into(),
+            NextView => "Next view (Write, Cards, Timelines, Read)".into(),
             FocusMode => "Focus mode".into(),
             ToggleLibrary => "Show or hide the library sidebar".into(),
             ToggleDetails => "Title page".into(),
@@ -123,15 +129,17 @@ impl Command {
             AddNote => "Add a note".into(),
             Reports => "Reports".into(),
             Palette => "Search or jump to…".into(),
+            Timelines => "Timelines".into(),
+            NewTimeline => "Branch from this scene".into(),
             Element(n) => Element::from_digit(n as usize).map(|e| e.label()).unwrap_or("Element").to_string(),
         }
     }
 
     pub fn group(self) -> &'static str {
         match self {
-            Save | NewScript | NewScene | NewAct | Undo | Redo | Find | FindScripts | DualDialogue | AddNote => "Writing",
+            Save | NewScript | NewScene | NewAct | Undo | Redo | Find | FindScripts | DualDialogue | AddNote | NewTimeline => "Writing",
             QuickExport | ExportWindow => "Export",
-            NextView | FocusMode | ToggleLibrary | ToggleDetails | ToggleScenes | Settings | Bigger | Smaller | Reports | Palette => {
+            NextView | FocusMode | ToggleLibrary | ToggleDetails | ToggleScenes | Settings | Bigger | Smaller | Reports | Palette | Timelines => {
                 "Views and panels"
             }
             Element(_) => "Elements",
@@ -173,6 +181,9 @@ impl Command {
             AddNote => vec![c(cmd, Key::M)],
             Palette => vec![c(cmd, Key::K)],
             Reports => vec![c(cmd_shift, Key::R)],
+            Timelines => vec![c(cmd_shift, Key::G)],
+            NewTimeline if web => vec![c(cmd | Modifiers::ALT, Key::B)],
+            NewTimeline => vec![c(cmd_shift, Key::B)],
             Element(n) => {
                 let k = DIGITS[(n as usize).clamp(1, 7) - 1];
                 if web {

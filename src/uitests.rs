@@ -595,11 +595,13 @@ fn pages_draw_the_title_page_and_every_printed_page() {
 }
 
 #[test]
-fn ctrl_g_steps_through_the_three_views() {
+fn ctrl_g_steps_through_the_four_views() {
     let mut h = Harness::new();
     assert_eq!(h.app.mode(), Mode::Write);
     h.press(Key::G, Modifiers::COMMAND);
     assert_eq!(h.app.mode(), Mode::Cards);
+    h.press(Key::G, Modifiers::COMMAND);
+    assert_eq!(h.app.mode(), Mode::Timelines);
     h.press(Key::G, Modifiers::COMMAND);
     assert_eq!(h.app.mode(), Mode::Read);
     h.press(Key::G, Modifiers::COMMAND);
@@ -1595,4 +1597,220 @@ fn a_blackline_library_opens_where_it_is_and_nothing_in_it_changes() {
     assert_eq!(std::fs::read_to_string(old.join("scripts/old-friend.md")).unwrap(), script, "byte for byte");
     assert!(!dir.join("nativedraft").exists() && !dir.join("NativeDraft").exists(), "no second library appears");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+// timelines here---
+
+const HARBOUR: &str = "---\ntitle: Harbour\nauthor: \ncontact: \ndraft: \n---\n\n## INT. DOCK - NIGHT\n\nRain.\n\n## INT. OFFICE - NIGHT\n\n**MARIA**\n\n> No.\n\n## EXT. PIER - DAWN\n\nGulls.\n\n";
+
+impl Harness {
+    fn harbour(&mut self) -> std::path::PathBuf {
+        let path = storage::scripts_dir().join("harbour.md");
+        std::fs::write(&path, HARBOUR).unwrap();
+        self.app.debug_open(path.clone());
+        self.frames(3);
+        path
+    }
+
+    fn right_click(&mut self, at: Pos2) {
+        self.frame_with(vec![Event::PointerMoved(at)]);
+        self.frame_with(vec![
+            Event::PointerMoved(at),
+            Event::PointerButton { pos: at, button: PointerButton::Secondary, pressed: true, modifiers: Modifiers::NONE },
+        ]);
+        self.frame_with(vec![Event::PointerButton { pos: at, button: PointerButton::Secondary, pressed: false, modifiers: Modifiers::NONE }]);
+        self.frame();
+    }
+
+    fn branch_at_scene(&mut self, n: usize, name: &str) {
+        let id = self.app.doc().scenes()[n].id;
+        self.app.focus_on(id);
+        self.frames(2);
+        self.press(Key::B, Modifiers::COMMAND | Modifiers::SHIFT);
+        assert!(self.app.debug_branch_open(), "Ctrl+Shift+B asks how to branch");
+        self.type_text(name);
+        self.press(Key::Enter, Modifiers::NONE);
+        self.frames(3);
+    }
+}
+
+fn added_lines(before: &str, after: &str) -> Vec<String> {
+    let a: Vec<&str> = before.lines().collect();
+    after.lines().filter(|l| !a.contains(l)).map(|l| l.to_string()).collect()
+}
+
+#[test]
+fn branching_from_a_scene_writes_one_new_file_and_one_id() {
+    let mut h = Harness::new();
+    let main = h.harbour();
+    h.branch_at_scene(1, "Maria says no");
+    assert!(!h.app.debug_branch_open());
+    let branch = storage::scripts_dir().join("harbour.timelines/maria-says-no.md");
+    assert!(branch.exists(), "the timeline is a file in the hidden folder");
+    let after = std::fs::read_to_string(&main).unwrap();
+    let added = added_lines(HARBOUR, &after);
+    assert_eq!(added.len(), 1, "{added:?}\n{after}");
+    assert!(added[0].starts_with("<!-- scene: | id="), "{added:?}");
+    assert_eq!(after.lines().count(), HARBOUR.lines().count() + 1, "nothing else in the script moved");
+    assert_eq!(h.app.path(), Some(branch.clone()), "the new timeline opens");
+    assert_eq!(h.app.debug_tl(), Some(0));
+    assert_eq!(h.app.mode(), Mode::Write);
+    let text = std::fs::read_to_string(&branch).unwrap();
+    assert!(text.contains("timeline: Maria says no") && text.contains("parent: main"), "{text}");
+
+    h.type_text("EXT. ROOFTOP - NIGHT");
+    h.app.debug_save();
+    h.frames(2);
+    assert_eq!(std::fs::read_to_string(&main).unwrap(), after, "writing in a timeline leaves the script alone");
+    assert!(std::fs::read_to_string(&branch).unwrap().contains("## EXT. ROOFTOP - NIGHT"));
+    let entries = storage::list_scripts();
+    let e = entries.iter().find(|e| e.path == main).expect("the script is listed");
+    assert_eq!(e.timelines, 1);
+    assert!(entries.iter().all(|e| !storage::is_timeline_path(&e.path)), "a timeline is not a script of its own");
+}
+
+#[test]
+fn the_timelines_view_draws_dots_and_answers_the_keyboard() {
+    let mut h = Harness::new();
+    let main = h.harbour();
+    h.branch_at_scene(1, "Maria says no");
+    h.type_text("EXT. ROOFTOP - NIGHT");
+    h.app.debug_save();
+    h.app.debug_open(main.clone());
+    h.frames(2);
+    h.press(Key::G, Modifiers::COMMAND | Modifiers::SHIFT);
+    assert_eq!(h.app.mode(), Mode::Timelines);
+    h.frames(3);
+    let dots = h.app.debug_timeline_dots();
+    assert_eq!(dots.len(), 4, "three scenes on Main and one on the branch");
+    let chips = h.app.debug_timeline_chips();
+    assert_eq!(chips.len(), 2);
+    let ((r, d), rect) = dots[0];
+    h.click(rect.center());
+    assert_eq!(h.app.debug_timeline_sel(), Some((r, d)));
+    h.press(Key::ArrowRight, Modifiers::NONE);
+    assert_eq!(h.app.debug_timeline_sel(), Some((r, d + 1)));
+    h.press(Key::ArrowDown, Modifiers::NONE);
+    let (r2, _) = h.app.debug_timeline_sel().unwrap();
+    assert_eq!(r2, r + 1, "down moves to the next timeline");
+    h.press(Key::Enter, Modifiers::NONE);
+    assert_eq!(h.app.mode(), Mode::Write);
+    assert_eq!(h.app.debug_tl(), Some(0), "Enter opens the chosen scene's timeline");
+
+    h.press(Key::G, Modifiers::COMMAND | Modifiers::SHIFT);
+    h.frames(3);
+    let dot = h.app.debug_timeline_dots()[1].1;
+    h.right_click(dot.center());
+    assert!(h.app.debug_timeline_menu_open(), "a right-click opens the scene menu");
+}
+
+#[test]
+fn deleting_a_scene_a_timeline_uses_asks_re_anchors_and_undoes_everywhere() {
+    let mut h = Harness::new();
+    let main = h.harbour();
+    h.branch_at_scene(1, "Maria says no");
+    h.type_text("EXT. ROOFTOP - NIGHT");
+    h.app.debug_save();
+    let branch = h.app.path().unwrap();
+    h.app.debug_open(main.clone());
+    h.frames(2);
+    let main_before = std::fs::read_to_string(&main).unwrap();
+    let branch_before = std::fs::read_to_string(&branch).unwrap();
+    let refs = h.app.debug_scene_refs(1).expect("the scene is used");
+    assert_eq!(refs, "1 timeline branches from this scene");
+    assert!(h.app.debug_scene_refs(0).is_none());
+    h.app.debug_ask_delete_scene(1);
+    h.frames(1);
+    h.app.debug_answer_yes(None);
+    h.frames(3);
+    h.app.debug_save();
+    let main_after = std::fs::read_to_string(&main).unwrap();
+    assert!(!main_after.contains("INT. OFFICE"));
+    let b = crate::timelines::load_bundle(&main).unwrap();
+    let from = b.items[0].meta().from.clone().expect("re-anchored, not dropped");
+    assert!(main_after.contains(&format!("id={from}")), "the scene before now carries the id");
+    assert_eq!(crate::timelines::assemble(&b, Some(0)).blocks[0].text, "INT. DOCK - NIGHT");
+    assert!(crate::timelines::issues(&b).is_empty());
+
+    h.app.debug_undo();
+    h.frames(2);
+    h.app.debug_save();
+    assert_eq!(std::fs::read_to_string(&main).unwrap(), main_before, "undo brings the scene back");
+    assert_eq!(std::fs::read_to_string(&branch).unwrap(), branch_before, "and puts the timeline back where it was");
+}
+
+#[test]
+fn typing_away_a_used_scene_shows_a_strip_that_re_anchors() {
+    let mut h = Harness::new();
+    let main = h.harbour();
+    h.branch_at_scene(1, "Maria says no");
+    h.app.debug_open(main.clone());
+    h.frames(2);
+    let k = h.app.doc().scenes()[1].start;
+    h.app.doc_mut().blocks[k].element = Element::Action;
+    h.app.debug_append("");
+    h.frames(2);
+    std::thread::sleep(Duration::from_millis(400));
+    h.frames(3);
+    assert_eq!(h.app.debug_lost().len(), 1, "the strip knows which scene went");
+    h.app.debug_reanchor();
+    h.frames(2);
+    assert!(h.app.debug_lost().is_empty());
+    let b = crate::timelines::load_bundle(&main).unwrap();
+    let issues: Vec<_> = crate::timelines::issues(&b).into_iter().filter(|i| !matches!(i, crate::timelines::Issue::EmptyBranch { .. })).collect();
+    assert!(issues.is_empty(), "{issues:?}");
+    assert_eq!(b.items[0].meta().from.as_deref(), b.main.blocks[0].sid.as_deref(), "it holds on to the scene before");
+}
+
+#[test]
+fn deleting_a_script_names_its_timelines_and_takes_them() {
+    let mut h = Harness::new();
+    let main = h.harbour();
+    h.branch_at_scene(1, "Maria says no");
+    h.app.debug_open(main.clone());
+    h.frames(2);
+    let text = h.app.debug_delete_text(&main);
+    assert!(text.contains("its timeline go for good: Maria says no"), "{text}");
+    h.app.debug_go_home();
+    h.frames(2);
+    assert!(storage::scripts_dir().join("harbour.timelines").is_dir());
+}
+
+#[test]
+fn the_palette_lists_timelines_and_their_scenes() {
+    let mut h = Harness::new();
+    let main = h.harbour();
+    h.branch_at_scene(1, "Maria says no");
+    h.type_text("EXT. ROOFTOP - NIGHT");
+    h.app.debug_save();
+    h.app.debug_open(main);
+    h.frames(2);
+    let rows = h.app.debug_palette_rows("maria");
+    assert!(rows.iter().any(|(s, t)| s == "Timelines" && t == "Maria says no"), "{rows:?}");
+    let rows = h.app.debug_palette_rows("rooftop");
+    assert!(rows.iter().any(|(s, t)| s == "Scenes" && t == "EXT. ROOFTOP - NIGHT"), "{rows:?}");
+}
+
+#[test]
+fn opening_a_library_with_timelines_writes_nothing() {
+    let mut h = Harness::new();
+    let main = h.harbour();
+    h.branch_at_scene(1, "Maria says no");
+    h.app.debug_save();
+    h.app.debug_go_home();
+    h.frames(2);
+    let branch = storage::scripts_dir().join("harbour.timelines/maria-says-no.md");
+    let a = std::fs::read_to_string(&main).unwrap();
+    let b = std::fs::read_to_string(&branch).unwrap();
+    for p in [&main, &branch] {
+        h.app.debug_open(p.clone());
+        h.frames(3);
+        h.app.debug_save();
+        h.press(Key::G, Modifiers::COMMAND | Modifiers::SHIFT);
+        h.frames(2);
+        h.app.debug_go_home();
+        h.frames(2);
+    }
+    assert_eq!(std::fs::read_to_string(&main).unwrap(), a);
+    assert_eq!(std::fs::read_to_string(&branch).unwrap(), b);
 }

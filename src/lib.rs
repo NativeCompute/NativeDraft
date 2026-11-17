@@ -34,6 +34,7 @@ pub mod stats;
 pub mod storage;
 pub mod theme;
 pub mod timelines;
+pub mod timelines_view;
 pub mod ui;
 
 pub use eframe;

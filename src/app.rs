@@ -35,6 +35,7 @@ mod keyboard;
 mod notes;
 mod palette;
 mod reports;
+mod stories;
 mod imported;
 pub mod onboarding;
 mod voices;
@@ -51,21 +52,26 @@ const KEYS_TAB: usize = 8;
 pub enum Mode {
     Write,
     Cards,
+    Timelines,
     Read,
 }
 
 impl Mode {
+    pub const COUNT: usize = 4;
+
     fn index(self) -> usize {
         match self {
             Mode::Write => 0,
             Mode::Cards => 1,
-            Mode::Read => 2,
+            Mode::Timelines => 2,
+            Mode::Read => 3,
         }
     }
     fn from_index(i: usize) -> Mode {
         match i {
             1 => Mode::Cards,
-            2 => Mode::Read,
+            2 => Mode::Timelines,
+            3 => Mode::Read,
             _ => Mode::Write,
         }
     }
@@ -80,6 +86,9 @@ pub enum Ask {
     Update(String),
     Cloud(String),
     MakeLocal(PathBuf),
+    RenameTimeline(String),
+    TimelineChoice(String),
+    DeleteTimeline(String),
     Nothing,
 }
 
@@ -95,6 +104,7 @@ enum Popover {
     Trash,
     Reports,
     Imported,
+    Timelines,
 }
 
 #[derive(Default)]
@@ -239,6 +249,17 @@ pub struct App {
     home_all: bool,
     words_dirty: bool,
     rev_base: Option<(String, Document)>,
+    bundle: Option<crate::timelines::Bundle>,
+    tl: crate::timelines::Tl,
+    sides: Vec<stories::Side>,
+    redo_sides: Vec<stories::Side>,
+    tview: crate::timelines_view::ViewState,
+    tgraph: Option<(crate::timelines::Graph, Vec<crate::timelines::Issue>)>,
+    tl_menu: Option<stories::Menu>,
+    branch_dialog: Option<stories::BranchDialog>,
+    tl_whole: Option<Document>,
+    tl_missing: Vec<String>,
+    timeline_button_rect: Rect,
 
     frame_no: u64,
     page_key: String,
@@ -416,6 +437,17 @@ impl App {
             home_all: false,
             words_dirty: false,
             rev_base: None,
+            bundle: None,
+            tl: None,
+            sides: Vec::new(),
+            redo_sides: Vec::new(),
+            tview: Default::default(),
+            tgraph: None,
+            tl_menu: None,
+            branch_dialog: None,
+            tl_whole: None,
+            tl_missing: Vec::new(),
+            timeline_button_rect: Rect::NOTHING,
             frame_no: 0,
             page_key: String::new(),
             page_born: Instant::now(),
@@ -462,8 +494,10 @@ impl App {
         self.undo.push(std::mem::replace(&mut self.baseline, current));
         if self.undo.len() > 200 {
             self.undo.remove(0);
+            self.trim_sides();
         }
         self.redo.clear();
+        self.redo_sides.clear();
         self.snapshot_due = false;
     }
 
@@ -474,8 +508,10 @@ impl App {
         self.undo.push(self.doc.clone());
         if self.undo.len() > 200 {
             self.undo.remove(0);
+            self.trim_sides();
         }
         self.redo.clear();
+        self.redo_sides.clear();
     }
 
     fn after_history(&mut self) {
@@ -497,6 +533,7 @@ impl App {
                 self.doc = prev.clone();
                 self.baseline = prev;
                 self.after_history();
+                self.undo_sides();
             }
             None => self.deck.say("Nothing to undo", "", Tone::Info),
         }
@@ -509,6 +546,7 @@ impl App {
                 self.doc = next.clone();
                 self.baseline = next;
                 self.after_history();
+                self.redo_sides();
             }
             None => self.deck.say("Nothing to redo", "", Tone::Info),
         }
@@ -538,6 +576,7 @@ impl App {
                 self.path = Some(path);
                 self.dirty = false;
                 self.saved_at = Some(Instant::now());
+                self.after_save_bundle();
                 if self.words_dirty {
                     self.words_dirty = false;
                     self.save_settings();
@@ -588,10 +627,13 @@ impl App {
         self.baseline = self.doc.clone();
         self.undo.clear();
         self.redo.clear();
+        self.sides.clear();
+        self.redo_sides.clear();
         self.dirty = false;
         self.snapshot_due = false;
         self.layout_stale = true;
         self.words_seen = None;
+        self.load_bundle();
         self.find.current = 0;
         self.ed.fresh = true;
         self.ed.focus_block = self.doc.blocks.first().map(|b| b.id);
@@ -666,7 +708,8 @@ impl App {
             .unwrap_or_default();
         match self.store.delete(path) {
             Ok(()) => {
-                if self.path.as_deref() == Some(path) {
+                let open_main = self.path.as_deref().and_then(storage::main_of);
+                if self.path.as_deref() == Some(path) || open_main.as_deref() == Some(path) {
                     self.dirty = false;
                     self.refresh_entries();
                     match self.entries.first().map(|e| e.path.clone()) {
@@ -782,6 +825,7 @@ impl App {
             }
             self.words_seen = Some((path, self.layout.words));
         }
+        self.refresh_timelines();
         self.layout_at = Some(Instant::now());
         self.layout_stale = false;
     }
@@ -1033,6 +1077,7 @@ impl App {
     fn answer(&mut self, a: alerts::Answer<Ask>) {
         match a.action {
             Ask::DeleteScript(path) => self.delete(&path),
+            Ask::DeleteScene(n) if self.delete_scene_with_refs(n) => {}
             Ask::DeleteScene(n) => {
                 let heading = self
                     .doc
@@ -1063,6 +1108,17 @@ impl App {
             Ask::Update(version) => self.start_update(&version),
             Ask::Cloud(action) => self.answer_cloud(&action),
             Ask::MakeLocal(path) => self.make_local(&path),
+            Ask::RenameTimeline(id) => {
+                if let Some(t) = a.text {
+                    self.rename_timeline(&id, &t);
+                }
+            }
+            Ask::TimelineChoice(id) => {
+                if let Some(t) = a.text {
+                    self.set_choice(&id, &t);
+                }
+            }
+            Ask::DeleteTimeline(id) => self.delete_timeline(&id),
             Ask::Nothing => {}
         }
     }
@@ -1110,27 +1166,54 @@ impl App {
     #[cfg(target_arch = "wasm32")]
     fn start_update(&mut self, _version: &str) {}
 
-    fn ask_delete(&mut self, path: PathBuf) {
+    fn delete_script_text(&self, path: &Path) -> String {
         let title = self
             .entries
             .iter()
             .find(|e| e.path == path)
             .map(|e| e.title.clone())
             .unwrap_or_else(|| "this script".into());
-        let what = if self.store.team().is_some() {
+        let branches: Vec<String> = match &self.bundle {
+            Some(b) if b.main_path == *path => b.items.iter().map(|t| t.meta().name.clone()).collect(),
+            _ => {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    crate::timelines::load_bundle(path).map(|b| b.items.iter().map(|t| t.meta().name.clone()).collect()).unwrap_or_default()
+                }
+                #[cfg(target_arch = "wasm32")]
+                {
+                    Vec::new()
+                }
+            }
+        };
+        if self.store.team().is_some() {
             format!("“{title}” moves to Recently deleted, where anyone on the team can bring it back for 30 days.")
+        } else if !branches.is_empty() {
+            format!(
+                "“{title}” and its {} go for good: {}. Its snapshots stay in the library folder.",
+                if branches.len() == 1 { "timeline".to_string() } else { format!("{} timelines", branches.len()) },
+                branches.join(", ")
+            )
         } else {
             format!("“{title}” goes for good. Its snapshots stay in the library folder.")
-        };
+        }
+    }
+
+    fn ask_delete(&mut self, path: PathBuf) {
+        let what = self.delete_script_text(&path);
         self.deck.ask("Delete this script?", &what, "Delete", Tone::Danger, Ask::DeleteScript(path));
     }
 
     fn ask_delete_scene(&mut self, n: usize) {
         let heading = self.doc.scenes().get(n).map(|s| s.heading.clone()).unwrap_or_default();
+        let refs = self
+            .scene_refs_text(n)
+            .map(|r| format!(" {r}; they are re-anchored to the scenes beside it."))
+            .unwrap_or_default();
         self.deck.ask(
             "Delete this scene?",
             &format!(
-                "“{}” and everything in it. {} brings it back.",
+                "“{}” and everything in it.{refs} {} brings it back.",
                 if heading.trim().is_empty() { "Untitled scene" } else { heading.trim() },
                 self.keys_for(keys::Command::Undo)
             ),
@@ -1180,6 +1263,9 @@ impl App {
     }
 
     fn title_or_untitled(&self) -> String {
+        if let Some(t) = self.main_title().filter(|t| !t.trim().is_empty()) {
+            return t;
+        }
         if self.doc.meta.title.trim().is_empty() {
             "Untitled Script".to_string()
         } else {
@@ -1196,6 +1282,7 @@ impl App {
             match self.mode {
                 Mode::Write => self.title_or_untitled(),
                 Mode::Cards => format!("{} · Cards", self.title_or_untitled()),
+                Mode::Timelines => format!("{} · Timelines", self.title_or_untitled()),
                 Mode::Read => format!("{} · Read", self.title_or_untitled()),
             }
         };
@@ -1819,6 +1906,7 @@ impl App {
                         match mode {
                             Mode::Write => self.write_page(ui),
                             Mode::Cards => self.cards_page(ui),
+                            Mode::Timelines => self.timelines_page(ui),
                             Mode::Read => self.read_page(ui),
                         }
                     });
@@ -1853,6 +1941,7 @@ impl App {
                 let pad = ((avail - col) * 0.5).max(8.0);
 
                 ui.add_space(4.0);
+                self.lost_strip(ui, avail, pad);
                 changed |= self.banner(ui, avail, pad);
                 ui.add_space(14.0);
 
@@ -2259,8 +2348,10 @@ impl App {
             Some(Popover::Trash) => self.trash_panel(ctx),
             Some(Popover::Reports) => self.reports_window(ctx),
             Some(Popover::Imported) => self.imported_window(ctx),
+            Some(Popover::Timelines) => self.timelines_popover(ctx),
             None => {}
         }
+        self.timeline_menu(ctx);
         self.row_menu(ctx);
         self.first_sync_picker(ctx);
     }
@@ -2370,7 +2461,7 @@ impl App {
                         self.popover = None;
                     }
                     if write && ui::menu_item(ui, &mut rects, "Duplicate", Icon::Copy, false) {
-                        if let Some(path) = self.path.clone() {
+                        if let Some(path) = self.script_path() {
                             self.duplicate(&path);
                         }
                         self.popover = None;
@@ -2391,7 +2482,7 @@ impl App {
                         if starred { Icon::Star } else { Icon::StarFilled },
                         false,
                     ) {
-                        if let Some(path) = self.path.clone() {
+                        if let Some(path) = self.script_path() {
                             self.toggle_star(&path);
                         }
                         self.popover = None;
@@ -2409,7 +2500,7 @@ impl App {
                     if write {
                         ui::separator(ui);
                         if ui::menu_item(ui, &mut rects, "Delete script", Icon::Trash, true) {
-                            if let Some(path) = self.path.clone() {
+                            if let Some(path) = self.script_path() {
                                 self.ask_delete(path);
                             }
                             self.popover = None;
@@ -3455,8 +3546,18 @@ impl App {
             C::FocusMode => self.focus_mode = !self.focus_mode,
             C::NextView => {
                 if self.guard_edit() {
-                    self.mode = Mode::from_index((self.mode.index() + 1) % 3);
+                    self.mode = Mode::from_index((self.mode.index() + 1) % Mode::COUNT);
                 }
+            }
+            C::Timelines => self.mode = Mode::Timelines,
+            C::NewTimeline => {
+                if self.mode == Mode::Timelines {
+                    if let Some((r, d)) = self.tview.sel {
+                        self.branch_from_dot(r, d);
+                        return;
+                    }
+                }
+                self.ask_branch_here();
             }
             C::NewAct => {
                 if self.guard_edit() {
@@ -3668,7 +3769,7 @@ impl App {
             self.capture_chord(ctx);
         } else if self.palette.is_some() {
             self.palette_keys(ctx);
-        } else if !self.deck.asking() {
+        } else if !self.deck.asking() && self.branch_dialog.is_none() {
             if self.home {
                 self.home_shortcuts(ctx);
             } else {
@@ -3714,6 +3815,9 @@ impl App {
             self.note_window(ctx);
         }
         self.popovers(ctx);
+        if !self.home {
+            self.branch_window(ctx);
+        }
         self.title_sheet(ctx);
         self.palette_overlay(ctx);
         self.settle_shadows(ctx);
@@ -4066,6 +4170,42 @@ impl App {
     }
     pub fn debug_voices(&self) -> Option<HashMap<String, Color32>> {
         self.voices()
+    }
+    pub fn debug_bundle(&self) -> Option<&crate::timelines::Bundle> {
+        self.bundle.as_ref()
+    }
+    pub fn debug_tl(&self) -> crate::timelines::Tl {
+        self.tl
+    }
+    pub fn debug_branch_open(&self) -> bool {
+        self.branch_dialog.is_some()
+    }
+    pub fn debug_timeline_dots(&self) -> Vec<((usize, usize), Rect)> {
+        self.tview.dots.clone()
+    }
+    pub fn debug_timeline_chips(&self) -> Vec<(usize, Rect)> {
+        self.tview.chips.clone()
+    }
+    pub fn debug_timeline_sel(&self) -> Option<(usize, usize)> {
+        self.tview.sel
+    }
+    pub fn debug_timeline_menu_open(&self) -> bool {
+        self.tl_menu.is_some()
+    }
+    pub fn debug_open_timeline(&mut self, t: crate::timelines::Tl) {
+        self.open_timeline(t, None, true);
+    }
+    pub fn debug_lost(&self) -> Vec<String> {
+        self.tl_missing.clone()
+    }
+    pub fn debug_reanchor(&mut self) {
+        self.reanchor_lost();
+    }
+    pub fn debug_scene_refs(&self, n: usize) -> Option<String> {
+        self.scene_refs_text(n)
+    }
+    pub fn debug_delete_text(&self, path: &Path) -> String {
+        self.delete_script_text(path)
     }
     pub fn debug_pdf_inks(&self) -> Option<HashMap<String, export::Ink>> {
         self.pdf_options(None).voices

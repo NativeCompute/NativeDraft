@@ -1069,6 +1069,9 @@ impl Store for CloudStore {
     fn move_to(&mut self, key: &Path, space: Option<&str>) -> Result<PathBuf, String> {
         match (self.id_of(key), space) {
             (None, Some(ws)) => {
+                if !storage::list_timelines(key).is_empty() || storage::is_timeline_path(key) {
+                    return Err("This script has timelines, and timelines are coming to NativeCloud. It stays on this computer for now.".into());
+                }
                 let text = std::fs::read_to_string(key).map_err(|e| e.to_string())?;
                 let doc = storage::from_markdown(&text);
                 let p = self.client.create_project(ws, APP, &doc.meta.title, &text, &meta_of(&doc)).map_err(|e| e.message())?;
