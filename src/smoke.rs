@@ -21,6 +21,8 @@ const SETTINGS: &str = "appearance = dark\nsplash = yes\nanimations = yes\ncheck
 
 static NOTES: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
+const UPDATE_ART: &str = r##"{"title":"Timelines are here","body":"Branch a script at any choice, show a scene from Main as a Same scene, and merge back when the paths meet.","image":"9.9.9.png","accent":"#FF6A3D","link":"https://nativecompute.net/nativedraft"}"##;
+
 const SAYS_NO: &str = "---\ntitle: Maria says no\nauthor: \ncontact: \ndraft: \ntimeline-id: says01\ntimeline: Maria says no\nparent: main\nfrom: roof01\nchoice: Maria walks away\nstay: Maria stays in\nmerges-into: vault1\ncolor: 1\n---\n\n## INT. BUS STATION - NIGHT\n<!-- scene: She buys a ticket she won't use. | id=busst1 -->\n\nMaria counts coins at the window. The last bus north idles.\n\n**MARIA**\n\n> One, please. One way.\n\n## @same carr01\n\n## EXT. MARINA - NIGHT\n\nShe comes back for him anyway. The masts knock in the wind.\n\n";
 
 const COLE_RUNS: &str = "---\ntitle: Cole runs\nauthor: \ncontact: \ndraft: \ntimeline-id: cole01\ntimeline: Cole runs\nparent: says01\nfrom: busst1\nchoice: Cole takes the bus instead\ncolor: 4\n---\n\n## EXT. TRAIN YARD - NIGHT\n\nCole between the freight cars, the bag over his shoulder.\n\n## INT. FREIGHT CAR - DAWN\n\nHe watches the harbour lights go out, one by one.\n\n";
@@ -154,6 +156,7 @@ enum Step {
     Revision,
     Find,
     Palette,
+    UpdateArt,
     LightHome,
     LightWrite,
     LightCards,
@@ -165,7 +168,7 @@ enum Step {
     Quit,
 }
 
-const STEPS: [Step; 26] = [
+const STEPS: [Step; 27] = [
     Step::Splash,
     Step::Tour,
     Step::Home,
@@ -183,6 +186,7 @@ const STEPS: [Step; 26] = [
     Step::Revision,
     Step::Find,
     Step::Palette,
+    Step::UpdateArt,
     Step::LightHome,
     Step::LightWrite,
     Step::LightCards,
@@ -363,7 +367,22 @@ impl Smoke {
                 app.debug_open_from_home(lib.join("scripts/the-long-way-down.md"));
                 app.debug_open_palette("");
             }
+            Step::UpdateArt => {
+                app.debug_close_popover();
+                let lib = library(&self.dir);
+                let dir = lib.join("updates/nativedraft-9.9.9");
+                let _ = std::fs::create_dir_all(&dir);
+                let _ = std::fs::write(dir.join("manifest.json"), UPDATE_ART);
+                let _ = std::fs::write(dir.join("image.png"), crate::art::update_banner());
+                let art = crate::app::debug::cached_art("9.9.9");
+                if art.is_none() {
+                    note("FAIL the update art in the library did not read back".to_string());
+                }
+                app.debug_offer_update_art("9.9.9", art);
+                app.debug_show_offer();
+            }
             Step::LightHome => {
+                app.debug_answer_offer(ncf::splash::Choice::NotNow);
                 app.debug_close_popover();
                 app.debug_go_home();
                 app.debug_set_appearance(ncf::settings::Appearance::Light);

@@ -1544,7 +1544,7 @@ dependencies = [
 
 [[package]]
 name = "nativedraft"
-version = "2.3.0"
+version = "3.0.0"
 dependencies = [
  "chrono",
  "dirs",
@@ -1563,7 +1563,7 @@ dependencies = [
 [[package]]
 name = "ncf"
 version = "0.4.0"
-source = "git+https://github.com/NativeCompute/ncf?branch=major/redesign#fa6dcd2ec4d41cb83d6ab12aefae9e36a0b0d2a8"
+source = "git+https://github.com/NativeCompute/ncf?branch=major/redesign#fa85107fbb15dbb4cd598119c031c298d4b8ae02"
 dependencies = [
  "dirs",
  "eframe",
@@ -1581,7 +1581,7 @@ dependencies = [
 [[package]]
 name = "ncf-build"
 version = "0.4.0"
-source = "git+https://github.com/NativeCompute/ncf?branch=major/redesign#fa6dcd2ec4d41cb83d6ab12aefae9e36a0b0d2a8"
+source = "git+https://github.com/NativeCompute/ncf?branch=major/redesign#fa85107fbb15dbb4cd598119c031c298d4b8ae02"
 dependencies = [
  "winresource",
 ]

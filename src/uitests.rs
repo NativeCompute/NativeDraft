@@ -1332,7 +1332,7 @@ fn a_new_version_asks_before_anything_else_until_answered() {
     h.load(three_scenes());
     let id = h.app.doc().blocks[2].id;
     h.focus(id);
-    let newer = |v: &str| Status::Newer(Release { version: v.into(), url: String::new() });
+    let newer = |v: &str| Status::Newer(Release { version: v.into(), url: String::new(), art: None });
     assert!(h.app.debug_update_offer().is_none(), "nothing to say yet");
     h.app.debug_check_answers(newer("9.9.0"));
     h.frames(3);
@@ -1366,7 +1366,7 @@ fn update_now_asks_first_and_a_copy_that_cannot_update_itself_stays_open() {
     use crate::update::{Release, Status};
     let mut h = Harness::with(1320.0, 900.0, "");
     h.app.debug_go_home();
-    h.app.debug_set_update(Status::Newer(Release { version: "9.9.0".into(), url: String::new() }));
+    h.app.debug_set_update(Status::Newer(Release { version: "9.9.0".into(), url: String::new(), art: None }));
     h.frames(3);
     assert!(!h.app.debug_update_offered(), "a test build isn't installed the standard way, so Download is offered instead");
     h.app.debug_ask_update("9.9.0");
@@ -1923,4 +1923,20 @@ fn compare_and_reports_read_the_whole_story() {
     let (scenes, _) = h.app.debug_report_for(None);
     assert_eq!(scenes, 3);
     assert_eq!(std::fs::read_to_string(&main).unwrap(), HARBOUR_IDS);
+}
+
+#[test]
+fn an_update_offer_carries_its_art_and_says_how_to_update() {
+    let mut h = Harness::new();
+    let m = crate::update::Manifest { title: "Timelines are here".into(), body: "Branch a script.".into(), image: None, accent: Some([255, 106, 61]), link: None };
+    h.app.debug_offer_update_art("9.9.9", Some(crate::update::art_from(&m, Some(crate::art::update_banner()))));
+    h.app.debug_show_offer();
+    let offer = h.app.debug_update_offer().expect("an offer");
+    let art = offer.art.clone().expect("with its art");
+    assert_eq!(art.title, "Timelines are here");
+    assert_eq!(art.image.map(|p| (p.width, p.height)), Some((1400, 560)));
+    assert_eq!(offer.managed, cfg!(target_os = "linux") && !offer.can_update, "a copy outside ~/.local/bin is told to use its package manager");
+    h.frames(3);
+    h.app.debug_answer_offer(ncf::splash::Choice::NotNow);
+    assert!(h.app.debug_update_offer().is_none());
 }

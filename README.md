@@ -32,7 +32,7 @@ itself is Courier Prime. It follows your computer's light or dark setting.
 
 ---
 
-## Coming next: a new look
+## New in 3.0: a new name, a new look and timelines
 
 **Blackline is now NativeDraft.** Same app, same scripts, a new name:
 
@@ -47,7 +47,6 @@ itself is Courier Prime. It follows your computer's light or dark setting.
 - **Settings, sign-in and NativeCloud** carry over: your cloud scripts, your
   computer's sign-in and anything not yet synced are all still there.
 
-Not released yet; this is what the next version brings.
 
 - **A new layout.** Your library sits in a glass sidebar on the left (it
   folds to a rail when the window is narrow, and hides in Focus). The tools
@@ -92,6 +91,10 @@ Not released yet; this is what the next version brings.
 - **Timelines.** Branch the story at any scene, as many times and as deep as
   you like, and see every branch as a graph. See [Timelines](#timelines)
   below.
+- **A designed update screen.** When a new version is out, the update prompt
+  can show a picture and a few words about it, fetched from
+  nativecompute.net. Copies installed with a package manager are told to
+  update there.
 
 ![Reports: the four figures, then characters, scenes, locations, day and night](docs/nativedraft-reports.png)
 

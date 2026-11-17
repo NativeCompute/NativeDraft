@@ -288,7 +288,7 @@ impl App {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let mut app = App::with_context(&cc.egui_ctx);
         if app.settings.check_updates {
-            app.update_rx = Some(crate::update::spawn(crate::INFO.repo, crate::INFO.version));
+            app.update_rx = Some(crate::update::spawn_with(crate::INFO.repo, crate::INFO.version, Some(storage::library_root().join("updates"))));
             app.update = crate::update::Status::Checking;
         }
         app
@@ -3456,7 +3456,8 @@ impl App {
         if r.version.trim() == self.settings.dismissed_update.trim() {
             return None;
         }
-        Some(ncf::splash::Offer { version: r.version.clone(), can_update: self.update_plan().is_some() })
+        let can = self.update_plan().is_some();
+        Some(ncf::splash::Offer::new(&r.version, can).with_art(r.art.clone()).managed(cfg!(target_os = "linux")))
     }
 
     fn answer_offer(&mut self, choice: ncf::splash::Choice) {
@@ -3468,6 +3469,7 @@ impl App {
                 self.settings.dismissed_update = version;
                 self.save_settings();
             }
+            Choice::Open(url) => self.store.open_url(&url),
             Choice::NotNow => {}
         }
     }
@@ -3968,8 +3970,15 @@ impl App {
         self.update = crate::update::Status::Newer(crate::update::Release {
             version: version.to_string(),
             url: crate::update::releases_latest(crate::INFO.repo),
+            art: None,
         });
         self.settings.dismissed_update.clear();
+    }
+    pub fn debug_offer_update_art(&mut self, version: &str, art: Option<crate::update::Art>) {
+        self.debug_offer_update(version);
+        if let crate::update::Status::Newer(r) = &mut self.update {
+            r.art = art;
+        }
     }
     pub fn debug_update_now(&mut self, version: &str) {
         self.start_update(version);

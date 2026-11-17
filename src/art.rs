@@ -31,3 +31,7 @@ pub fn paint_hero(ui: &egui::Ui, rect: Rect) {
     };
     ui.painter().image(tex.id(), fit(rect), Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
 }
+
+pub fn update_banner() -> &'static [u8] {
+    DARK
+}

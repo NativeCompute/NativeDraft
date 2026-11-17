@@ -12,7 +12,7 @@ impl Splash {
     pub fn replay(status: crate::update::Status) -> Splash {
         let mut s = ncf::splash::Splash::inline(crate::INFO);
         if let crate::update::Status::Newer(r) = &status {
-            s.set_offer(ncf::splash::Offer { version: r.version.clone(), can_update: false });
+            s.set_offer(ncf::splash::Offer::new(&r.version, false).with_art(r.art.clone()));
         }
         s.set_status(status);
         Splash(s)

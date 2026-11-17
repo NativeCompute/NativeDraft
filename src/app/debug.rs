@@ -99,7 +99,8 @@ impl App {
         match request {
             Request::FakeUpdate => {
                 let version = ncf::debug::next_version(crate::INFO.version);
-                self.debug_offer_update(&version);
+                let art = cached_art(&version);
+                self.debug_offer_update_art(&version, art);
                 self.offer = self.offer_for_update();
             }
             #[cfg(not(target_arch = "wasm32"))]
@@ -234,6 +235,9 @@ impl App {
         self.update = status;
         self.offer = self.offer_for_update();
     }
+    pub fn debug_show_offer(&mut self) {
+        self.offer = self.offer_for_update();
+    }
     pub fn debug_update_offer(&self) -> Option<ncf::splash::Offer> {
         self.offer.clone()
     }
@@ -248,3 +252,19 @@ impl App {
         self.version_rect
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn cached_art(version: &str) -> Option<crate::update::Art> {
+    let slug = crate::update::slug_of(crate::INFO.repo);
+    let dir = crate::storage::library_root().join("updates").join(format!("{slug}-{version}"));
+    let json = std::fs::read_to_string(dir.join("manifest.json")).ok()?;
+    let m = crate::update::parse_manifest(&json, &crate::update::art_url(&slug, version)).ok()?;
+    let image = std::fs::read(dir.join("image.png")).ok();
+    Some(crate::update::art_from(&m, image.as_deref()))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn cached_art(_version: &str) -> Option<crate::update::Art> {
+    None
+}
+
