@@ -499,3 +499,30 @@ fn game_text_is_escaped() {
     let yarn = crate::export_game::yarn(&b);
     assert!(yarn.contains("-\\> not a divert \\{not logic\\} \\# not a tag"), "{yarn}");
 }
+
+#[test]
+fn two_timelines_compare_scene_by_scene() {
+    let b = harbour();
+    let pairs = timelines::compare(&b, None, Some(0));
+    let shape: Vec<(bool, bool)> = pairs.iter().map(|p| (p.left.is_some(), p.right.is_some())).collect();
+    assert_eq!(
+        shape,
+        vec![(true, true), (true, true), (true, false), (false, true), (true, true), (false, true), (true, true)],
+        "ONE and TWO shared, THREE only in Main, A1 only in A, FOUR shared as A's Same scene, A2 only in A, FIVE where A merges"
+    );
+    assert_eq!(timelines::compare_summary(&pairs), "They share 4 scenes, part after INT. TWO - DAY and meet again at INT. FOUR - DAY");
+    let same = timelines::compare(&b, Some(0), Some(0));
+    assert!(same.iter().all(|p| p.shared()));
+    assert!(timelines::compare_summary(&same).starts_with("They tell the same story"));
+    let start = timelines::compare(&b, None, Some(2));
+    assert_eq!(timelines::compare_summary(&start), "They share 0 scenes, and part from the start");
+}
+
+#[test]
+fn only_in_branches_finds_new_people_and_places() {
+    let main = storage::from_markdown("## INT. KITCHEN - NIGHT\n\n**MARIA**\n\n> Hi.\n\n");
+    let other = storage::from_markdown("## INT. KITCHEN - NIGHT\n\n**MARIA**\n\n> Hi.\n\n## EXT. PIER - DAWN\n\n**COLE**\n\n> Run.\n\n");
+    let (who, places) = crate::report::only_in_branches(&main, &[other]);
+    assert_eq!(who, vec!["COLE".to_string()]);
+    assert_eq!(places, vec!["PIER".to_string()]);
+}

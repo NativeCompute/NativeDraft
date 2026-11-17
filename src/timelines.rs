@@ -1126,3 +1126,82 @@ pub fn bundle_of(path: &Path) -> std::io::Result<(Bundle, Tl)> {
 pub fn save(b: &Bundle, t: Tl) -> std::io::Result<()> {
     crate::storage::save(b.path(t), b.doc(t))
 }
+
+// compare here---
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Side {
+    pub number: usize,
+    pub heading: String,
+    pub tl: Tl,
+    pub head: Option<usize>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Pair {
+    pub left: Option<Side>,
+    pub right: Option<Side>,
+}
+
+impl Pair {
+    pub fn shared(&self) -> bool {
+        self.left.is_some() && self.right.is_some()
+    }
+}
+
+fn keyed(b: &Bundle, t: Tl) -> Vec<((Tl, usize), Side)> {
+    let st = story(b, t);
+    let mut out = Vec::new();
+    for step in st.steps.iter().filter(|s| s.scene) {
+        let at = step.blocks.iter().position(|x| x.element == Element::SceneHeading).unwrap_or(0);
+        let key = step.origin.get(at).copied().unwrap_or((step.tl, usize::MAX));
+        let number = out.len() + 1;
+        out.push((key, Side { number, heading: step.heading(), tl: step.tl, head: step.head }));
+    }
+    out
+}
+
+pub fn compare(b: &Bundle, a: Tl, c: Tl) -> Vec<Pair> {
+    let x = keyed(b, a);
+    let y = keyed(b, c);
+    let (n, m) = (x.len(), y.len());
+    let mut lcs = vec![vec![0usize; m + 1]; n + 1];
+    for i in (0..n).rev() {
+        for j in (0..m).rev() {
+            lcs[i][j] = if x[i].0 == y[j].0 { lcs[i + 1][j + 1] + 1 } else { lcs[i + 1][j].max(lcs[i][j + 1]) };
+        }
+    }
+    let (mut i, mut j) = (0, 0);
+    let mut out = Vec::new();
+    while i < n || j < m {
+        if i < n && j < m && x[i].0 == y[j].0 {
+            out.push(Pair { left: Some(x[i].1.clone()), right: Some(y[j].1.clone()) });
+            i += 1;
+            j += 1;
+        } else if j >= m || (i < n && lcs[i + 1][j] >= lcs[i][j + 1]) {
+            out.push(Pair { left: Some(x[i].1.clone()), right: None });
+            i += 1;
+        } else {
+            out.push(Pair { left: None, right: Some(y[j].1.clone()) });
+            j += 1;
+        }
+    }
+    out
+}
+
+pub fn compare_summary(pairs: &[Pair]) -> String {
+    let shared = pairs.iter().filter(|p| p.shared()).count();
+    let split = pairs.iter().position(|p| !p.shared());
+    let Some(k) = split else {
+        return if shared == 1 { "They tell the same story: 1 scene".into() } else { format!("They tell the same story: {shared} scenes") };
+    };
+    let mut s = if shared == 1 { "They share 1 scene".to_string() } else { format!("They share {shared} scenes") };
+    match k.checked_sub(1).and_then(|i| pairs[i].left.as_ref()) {
+        Some(at) => s.push_str(&format!(", part after {}", at.heading.trim())),
+        None => s.push_str(", and part from the start"),
+    }
+    if let Some(back) = pairs[k..].iter().find(|p| p.shared()).and_then(|p| p.left.as_ref()) {
+        s.push_str(&format!(" and meet again at {}", back.heading.trim()));
+    }
+    s
+}

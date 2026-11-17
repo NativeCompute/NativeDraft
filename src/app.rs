@@ -105,6 +105,7 @@ enum Popover {
     Reports,
     Imported,
     Timelines,
+    Compare,
 }
 
 #[derive(Default)]
@@ -262,6 +263,10 @@ pub struct App {
     timeline_button_rect: Rect,
     export_pick: crate::timelines::Tl,
     export_every: bool,
+    report_tl: crate::timelines::Tl,
+    report_origin: Option<Vec<(crate::timelines::Tl, usize)>>,
+    report_only: (Vec<String>, Vec<String>),
+    compare: (crate::timelines::Tl, crate::timelines::Tl),
     tl_head: Option<stories::TlHead>,
     mirrors: HashMap<u64, editor::Mirror>,
     story_open: bool,
@@ -455,6 +460,10 @@ impl App {
             timeline_button_rect: Rect::NOTHING,
             export_pick: None,
             export_every: false,
+            report_tl: None,
+            report_origin: None,
+            report_only: (Vec::new(), Vec::new()),
+            compare: (None, None),
             tl_head: None,
             mirrors: HashMap::new(),
             story_open: false,
@@ -2413,6 +2422,10 @@ impl App {
             ctx.animate_bool_with_time(egui::Id::new("ns-imported-veil"), false, 0.0);
             ctx.animate_bool_with_time(egui::Id::new("ns-imported-rise"), false, 0.0);
         }
+        if self.popover != Some(Popover::Compare) {
+            ctx.animate_bool_with_time(egui::Id::new("ns-compare-veil"), false, 0.0);
+            ctx.animate_bool_with_time(egui::Id::new("ns-compare-rise"), false, 0.0);
+        }
         if self.popover != Some(Popover::Reports) {
             ctx.animate_bool_with_time(egui::Id::new("ns-reports-veil"), false, 0.0);
             ctx.animate_bool_with_time(egui::Id::new("ns-reports-rise"), false, 0.0);
@@ -2430,6 +2443,7 @@ impl App {
             Some(Popover::Reports) => self.reports_window(ctx),
             Some(Popover::Imported) => self.imported_window(ctx),
             Some(Popover::Timelines) => self.timelines_popover(ctx),
+            Some(Popover::Compare) => self.compare_window(ctx),
             None => {}
         }
         self.timeline_menu(ctx);

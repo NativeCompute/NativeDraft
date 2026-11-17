@@ -23,9 +23,25 @@ const fn col(head: &'static str, w: f32, right: bool) -> Col {
 
 impl App {
     pub(super) fn open_reports(&mut self) {
-        self.report = report::build(&self.doc);
+        self.report_tl = self.tl;
+        self.build_report();
         self.popover = Some(Popover::Reports);
         self.popover_frame = self.frame_no;
+    }
+
+    fn build_report(&mut self) {
+        self.report_origin = None;
+        self.report_only = (Vec::new(), Vec::new());
+        let Some(b) = self.live().filter(|_| self.has_timelines() || self.tl.is_some()) else {
+            self.report = report::build(&self.doc);
+            return;
+        };
+        let t = self.report_tl.filter(|i| *i < b.items.len());
+        let (doc, origin) = crate::timelines::assemble_mapped(&b, t);
+        self.report = report::build(&doc);
+        self.report_origin = Some(origin);
+        let others: Vec<crate::model::Document> = (0..b.items.len()).map(|i| crate::timelines::assemble(&b, Some(i))).collect();
+        self.report_only = report::only_in_branches(&b.main, &others);
     }
 
     pub(super) fn reports_window(&mut self, ctx: &egui::Context) {
@@ -87,8 +103,36 @@ impl App {
                         }
                     });
                 });
-                let r = &self.report;
                 ui.label(egui::RichText::new(ui::elide(&title, 64)).font(theme::font(theme::T_CAP)).color(p.text_faint));
+                if let Some(b) = self.bundle.clone().filter(|b| !b.is_empty()) {
+                    ui.add_space(8.0);
+                    let mut pick = None;
+                    ui.horizontal_wrapped(|ui| {
+                        ui.spacing_mut().item_spacing = Vec2::new(4.0, 4.0);
+                        for t in b.order() {
+                            if ui::button(ui, &b.name(t), None, self.report_tl == t) && self.report_tl != t {
+                                pick = Some(t);
+                            }
+                        }
+                    });
+                    if let Some(t) = pick {
+                        self.report_tl = t;
+                        self.build_report();
+                    }
+                    let (who, places) = &self.report_only;
+                    if !who.is_empty() || !places.is_empty() {
+                        let mut bits = Vec::new();
+                        if !who.is_empty() {
+                            bits.push(who.join(", "));
+                        }
+                        if !places.is_empty() {
+                            bits.push(places.join(", "));
+                        }
+                        ui.add_space(4.0);
+                        ui::caption(ui, &format!("Only in branches: {}", bits.join(" · ")));
+                    }
+                }
+                let r = &self.report;
                 ui.add_space(12.0);
                 figures(
                     ui,
@@ -129,6 +173,18 @@ impl App {
                 });
             });
 
+        if let Some((t, k)) = go.and_then(|id| self.report_origin.as_ref().and_then(|o| o.get((id as usize).saturating_sub(1)).copied())) {
+            self.popover = None;
+            if t == self.tl {
+                if let Some(id) = self.doc.blocks.get(k).map(|b| b.id) {
+                    self.mode = Mode::Write;
+                    self.ed.jump_to(id);
+                }
+            } else {
+                self.open_timeline(t, Some(k), true);
+            }
+            return;
+        }
         if let Some(id) = go {
             self.popover = None;
             if self.mode != Mode::Write && self.access.can_edit() {
@@ -140,6 +196,13 @@ impl App {
         if close {
             self.popover = None;
         }
+    }
+
+    pub fn debug_report_for(&mut self, t: crate::timelines::Tl) -> (usize, Vec<String>) {
+        self.open_reports();
+        self.report_tl = t;
+        self.build_report();
+        (self.report.scenes.len(), self.report_only.0.clone())
     }
 
     pub fn debug_report(&self) -> &Report {

@@ -857,6 +857,22 @@ impl App {
                 self.branch_from_dot(r, d);
             }
         }
+        if self.has_timelines() && ui::button_response(ui, "Compare", Some(Icon::Layers), false, None).on_hover_text("Two timelines side by side").clicked() {
+            self.open_compare();
+        }
+    }
+
+    pub(super) fn open_compare(&mut self) {
+        let Some(b) = self.bundle.as_ref() else { return };
+        let picked = self.tview.chip_sel.and_then(|r| self.tgraph.as_ref().and_then(|(g, _)| g.rows.get(r).map(|row| row.tl)));
+        let a = picked.unwrap_or(self.tl);
+        let c = match a {
+            Some(_) => b.parent(a).unwrap_or(None),
+            None => if b.items.is_empty() { None } else { Some(0) },
+        };
+        self.compare = (a, c);
+        self.popover = Some(Popover::Compare);
+        self.popover_frame = self.frame_no;
     }
 
     pub(super) fn branch_from_dot(&mut self, r: usize, d: usize) {
@@ -1456,5 +1472,135 @@ impl App {
             ui.label(egui::RichText::new("The whole story of each, every page").font(theme::font(theme::T_CAP)).color(pal().text_faint));
         }
         ui.add_space(6.0);
+    }
+
+    // compare here---
+
+    pub(super) fn compare_window(&mut self, ctx: &egui::Context) {
+        let Some(b) = self.live() else {
+            self.popover = None;
+            return;
+        };
+        let p = pal();
+        let screen = ctx.screen_rect();
+        let mut close = false;
+        let mut go: Option<(Tl, Option<usize>)> = None;
+        let veil = anim::ease(ctx, "ns-compare-veil", true, 0.24);
+        egui::Area::new(egui::Id::new("ns-compare-scrim"))
+            .order(egui::Order::Middle)
+            .fixed_pos(screen.min)
+            .interactable(true)
+            .show(ctx, |ui| {
+                let (rect, resp) = ui.allocate_exact_size(screen.size(), Sense::click());
+                ui.painter().rect_filled(rect, egui::Rounding::same(crate::chrome::window_radius(ctx, theme::R_WINDOW)), theme::scrim(veil));
+                if resp.clicked() && self.frame_no > self.popover_frame + 1 {
+                    close = true;
+                }
+            });
+        let t = anim::ease(ctx, "ns-compare-rise", true, 0.30);
+        let size = Vec2::new((screen.width() - 80.0).clamp(480.0, 900.0), (screen.height() - 90.0).clamp(320.0, 640.0));
+        let rect = Rect::from_center_size(screen.center(), size * (0.97 + 0.03 * t));
+        let (a, c) = self.compare;
+        let valid = |x: Tl| x.map_or(true, |i| i < b.items.len());
+        let (a, c) = (if valid(a) { a } else { None }, if valid(c) { c } else { None });
+        let pairs = timelines::compare(&b, a, c);
+        let summary = timelines::compare_summary(&pairs);
+        let order = b.order();
+        egui::Area::new(egui::Id::new("ns-compare"))
+            .order(egui::Order::Foreground)
+            .fixed_pos(rect.min)
+            .show(ctx, |ui| {
+                ui.set_opacity(0.2 + 0.8 * t);
+                let (win, _) = ui.allocate_exact_size(rect.size(), Sense::click());
+                theme::lift_shadow(ui.painter(), win, theme::R_ISLAND, 1.0);
+                ui.painter().rect_filled(win, egui::Rounding::same(theme::R_ISLAND), p.solid);
+                ui.painter().rect_stroke(win.shrink(0.5), egui::Rounding::same(theme::R_ISLAND), Stroke::new(1.0_f32, theme::window_edge()));
+                let mut ui = ui.new_child(egui::UiBuilder::new().max_rect(win.shrink2(Vec2::new(22.0, 18.0))).layout(Layout::top_down(Align::Min)));
+                let ui = &mut ui;
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 10.0;
+                    icons::show(ui, Icon::Layers, 16.0, p.primary_light);
+                    ui.label(egui::RichText::new("Compare timelines").font(theme::font_semi(theme::T_H)).color(p.text));
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        if ui::icon_button(ui, Icon::Close, "Close · Esc", 26.0) {
+                            close = true;
+                        }
+                    });
+                });
+                ui.label(egui::RichText::new(&summary).font(theme::font(theme::T_SM)).color(p.text_dim));
+                ui.add_space(10.0);
+                let half = (ui.available_width() - 16.0) * 0.5;
+                ui.horizontal(|ui| {
+                    for (side, cur) in [(0usize, a), (1usize, c)] {
+                        ui.vertical(|ui| {
+                            ui.set_width(half);
+                            ui.horizontal_wrapped(|ui| {
+                                ui.spacing_mut().item_spacing = Vec2::new(4.0, 4.0);
+                                for x in &order {
+                                    if ui::button(ui, &b.name(*x), None, cur == *x) {
+                                        if side == 0 {
+                                            self.compare.0 = *x;
+                                        } else {
+                                            self.compare.1 = *x;
+                                        }
+                                    }
+                                }
+                            });
+                        });
+                        ui.add_space(16.0);
+                    }
+                });
+                ui.add_space(10.0);
+                egui::ScrollArea::vertical().id_salt("ns-compare-rows").auto_shrink([false; 2]).show(ui, |ui| {
+                    let w = ui.available_width();
+                    let half = (w - 16.0) * 0.5;
+                    for pair in &pairs {
+                        let (row, _) = ui.allocate_exact_size(Vec2::new(w, 34.0), Sense::hover());
+                        let shared = pair.shared();
+                        for (k, side) in [&pair.left, &pair.right].into_iter().enumerate() {
+                            let cell = Rect::from_min_size(Pos2::new(row.left() + k as f32 * (half + 16.0), row.top() + 2.0), Vec2::new(half, 30.0));
+                            let Some(sc) = side else {
+                                ui.painter().rect_stroke(cell, egui::Rounding::same(10.0), Stroke::new(1.0_f32, theme::wash(p.line, 120)));
+                                continue;
+                            };
+                            let tint = color_of(&b, sc.tl);
+                            let fill = if shared { theme::wash(p.raised, 150) } else { theme::wash(tint, if p.dark { 40 } else { 32 }) };
+                            let resp = ui.interact(cell, ui.id().with(("cmp", k, sc.number, sc.heading.clone())), Sense::click());
+                            let hot = anim::ease(ui.ctx(), resp.id, resp.hovered(), anim::HOVER);
+                            ui.painter().rect_filled(cell, egui::Rounding::same(10.0), theme::mix(fill, p.raised, hot * 0.4));
+                            ui.painter().circle_filled(Pos2::new(cell.left() + 14.0, cell.center().y), 4.5, tint);
+                            let mono = theme::font_mono(theme::T_CAP);
+                            ui.painter().text(Pos2::new(cell.left() + 26.0, cell.center().y), egui::Align2::LEFT_CENTER, sc.number.to_string(), mono, p.text_faint);
+                            let f = if shared { theme::font(theme::T_SM) } else { theme::font_semi(theme::T_SM) };
+                            let heading = if sc.heading.trim().is_empty() { "Untitled scene".to_string() } else { sc.heading.clone() };
+                            ui.painter().text(
+                                Pos2::new(cell.left() + 52.0, cell.center().y),
+                                egui::Align2::LEFT_CENTER,
+                                ui::elide_to_width(ui.ctx(), &heading, f.clone(), 0.0, cell.width() - 62.0),
+                                f,
+                                if shared { p.text_dim } else { p.text },
+                            );
+                            if resp.on_hover_text(if shared { "In both · open it where it lives" } else { "Only here · open it" }).clicked() {
+                                go = Some((sc.tl, sc.head));
+                            }
+                        }
+                    }
+                });
+            });
+        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+            close = true;
+        }
+        if let Some((t, h)) = go {
+            self.popover = None;
+            self.open_timeline(t, h, true);
+        } else if close {
+            self.popover = None;
+        }
+    }
+
+    pub fn debug_compare(&mut self) -> Option<String> {
+        self.open_compare();
+        let b = self.live()?;
+        Some(timelines::compare_summary(&timelines::compare(&b, self.compare.0, self.compare.1)))
     }
 }

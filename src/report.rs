@@ -276,3 +276,24 @@ impl Report {
         format!("{title} · {name}\n\n{body}\n")
     }
 }
+
+pub fn only_in_branches(main: &Document, others: &[Document]) -> (Vec<String>, Vec<String>) {
+    let base = build(main);
+    let mut who: Vec<String> = Vec::new();
+    let mut places: Vec<String> = Vec::new();
+    for d in others {
+        let r = build(d);
+        for sp in r.speakers {
+            if !base.speakers.iter().any(|x| x.name == sp.name) && !who.contains(&sp.name) {
+                who.push(sp.name);
+            }
+        }
+        for pl in r.places {
+            if !base.places.iter().any(|x| x.name == pl.name) && !places.contains(&pl.name) {
+                places.push(pl.name);
+            }
+        }
+    }
+    (who, places)
+}
+
