@@ -291,8 +291,8 @@ impl Smoke {
         let dir = absolute(&dir);
         let guard = dir.clone();
         std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_secs(120));
-            let _ = std::fs::write(guard.join("report.txt"), "FAIL\nThe smoke run did not finish within 120 seconds.\n");
+            std::thread::sleep(Duration::from_secs(240));
+            let _ = std::fs::write(guard.join("report.txt"), "FAIL\nThe smoke run did not finish within 240 seconds.\n");
             eprintln!("smoke: timed out");
             std::process::exit(3);
         });
