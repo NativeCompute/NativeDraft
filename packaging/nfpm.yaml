@@ -36,6 +36,7 @@ overrides:
       - libgl1
       - libegl1
       - libxkbcommon0
+      - libxkbcommon-x11-0
       - libwayland-client0
       - libx11-6
       - libxcursor1
@@ -51,6 +52,7 @@ overrides:
       - libglvnd-glx
       - libglvnd-egl
       - libxkbcommon
+      - libxkbcommon-x11
       - libwayland-client
       - libX11
       - libXcursor

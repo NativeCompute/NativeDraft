@@ -5,7 +5,7 @@ pkgdesc="Free screenwriting app: industry format as you type, branching timeline
 arch=('x86_64' 'aarch64')
 url="https://nativecompute.net/nativedraft"
 license=('MIT')
-depends=('gcc-libs' 'glibc' 'libglvnd' 'libxkbcommon' 'wayland' 'libx11' 'libxcursor' 'libxrandr' 'libxi' 'hicolor-icon-theme')
+depends=('gcc-libs' 'glibc' 'libglvnd' 'libxkbcommon' 'libxkbcommon-x11' 'wayland' 'libx11' 'libxcursor' 'libxrandr' 'libxi' 'hicolor-icon-theme')
 makedepends=('cargo' 'git')
 optdepends=('xdg-utils: open exports, links and the library folder'
             'kdialog: the import file picker on KDE'

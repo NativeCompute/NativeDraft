@@ -24,6 +24,7 @@ jobs:
         run: cargo build --release
       - name: Package
         run: |
+          sudo apt-get update && sudo apt-get install -y libxkbcommon0 libxkbcommon-x11-0
           v="$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)"
           name="nativedraft-v${v}-linux-x86_64"
           mkdir -p "$name/packaging"

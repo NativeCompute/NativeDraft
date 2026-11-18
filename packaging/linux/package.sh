@@ -64,12 +64,22 @@ sum "$out/nativedraft-${version}-1.x86_64.rpm"
 
 say "Building the AppImage"
 stage "$work/AppDir"
+extra=()
+for lib in libxkbcommon.so.0 libxkbcommon-x11.so.0; do
+  found="$(ldconfig -p | awk -v l="$lib" '$1 == l && /x86-64/ { print $NF; exit }')"
+  if [ -n "$found" ]; then
+    extra+=(--library "$found")
+  else
+    say "Warning: $lib isn't installed here, so the AppImage won't carry it"
+  fi
+done
 (
   cd "$work"
   ARCH=x86_64 LDAI_OUTPUT="nativedraft.AppImage" linuxdeploy --appimage-extract-and-run \
     --appdir AppDir \
     --desktop-file AppDir/usr/share/applications/nativedraft.desktop \
     --icon-file AppDir/usr/share/icons/hicolor/256x256/apps/nativedraft.png \
+    "${extra[@]}" \
     --output appimage
 )
 mv "$work/nativedraft.AppImage" "$out/nativedraft-v${version}-linux-x86_64.AppImage"

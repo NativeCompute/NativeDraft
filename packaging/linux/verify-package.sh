@@ -19,6 +19,7 @@ smoke() {
 case "$kind" in
   arch)
     pacman -Syu --noconfirm --needed base-devel namcap xorg-server-xvfb mesa >/dev/null
+    (source "$dir"/aur/nativedraft-bin/PKGBUILD && pacman -S --noconfirm --needed "${depends[@]}" >/dev/null)
     useradd -m builder
     mkdir -p /home/builder/build
     cp "$dir"/aur/nativedraft-bin/PKGBUILD "$dir"/nativedraft-v*-linux-x86_64.tar.gz /home/builder/build/
