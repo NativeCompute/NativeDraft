@@ -198,12 +198,83 @@ fn ids(app: &App) -> Vec<u64> {
 // library here---
 
 #[test]
-fn a_first_run_opens_on_a_starter_script_that_is_on_disk() {
+fn a_first_run_opens_on_the_welcome_script_that_is_on_disk() {
     let h = Harness::new();
     assert_eq!(h.app.entry_count(), 1);
     assert!(h.app.path().unwrap().exists());
-    assert!(h.saved_text().contains("## INT. EDIT BAY - NIGHT"));
-    assert_eq!(h.app.doc().scenes().len(), 1);
+    assert_eq!(h.app.doc().meta.title, "Welcome to NativeDraft");
+    assert!(h.saved_text().contains("## INT. YOUR FIRST SCRIPT - DAY"));
+    assert!(h.app.settings().welcomed, "the welcome is remembered");
+    let conf = std::fs::read_to_string(crate::storage::settings_path()).unwrap();
+    assert!(conf.contains("welcomed = yes"));
+}
+
+#[test]
+fn the_welcome_script_shows_every_kind_of_line() {
+    let d = crate::app::welcome_document();
+    for e in Element::ALL.iter().copied().chain([Element::Act]) {
+        assert!(d.blocks.iter().any(|b| b.element == e), "the welcome script has a {e:?}");
+    }
+    assert!(d.blocks.iter().any(|b| b.dual), "and a dual dialogue pair");
+    assert!(d.blocks.iter().any(|b| !b.remark.is_empty()), "and a script note");
+    assert_eq!(d.dual_pairs().len(), 1);
+}
+
+#[test]
+fn a_second_launch_never_adds_a_script() {
+    let first = Harness::new();
+    let dir = crate::storage::scripts_dir();
+    let before: Vec<_> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).collect();
+    let bytes = std::fs::read(&before[0]).unwrap();
+    let ctx = egui::Context::default();
+    let again = App::with_context(&ctx);
+    let after: Vec<_> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).collect();
+    assert_eq!(before, after, "launching again writes nothing new");
+    assert_eq!(std::fs::read(&before[0]).unwrap(), bytes, "and leaves the script byte for byte");
+    assert!(again.is_home());
+    drop(first);
+}
+
+#[test]
+fn an_upgrade_with_scripts_gets_no_welcome_and_remembers_that() {
+    let guard = sandbox("");
+    let path = storage::unique_path("Mine", None);
+    storage::save(&path, &three_scenes()).unwrap();
+    let bytes = std::fs::read(&path).unwrap();
+    let ctx = egui::Context::default();
+    let app = App::with_context(&ctx);
+    assert_eq!(app.entry_count(), 1);
+    assert!(app.is_home());
+    assert!(app.settings().welcomed);
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    drop(app);
+    drop(guard);
+}
+
+#[test]
+fn an_empty_library_after_the_welcome_stays_empty_and_shows_home() {
+    let guard = sandbox("welcomed = yes\n");
+    let ctx = egui::Context::default();
+    let app = App::with_context(&ctx);
+    assert_eq!(app.entry_count(), 0);
+    assert!(app.is_home());
+    assert_eq!(app.path(), None);
+    let dir = crate::storage::scripts_dir();
+    let n = std::fs::read_dir(&dir).map(|r| r.count()).unwrap_or(0);
+    assert_eq!(n, 0, "nothing is written");
+    drop(app);
+    drop(guard);
+}
+
+#[test]
+fn deleting_the_last_script_goes_home_without_making_a_new_one() {
+    let mut h = Harness::new();
+    let only = h.app.path().unwrap();
+    h.app.debug_delete(&only);
+    h.frames(2);
+    assert_eq!(h.app.entry_count(), 0);
+    assert!(h.app.is_home());
+    assert_eq!(h.app.path(), None);
 }
 
 #[test]
@@ -388,14 +459,14 @@ fn the_palette_opens_from_home_and_a_click_outside_closes_it() {
 #[test]
 fn typing_in_a_block_reaches_the_file() {
     let mut h = Harness::new();
-    let id = h.app.doc().blocks[1].id;
+    let id = h.app.doc().blocks[2].id;
     h.focus(id);
     h.type_text(" Rain.");
-    assert!(h.app.doc().blocks[1].text.ends_with("Rain."));
+    assert!(h.app.doc().blocks[2].text.ends_with("Rain."));
     assert!(h.app.is_dirty());
     h.idle();
     assert!(!h.app.is_dirty(), "autosave ran");
-    assert!(h.saved_text().contains("empty document. Rain."));
+    assert!(h.saved_text().contains("in the Cards view. Rain."));
 }
 
 #[test]
@@ -422,18 +493,18 @@ fn enter_makes_the_element_that_comes_next() {
 #[test]
 fn tab_cycles_and_ctrl_digits_set_the_element() {
     let mut h = Harness::new();
-    let id = h.app.doc().blocks[1].id;
+    let id = h.app.doc().blocks[2].id;
     h.focus(id);
     h.press(Key::Tab, Modifiers::NONE);
-    assert_eq!(h.app.doc().blocks[1].element, Element::Character);
-    assert_eq!(h.app.doc().blocks[1].text, h.app.doc().blocks[1].text.to_uppercase(), "a cue is capitals");
+    assert_eq!(h.app.doc().blocks[2].element, Element::Character);
+    assert_eq!(h.app.doc().blocks[2].text, h.app.doc().blocks[2].text.to_uppercase(), "a cue is capitals");
     h.press(Key::Tab, Modifiers::SHIFT);
-    assert_eq!(h.app.doc().blocks[1].element, Element::Action);
+    assert_eq!(h.app.doc().blocks[2].element, Element::Action);
     h.press(Key::Num6, Modifiers::COMMAND);
-    assert_eq!(h.app.doc().blocks[1].element, Element::Transition);
+    assert_eq!(h.app.doc().blocks[2].element, Element::Transition);
     h.press(Key::Z, Modifiers::COMMAND);
     h.press(Key::Z, Modifiers::COMMAND);
-    assert_ne!(h.app.doc().blocks[1].element, Element::Transition, "undo walks it back");
+    assert_ne!(h.app.doc().blocks[2].element, Element::Transition, "undo walks it back");
 }
 
 #[test]

@@ -112,6 +112,7 @@ pub struct Settings {
     pub debug: bool,
     pub cloud_sync: bool,
     pub cloud_asked: bool,
+    pub welcomed: bool,
 }
 
 pub const DEFAULT_YOUTRACK: &str = "";
@@ -161,6 +162,7 @@ impl Default for Settings {
             debug: false,
             cloud_sync: false,
             cloud_asked: false,
+            welcomed: false,
         }
     }
 }
@@ -248,6 +250,7 @@ impl Settings {
             + if self.debug { "debug = yes\n" } else { "" }
             + if self.cloud_sync { "cloud_sync_settings = yes\n" } else { "" }
             + if self.cloud_asked { "cloud_asked = yes\n" } else { "" }
+            + if self.welcomed { "welcomed = yes\n" } else { "" }
             + &if self.words.is_empty() { String::new() } else { format!("words = {}\n", crate::stats::write_words(&self.words)) }
             + &self.places.iter().map(|p| format!("left_off = {}\n", crate::stats::write_place(p))).collect::<String>()
     }
@@ -330,6 +333,7 @@ impl Settings {
                 "debug" => s.debug = yes(v),
                 "cloud_sync_settings" => s.cloud_sync = yes(v),
                 "cloud_asked" => s.cloud_asked = yes(v),
+                "welcomed" => s.welcomed = yes(v),
                 "youtrack_url" => {
                     s.youtrack_url = v.to_string()
                 }

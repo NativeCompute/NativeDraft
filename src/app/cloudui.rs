@@ -13,7 +13,7 @@ use crate::ui;
 pub(super) const ACCOUNT_TAB: usize = 9;
 pub(super) const TEAMS_TAB: usize = 10;
 
-const LOCAL_ONLY_KEYS: [&str; 7] = ["autosave_ms", "dismissed_update", "onboarded", "debug", "cloud_asked", "cloud_sync_settings", "colour_seed"];
+const LOCAL_ONLY_KEYS: [&str; 8] = ["autosave_ms", "dismissed_update", "onboarded", "debug", "cloud_asked", "cloud_sync_settings", "colour_seed", "welcomed"];
 
 pub fn synced_settings(s: &Settings) -> String {
     s.serialize()
@@ -37,6 +37,7 @@ pub fn with_pulled(s: &Settings, pulled: &str) -> Settings {
     }
     let mut out = Settings::parse(&text);
     out.fresh = s.fresh;
+    out.welcomed = s.welcomed;
     out
 }
 

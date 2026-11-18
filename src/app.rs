@@ -333,15 +333,10 @@ impl App {
 
         let entries = store.list();
         let first_run = settings.fresh && entries.is_empty() && store.team().is_none();
-        let home = store.team().is_some() || !entries.is_empty();
-        let (doc, path) = match entries.first() {
-            Some(_) if home => (starter_document(), None),
-            Some(e) => match store.load(&e.path) {
-                Load::Ready(d, _) => (*d, Some(e.path.clone())),
-                Load::Pending | Load::Failed(_) => (starter_document(), None),
-            },
-            None => (starter_document(), None),
-        };
+        let welcome = entries.is_empty() && store.team().is_none() && !settings.welcomed;
+        let home = store.team().is_some() || !entries.is_empty() || !welcome;
+        let doc = if welcome { welcome_document() } else { placeholder_document() };
+        let path: Option<PathBuf> = None;
 
         let splash = if settings.splash {
             Some(Splash::default())
@@ -479,9 +474,13 @@ impl App {
             arrivals: Vec::new(),
         };
 
-        if app.path.is_none() && !app.home && app.store.team().is_none() {
+        if welcome && app.path.is_none() && !app.home {
             app.create_current();
             app.refresh_entries();
+        }
+        if !app.settings.welcomed && (welcome || !app.entries.is_empty()) && app.store.team().is_none() {
+            app.settings.welcomed = true;
+            app.save_settings();
         }
         app.ed.focus_block = app.doc.blocks.first().map(|b| b.id);
         app.ed.pending_focus = app.doc.blocks.first().map(|b| (b.id, Caret::End));
@@ -738,8 +737,9 @@ impl App {
                         }
                         None => {
                             self.path = None;
-                            self.doc = starter_document();
-                            self.create_current();
+                            self.doc = placeholder_document();
+                            self.dirty = false;
+                            self.home = true;
                             self.ed.fresh = true;
                         }
                     }
@@ -4346,6 +4346,9 @@ impl App {
     pub fn debug_delete_text(&self, path: &Path) -> String {
         self.delete_script_text(path)
     }
+    pub fn debug_delete(&mut self, path: &Path) {
+        self.delete(path);
+    }
     pub fn debug_pdf_inks(&self) -> Option<HashMap<String, export::Ink>> {
         self.pdf_options(None).voices
     }
@@ -4471,23 +4474,70 @@ pub fn today() -> String {
     chrono::Local::now().format("%B %e, %Y").to_string().replace("  ", " ")
 }
 
-fn starter_document() -> Document {
+fn placeholder_document() -> Document {
     let mut doc = Document::default();
-    doc.blocks.clear();
     doc.meta.title = "Untitled Script".to_string();
     doc.meta.draft = today();
-    doc.push(Element::SceneHeading, "INT. EDIT BAY - NIGHT");
+    doc
+}
+
+pub fn welcome_document() -> Document {
+    let mut doc = Document::default();
+    doc.blocks.clear();
+    doc.meta.title = "Welcome to NativeDraft".to_string();
+    doc.meta.draft = today();
+    doc.push(Element::Act, "ACT ONE");
+    doc.push(Element::SceneHeading, "INT. YOUR FIRST SCRIPT - DAY");
     doc.push(
         Element::Action,
-        "Monitors glow. Coffee gone cold. A cursor blinks in an empty document.",
+        "This is an action line. It says what we see and hear, in the present tense. The line above it is a scene heading: INT. or EXT., then the place, then the time of day. Every scene starts with one, and each becomes a card in the Cards view.",
     );
-    doc.push(Element::Character, "THE WRITER");
-    doc.push(Element::Parenthetical, "(to no one)");
-    doc.push(Element::Dialogue, "Alright. Page one.");
-    doc.push(Element::Transition, "SMASH CUT TO:");
+    doc.push(Element::Character, "NATIVEDRAFT");
+    doc.push(Element::Parenthetical, "(warmly)");
+    doc.push(
+        Element::Dialogue,
+        "A name in capitals is a character cue. Under it go the words they say: dialogue. The line in brackets is a parenthetical, a small note on how it's said.",
+    );
+    doc.push(
+        Element::Action,
+        "When two people talk at the same time, mark the second speech as dual dialogue and they print side by side.",
+    );
+    doc.push(Element::Character, "MARIA");
+    doc.push(Element::Dialogue, "Did you hear that?");
+    doc.push(Element::Character, "COLE");
+    doc.push(Element::Dialogue, "Did you hear that?");
+    doc.push(Element::Shot, "CLOSE ON THE SCREEN");
+    doc.push(
+        Element::Action,
+        "A shot calls out a camera angle, like the one above. Use them sparingly: the director decides the rest.",
+    );
+    doc.push(Element::Transition, "CUT TO:");
+    doc.push(Element::SceneHeading, "EXT. EVERY PATH - NIGHT");
+    doc.push(
+        Element::Action,
+        "A transition, like CUT TO: above, moves us from one scene to the next. The bold line at the very top, ACT ONE, is an act heading: it groups scenes into the acts of your story.",
+    );
+    doc.push(
+        Element::Action,
+        "Press Enter and NativeDraft picks the next kind of line for you. Tab changes it, and Ctrl+1 to Ctrl+7 picks one directly. Ctrl+G switches between Write, Cards, Timelines and Read, and Ctrl+K finds anything.",
+    );
+    doc.push(
+        Element::Action,
+        "Want a story that branches? Open Timelines and branch from any scene. Each choice gets its own path, which you can merge back into the main story or give an ending of its own.",
+    );
+    doc.push(Element::Action, "This script is yours to keep or delete. It won't come back either way.");
+    doc.push(Element::Transition, "FADE OUT.");
     doc.reseed_ids();
-    if let Some(b) = doc.blocks.first_mut() {
-        b.note = "The writer faces the empty page.".to_string();
+    let dual = doc.blocks.iter().position(|b| b.element == Element::Character && b.text == "COLE");
+    if let Some(i) = dual {
+        doc.blocks[i].dual = true;
+    }
+    if let Some(b) = doc.blocks.iter_mut().find(|b| b.element == Element::SceneHeading) {
+        b.note = "A tour of every kind of line in a screenplay.".to_string();
+    }
+    if let Some(b) = doc.blocks.iter_mut().filter(|b| b.element == Element::SceneHeading).nth(1) {
+        b.note = "Where to go next.".to_string();
+        b.remark = "This is a script note. It sits beside the page and never prints.".to_string();
     }
     doc
 }
