@@ -16,6 +16,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.0.0' }}
 
 jobs:
   linux:
@@ -32,7 +33,7 @@ jobs:
       - name: Package
         run: |
           pack() {
-            local name="$1-${GITHUB_REF_NAME}-linux-x86_64"
+            local name="$1-${RELEASE_TAG}-linux-x86_64"
             mkdir -p "$name/packaging"
             cp target/release/nativedraft "$name/$1"
             cp install.sh README.md LICENSE "$name/"
@@ -42,7 +43,7 @@ jobs:
           }
           pack nativedraft
           pack blackline
-          cp "nativedraft-${GITHUB_REF_NAME}-linux-x86_64.tar.gz" nativedraft-linux-x86_64.tar.gz
+          cp "nativedraft-${RELEASE_TAG}-linux-x86_64.tar.gz" nativedraft-linux-x86_64.tar.gz
           sha256sum nativedraft-linux-x86_64.tar.gz > nativedraft-linux-x86_64.tar.gz.sha256
       - uses: actions/upload-artifact@v4
         with:
@@ -64,11 +65,11 @@ jobs:
       - name: Build the packages
         run: |
           sudo apt-get update && sudo apt-get install -y libxkbcommon0 libxkbcommon-x11-0
-          tarball="dist/nativedraft-${GITHUB_REF_NAME}-linux-x86_64.tar.gz"
+          tarball="dist/nativedraft-${RELEASE_TAG}-linux-x86_64.tar.gz"
           tar -xzf "$tarball" -C dist
-          bash packaging/linux/package.sh "${GITHUB_REF_NAME}" "dist/nativedraft-${GITHUB_REF_NAME}-linux-x86_64/nativedraft" out "$tarball"
+          bash packaging/linux/package.sh "${RELEASE_TAG}" "dist/nativedraft-${RELEASE_TAG}-linux-x86_64/nativedraft" out "$tarball"
           cp "$tarball" out/
-          cp "out/nativedraft-${GITHUB_REF_NAME}-linux-x86_64.AppImage" out/nativedraft-linux-x86_64.AppImage
+          cp "out/nativedraft-${RELEASE_TAG}-linux-x86_64.AppImage" out/nativedraft-linux-x86_64.AppImage
           (cd out && sha256sum nativedraft-linux-x86_64.AppImage > nativedraft-linux-x86_64.AppImage.sha256)
           cp out/nativedraft_*_amd64.deb out/nativedraft-linux-amd64.deb
           cp out/nativedraft-*-1.x86_64.rpm out/nativedraft-linux-x86_64.rpm
@@ -148,7 +149,7 @@ jobs:
             sudo chown -R "$USER" "aur-${pkg}"
             cd "aur-${pkg}"
             git -c user.name="NativeCompute" -c user.email="hello@nativecompute.net" add PKGBUILD .SRCINFO
-            git -c user.name="NativeCompute" -c user.email="hello@nativecompute.net" commit -m "${GITHUB_REF_NAME}" || true
+            git -c user.name="NativeCompute" -c user.email="hello@nativecompute.net" commit -m "${RELEASE_TAG}" || true
             git push origin HEAD:master
             cd ..
           done
@@ -169,7 +170,7 @@ jobs:
         shell: pwsh
         run: |
           function Pack($slug) {
-            $name = "$slug-$env:GITHUB_REF_NAME-windows-x86_64"
+            $name = "$slug-$env:RELEASE_TAG-windows-x86_64"
             New-Item -ItemType Directory -Path $name | Out-Null
             Copy-Item target/release/nativedraft.exe -Destination "$name/$slug.exe"
             Copy-Item README.md, LICENSE -Destination $name
@@ -179,7 +180,7 @@ jobs:
           }
           Pack nativedraft
           Pack blackline
-          Copy-Item "nativedraft-$env:GITHUB_REF_NAME-windows-x86_64.zip" -Destination nativedraft-windows-x86_64.zip
+          Copy-Item "nativedraft-$env:RELEASE_TAG-windows-x86_64.zip" -Destination nativedraft-windows-x86_64.zip
           $hash = (Get-FileHash -Algorithm SHA256 nativedraft-windows-x86_64.zip).Hash.ToLower()
           "$hash  nativedraft-windows-x86_64.zip" | Out-File -Encoding ascii -NoNewline nativedraft-windows-x86_64.zip.sha256
       - uses: actions/upload-artifact@v4
@@ -207,7 +208,7 @@ jobs:
       - name: Package
         run: |
           cd dist
-          name="nativedraft-${GITHUB_REF_NAME}-macos-universal.zip"
+          name="nativedraft-${RELEASE_TAG}-macos-universal.zip"
           cp nativedraft-macos.zip "$name"
           shasum -a 256 "$name" > "$name.sha256"
           cp nativedraft-macos.zip blackline-macos.zip
