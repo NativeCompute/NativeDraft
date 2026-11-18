@@ -43,11 +43,16 @@ sum() {
   (cd "$(dirname "$1")" && sha256sum "$(basename "$1")" > "$(basename "$1").sha256")
 }
 
+say() { printf ':: %s\n' "$*"; }
+
+say "Fetching nfpm and linuxdeploy"
 fetch_tools
+say "Staging the files"
 stage "$work/stage"
 
 for kind in deb rpm; do
-  VERSION="$version" STAGE="$work/stage" nfpm package -f "$here/packaging/nfpm.yaml" -p "$kind" -t "$work/" >/dev/null
+  say "Building the .$kind"
+  VERSION="$version" STAGE="$work/stage" nfpm package -f "$here/packaging/nfpm.yaml" -p "$kind" -t "$work/"
 done
 deb="$(ls "$work"/*.deb)"
 rpm="$(ls "$work"/*.rpm)"
@@ -56,6 +61,7 @@ mv "$rpm" "$out/nativedraft-${version}-1.x86_64.rpm"
 sum "$out/nativedraft_${version}_amd64.deb"
 sum "$out/nativedraft-${version}-1.x86_64.rpm"
 
+say "Building the AppImage"
 stage "$work/AppDir"
 (
   cd "$work"
@@ -63,7 +69,7 @@ stage "$work/AppDir"
     --appdir AppDir \
     --desktop-file AppDir/usr/share/applications/nativedraft.desktop \
     --icon-file AppDir/usr/share/icons/hicolor/256x256/apps/nativedraft.png \
-    --output appimage >/dev/null
+    --output appimage
 )
 mv "$work/nativedraft.AppImage" "$out/nativedraft-v${version}-linux-x86_64.AppImage"
 chmod +x "$out/nativedraft-v${version}-linux-x86_64.AppImage"
