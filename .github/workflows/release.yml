@@ -69,6 +69,9 @@ jobs:
           cp "$tarball" out/
           cp "out/nativedraft-${GITHUB_REF_NAME}-linux-x86_64.AppImage" out/nativedraft-linux-x86_64.AppImage
           (cd out && sha256sum nativedraft-linux-x86_64.AppImage > nativedraft-linux-x86_64.AppImage.sha256)
+          cp out/nativedraft_*_amd64.deb out/nativedraft-linux-amd64.deb
+          cp out/nativedraft-*-1.x86_64.rpm out/nativedraft-linux-x86_64.rpm
+          (cd out && sha256sum nativedraft-linux-amd64.deb > nativedraft-linux-amd64.deb.sha256 && sha256sum nativedraft-linux-x86_64.rpm > nativedraft-linux-x86_64.rpm.sha256)
           cp out/aur/nativedraft-bin/PKGBUILD out/nativedraft-bin.PKGBUILD
           cp out/aur/nativedraft/PKGBUILD out/nativedraft.PKGBUILD
       - uses: actions/upload-artifact@v4

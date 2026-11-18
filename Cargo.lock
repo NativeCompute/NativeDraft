@@ -1562,8 +1562,8 @@ dependencies = [
 
 [[package]]
 name = "ncf"
-version = "0.4.0"
-source = "git+https://github.com/NativeCompute/ncf?branch=major/redesign#fa85107fbb15dbb4cd598119c031c298d4b8ae02"
+version = "0.5.0"
+source = "git+https://github.com/NativeCompute/ncf?branch=main#1263f1205270d1b403d61b839069fae49e4bf3ac"
 dependencies = [
  "dirs",
  "eframe",
@@ -1580,8 +1580,8 @@ dependencies = [
 
 [[package]]
 name = "ncf-build"
-version = "0.4.0"
-source = "git+https://github.com/NativeCompute/ncf?branch=major/redesign#fa85107fbb15dbb4cd598119c031c298d4b8ae02"
+version = "0.5.0"
+source = "git+https://github.com/NativeCompute/ncf?branch=main#1263f1205270d1b403d61b839069fae49e4bf3ac"
 dependencies = [
  "winresource",
 ]

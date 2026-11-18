@@ -241,7 +241,7 @@ missing it says which and how to get it.
 
 | Distribution | How |
 |---|---|
-| **Arch, Manjaro, EndeavourOS, CachyOS** and other Arch-based | `yay -S nativedraft-bin` (or `paru`), or `nativedraft` to build it from source |
+| **Arch, Manjaro, EndeavourOS, CachyOS** and other Arch-based | The AUR package is on its way (the AUR has paused new accounts for now). Until then: `git clone https://github.com/NativeCompute/NativeDraft && cd NativeDraft && ./install.sh` |
 | **Debian, Ubuntu, Pop!\_OS, Mint, elementary, Zorin** | Download `nativedraft_<version>_amd64.deb` from [Releases](https://github.com/NativeCompute/NativeDraft/releases), then `sudo apt install ./nativedraft_*_amd64.deb` |
 | **Fedora, openSUSE, RHEL, Rocky, Alma** | Download `nativedraft-<version>-1.x86_64.rpm`, then `sudo dnf install ./nativedraft-*.rpm` (or `sudo zypper install`) |
 | **NixOS** and Nix anywhere | `nix run github:NativeCompute/NativeDraft`, or add the flake's `packages.<system>.default` to your configuration |
