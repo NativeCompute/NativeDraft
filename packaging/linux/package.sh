@@ -50,9 +50,10 @@ fetch_tools
 say "Staging the files"
 stage "$work/stage"
 
+sed -e "s|\${VERSION}|${version}|g" -e "s|\${STAGE}|${work}/stage|g" "$here/packaging/nfpm.yaml" > "$work/nfpm.yaml"
 for kind in deb rpm; do
   say "Building the .$kind"
-  VERSION="$version" STAGE="$work/stage" nfpm package -f "$here/packaging/nfpm.yaml" -p "$kind" -t "$work/"
+  nfpm package -f "$work/nfpm.yaml" -p "$kind" -t "$work/"
 done
 deb="$(ls "$work"/*.deb)"
 rpm="$(ls "$work"/*.rpm)"
