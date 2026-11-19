@@ -93,7 +93,7 @@ impl App {
                     .color(p.text_faint),
                 );
                 ui.add_space(12.0);
-                let foot = 46.0;
+                let foot = super::button_foot(ui, 10.0);
                 let (area, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), (ui.available_height() - foot).max(60.0)), Sense::hover());
                 let mut body = ui.new_child(egui::UiBuilder::new().max_rect(area).layout(Layout::top_down(Align::Min)));
                 egui::ScrollArea::vertical().id_salt("ns-imported-rows").auto_shrink([false; 2]).show(&mut body, |ui| {

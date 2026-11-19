@@ -24,7 +24,7 @@ let
 in
 rustPlatform.buildRustPackage {
   pname = "nativedraft";
-  version = "3.0.0";
+  version = "3.0.1";
 
   inherit src;
 

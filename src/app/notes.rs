@@ -282,7 +282,7 @@ impl App {
             ui.add_space(4.0);
             ui::caption(ui, &format!("Select a line and press {}, or right-click it, to leave yourself a note.", self.keys_for(crate::keys::Command::AddNote)));
         }
-        let foot = 40.0;
+        let foot = super::button_foot(ui, 6.0);
         let (room, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), (ui.available_height() - foot).max(40.0)), egui::Sense::hover());
         let mut list = ui.new_child(egui::UiBuilder::new().max_rect(room).layout(egui::Layout::top_down(egui::Align::Min)));
         if let Some(id) = self.entry_list(&mut list, "ns-notes-list", &entries) {
@@ -333,7 +333,7 @@ impl App {
         if entries.is_empty() {
             ui::body(ui, "Nothing changed yet. Edit any line and it is listed here and marked in the margin.");
         }
-        let foot = 40.0;
+        let foot = super::button_foot(ui, 6.0);
         let (room, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), (ui.available_height() - foot).max(40.0)), egui::Sense::hover());
         let mut list = ui.new_child(egui::UiBuilder::new().max_rect(room).layout(egui::Layout::top_down(egui::Align::Min)));
         if let Some(id) = self.entry_list(&mut list, "ns-changes-list", &entries) {

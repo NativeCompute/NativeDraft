@@ -1544,7 +1544,7 @@ dependencies = [
 
 [[package]]
 name = "nativedraft"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "chrono",
  "dirs",
@@ -1562,13 +1562,14 @@ dependencies = [
 
 [[package]]
 name = "ncf"
-version = "0.5.0"
-source = "git+https://github.com/NativeCompute/ncf?branch=main#1263f1205270d1b403d61b839069fae49e4bf3ac"
+version = "0.5.1"
+source = "git+https://github.com/NativeCompute/ncf?branch=main#de9dff07d871aa0785bedf8d33b276de2832ca9d"
 dependencies = [
  "dirs",
  "eframe",
  "keyring",
  "png",
+ "raw-window-handle",
  "rfd",
  "ring",
  "serde",
@@ -1576,12 +1577,13 @@ dependencies = [
  "ureq",
  "web-time",
  "wgpu",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
 name = "ncf-build"
-version = "0.5.0"
-source = "git+https://github.com/NativeCompute/ncf?branch=main#1263f1205270d1b403d61b839069fae49e4bf3ac"
+version = "0.5.1"
+source = "git+https://github.com/NativeCompute/ncf?branch=main#de9dff07d871aa0785bedf8d33b276de2832ca9d"
 dependencies = [
  "winresource",
 ]

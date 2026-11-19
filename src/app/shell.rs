@@ -259,17 +259,19 @@ impl App {
     fn toolbar_row(&mut self, ui: &mut egui::Ui) {
         let p = pal();
         ui.spacing_mut().item_spacing.x = 6.0;
+        let tight = ui.available_width() < 900.0;
         let tip = format!("Back to your scripts · {}", self.keys_for(keys::Command::FindScripts));
-        if ui::ribbon_button(ui, Icon::ChevronLeft, "Library", &tip, false) {
+        if ui::ribbon_button(ui, Icon::ChevronLeft, if tight { "" } else { "Library" }, &tip, false) {
             self.go_home();
         }
         self.library_button = ui.min_rect();
         ui.add_space(2.0);
+        let named = |label: &'static str| if tight { "" } else { label };
         let tabs = [
-            ui::SegTab { label: "Write", icon: Some(Icon::Pencil), count: None, dot: false },
-            ui::SegTab { label: "Cards", icon: Some(Icon::Grid), count: None, dot: false },
-            ui::SegTab { label: "Timelines", icon: Some(Icon::Graph), count: None, dot: self.has_timelines() },
-            ui::SegTab { label: "Read", icon: Some(Icon::Eye), count: None, dot: false },
+            ui::SegTab { label: named("Write"), icon: Some(Icon::Pencil), count: None, dot: false },
+            ui::SegTab { label: named("Cards"), icon: Some(Icon::Grid), count: None, dot: false },
+            ui::SegTab { label: named("Timelines"), icon: Some(Icon::Graph), count: None, dot: self.has_timelines() },
+            ui::SegTab { label: named("Read"), icon: Some(Icon::Eye), count: None, dot: false },
         ];
         if let Some(picked) = ui::seg_tabs(ui, &tabs, self.mode.index(), None) {
             let m = Mode::from_index(picked);
@@ -308,20 +310,23 @@ impl App {
 
     fn write_tools_right(&mut self, ui: &mut egui::Ui) {
         let write = self.can_write();
+        let current = self.ed.current_element(&self.doc);
+        let label = current.map(|e| e.label()).unwrap_or(Element::Action.label());
+        let picker = ui.fonts(|f| f.layout_no_wrap(format!("Element {label}"), theme::font_bold(theme::T_SM), egui::Color32::WHITE).size().x) + 64.0;
+        let full = 110.0 + if write { 220.0 } else { 0.0 } + picker;
+        let compact = ui.available_width() < full;
         let tip = format!("Export this script as a PDF · {}", self.keys_for(keys::Command::QuickExport));
         if ui::button_response(ui, "Export", Some(Icon::Download), true, None).on_hover_text(tip).clicked() {
             self.export(crate::export::Format::Pdf, true);
         }
-        if write && ui::ribbon_button(ui, Icon::History, "Snapshot", "Keep a copy of the script as it is now · find them under ⋯ → Snapshots", false) {
+        if write && ui::ribbon_button(ui, Icon::History, if compact { "" } else { "Snapshot" }, "Keep a copy of the script as it is now · find them under ⋯ → Snapshots", false) {
             self.take_snapshot();
         }
         let tip = format!("A note on the line the caret is in · {}", self.keys_for(keys::Command::AddNote));
-        if write && ui::ribbon_button(ui, Icon::Note, "Note", &tip, false) {
+        if write && ui::ribbon_button(ui, Icon::Note, if compact { "" } else { "Note" }, &tip, false) {
             self.run(keys::Command::AddNote);
         }
-        let current = self.ed.current_element(&self.doc);
-        let label = current.map(|e| e.label()).unwrap_or(Element::Action.label());
-        if ui.available_width() > 150.0 {
+        if ui.available_width() > picker + 8.0 {
             let resp = ui::select_button(ui, "Element", label);
             self.element_button_rect = resp.rect;
             if resp.on_hover_text("The element the caret is in · Tab cycles").clicked() {
@@ -332,6 +337,9 @@ impl App {
 
     fn cards_tools_right(&mut self, ui: &mut egui::Ui) {
         let p = pal();
+        let room = ui.available_width();
+        let roomy = room > 540.0;
+        let snug = room < 240.0;
         let tip = format!("A new scene after the one you are in · {}", self.keys_for(keys::Command::NewScene));
         if self.can_write() && ui::button_response(ui, "Scene", Some(Icon::Plus), true, None).on_hover_text(tip).clicked() {
             self.new_scene();
@@ -341,20 +349,27 @@ impl App {
             let scenes = self.doc.scenes();
             let next = cards::next_storyline(&self.doc, &scenes, &self.cards.extra_lanes);
             let tip = if next.is_some() { "A new storyline column: drag cards into it" } else { "Every storyline colour is in use" };
-            let resp = ui.add_enabled_ui(next.is_some(), |ui| ui::button_response(ui, "Storyline", Some(Icon::Plus), false, None)).inner;
-            if resp.on_hover_text(tip).clicked() {
+            let hit = ui
+                .add_enabled_ui(next.is_some(), |ui| if snug { ui::ribbon_button(ui, Icon::Plus, "", tip, false) } else { ui::button_response(ui, "Storyline", Some(Icon::Plus), false, None).on_hover_text(tip).clicked() })
+                .inner;
+            if hit {
                 if let Some(t) = next {
                     self.cards.extra_lanes.push(t);
                 }
             }
         }
         let tip = "Beat guides: inciting incident, the act breaks, midpoint and climax";
-        if ui::ribbon_button(ui, Icon::Timeline, "Beats", tip, self.settings.beat_guides) {
+        if ui::ribbon_button(ui, Icon::Timeline, if roomy { "Beats" } else { "" }, tip, self.settings.beat_guides) {
             self.settings.beat_guides = !self.settings.beat_guides;
             self.save_settings();
         }
-        if let Some(k) = ui::segmented(ui, &[("Columns", Icon::List), ("Grid", Icon::Grid)], if self.settings.cards_columns { 0 } else { 1 }) {
-            let want = k == 0;
+        let picked = if roomy {
+            ui::segmented(ui, &[("Columns", Icon::List), ("Grid", Icon::Grid)], if self.settings.cards_columns { 0 } else { 1 }).map(|k| k == 0)
+        } else {
+            let (icon, tip) = if self.settings.cards_columns { (Icon::Grid, "Show the cards as a grid") } else { (Icon::List, "Show the cards in storyline columns") };
+            ui::ribbon_button(ui, icon, "", tip, false).then_some(!self.settings.cards_columns)
+        };
+        if let Some(want) = picked {
             if want != self.settings.cards_columns {
                 self.settings.cards_columns = want;
                 self.cards.dragging = None;
@@ -373,7 +388,8 @@ impl App {
             self.open_export_window();
         }
         let tip = format!("Export this script as a PDF · {}", self.keys_for(keys::Command::QuickExport));
-        if ui::ribbon_button(ui, Icon::Print, "Quick Export", &tip, false) {
+        let short = ui.available_width() < 260.0;
+        if ui::ribbon_button(ui, Icon::Print, if short { "" } else { "Quick Export" }, &tip, false) {
             self.export(crate::export::Format::Pdf, true);
         }
         if !self.access.can_edit() {

@@ -34,6 +34,8 @@ itself is Courier Prime. It follows your computer's light or dark setting.
 
 ## New in 3.0: a new name, a new look and timelines
 
+**3.0.1** tidies the look: Home fits your window with no page scrolling (your scripts scroll inside their own tile, and the Notes tile counts what it can't show), the window has clean corners on Windows and Linux (rounded by Windows 11 itself), *Add a note* is never cut off, and the toolbar folds to icons on narrow windows.
+
 **Blackline is now NativeDraft.** Same app, same scripts, a new name:
 
 - **Your scripts stay where they are.** If you used Blackline, NativeDraft opens

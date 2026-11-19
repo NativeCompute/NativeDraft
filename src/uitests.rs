@@ -2011,3 +2011,53 @@ fn an_update_offer_carries_its_art_and_says_how_to_update() {
     h.app.debug_answer_offer(ncf::splash::Choice::NotNow);
     assert!(h.app.debug_update_offer().is_none());
 }
+
+fn big_library(h: &mut Harness, n: usize) {
+    let dir = std::path::PathBuf::from(std::env::var("XDG_DATA_HOME").unwrap()).join("nativedraft/scripts");
+    std::fs::create_dir_all(&dir).unwrap();
+    for i in 0..n {
+        let text = format!("---\ntitle: Script {i}\n---\n\n## INT. ROOM {i} - DAY [[Look again at scene {i}]]\n\nA line.\n");
+        std::fs::write(dir.join(format!("script-{i}.md")), text).unwrap();
+    }
+    h.app.debug_go_home();
+    h.frames(4);
+}
+
+#[test]
+fn home_fits_a_big_library_in_the_window_without_scrolling() {
+    let mut h = Harness::with(1440.0, 900.0, "welcomed = yes\n");
+    big_library(&mut h, 21);
+    assert!(h.app.debug_home_fits(&h.ctx), "a normal window holds every tile, the list scrolls inside its own tile");
+    drop(h);
+    let mut h = Harness::with(1200.0, 760.0, "welcomed = yes\n");
+    big_library(&mut h, 21);
+    assert!(h.app.debug_home_fits(&h.ctx), "a laptop-sized window still fits");
+}
+
+#[test]
+fn a_tiny_window_falls_back_to_scrolling_home() {
+    let mut h = Harness::with(900.0, 560.0, "welcomed = yes\n");
+    big_library(&mut h, 21);
+    assert!(!h.app.debug_home_fits(&h.ctx), "too small to fit, so the page scrolls and nothing is cut off");
+}
+
+#[test]
+fn the_notes_tile_counts_what_it_cannot_show() {
+    use crate::app::home::fitting;
+    assert_eq!(fitting(0.0, 50.0, 1000.0, 3), 3, "room for all");
+    let shown = fitting(0.0, 50.0, 180.0, 10);
+    assert!(shown > 0 && shown < 10, "{shown}");
+    assert!(shown as f32 * 50.0 + 2.0 <= 180.0 - 22.0, "the +N more line keeps its own room");
+    assert_eq!(fitting(0.0, 50.0, 30.0, 4), 0);
+}
+
+#[test]
+fn a_script_preview_leaves_out_note_markup() {
+    let _h = Harness::new();
+    let dir = std::path::PathBuf::from(std::env::var("XDG_DATA_HOME").unwrap()).join("nativedraft/scripts");
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("noted.md");
+    std::fs::write(&path, "---\ntitle: Noted\n---\n\n## INT. ROOM - DAY [[Fix this]]\n\nA line.\n").unwrap();
+    let e = storage::entry_from_text(path.clone(), &std::fs::read_to_string(&path).unwrap(), std::time::SystemTime::now());
+    assert_eq!(e.preview, "INT. ROOM - DAY");
+}

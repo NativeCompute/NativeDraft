@@ -849,15 +849,23 @@ impl App {
             return;
         }
         let sel = self.tview.sel;
+        let room = ui.available_width();
         let tip = format!("A new timeline that branches from the chosen scene · {}", self.keys_for(keys::Command::NewTimeline));
         let can = sel.is_some() && self.can_write();
-        let resp = ui.add_enabled_ui(can, |ui| ui::button_response(ui, "Branch from scene", Some(Icon::Plus), true, None)).inner;
+        let label = if room < 240.0 { "Branch" } else { "Branch from scene" };
+        let resp = ui.add_enabled_ui(can, |ui| ui::button_response(ui, label, Some(Icon::Plus), true, None)).inner;
         if resp.on_hover_text(tip).clicked() {
             if let Some((r, d)) = sel {
                 self.branch_from_dot(r, d);
             }
         }
-        if self.has_timelines() && ui::button_response(ui, "Compare", Some(Icon::Layers), false, None).on_hover_text("Two timelines side by side").clicked() {
+        let compare = self.has_timelines()
+            && if room < 320.0 {
+                ui::ribbon_button(ui, Icon::Layers, "", "Two timelines side by side", false)
+            } else {
+                ui::button_response(ui, "Compare", Some(Icon::Layers), false, None).on_hover_text("Two timelines side by side").clicked()
+            };
+        if compare {
             self.open_compare();
         }
     }

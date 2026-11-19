@@ -156,6 +156,10 @@ pub fn entry_from_text(path: PathBuf, text: &str, modified: SystemTime) -> Entry
         .find(|l| !l.is_empty() && !l.starts_with("<!--"))
         .unwrap_or("")
         .trim_start_matches(['#', '*', '>', '`', ' '])
+        .split("[[")
+        .next()
+        .unwrap_or("")
+        .trim_end()
         .chars()
         .take(70)
         .collect::<String>();

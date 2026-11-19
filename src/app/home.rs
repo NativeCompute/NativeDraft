@@ -22,6 +22,39 @@ const T_BIG: f32 = 56.0;
 const HERO_T: f32 = 56.0;
 const HERO_T_MIN: f32 = 28.0;
 const SCRIPTS_PAD: f32 = 20.0;
+const ROW1_MIN: f32 = 184.0;
+const ROW2_MIN: f32 = 160.0;
+const LIST_MIN: f32 = 236.0;
+const NOTE_STEP: f32 = 50.0;
+const PERSON_STEP: f32 = 46.0;
+
+#[derive(Clone, Copy)]
+struct Fit {
+    row1: f32,
+    row2: f32,
+    bottom: f32,
+}
+
+fn plan_fit(w: f32, h: f32, foot: f32) -> Option<Fit> {
+    let gap = theme::GAP;
+    if w < 860.0 {
+        return None;
+    }
+    let room = h - foot - gap;
+    let mut row1 = ROW1_H;
+    let mut row2 = ROW2_H;
+    let short = LIST_MIN - (room - row1 - gap - row2);
+    if short > 0.0 {
+        let give = (ROW1_H - ROW1_MIN) + (ROW2_H - ROW2_MIN);
+        if short > give {
+            return None;
+        }
+        let k = short / give;
+        row1 -= (ROW1_H - ROW1_MIN) * k;
+        row2 -= (ROW2_H - ROW2_MIN) * k;
+    }
+    Some(Fit { row1, row2, bottom: room - row1 - gap - row2 })
+}
 
 impl App {
     pub(super) fn go_home(&mut self) {
@@ -66,17 +99,47 @@ impl App {
                     inner.set_opacity(0.25 + 0.75 * anim::smootherstep(t));
                     anim::keep_going(ctx);
                 }
-                egui::ScrollArea::vertical()
-                    .id_salt("ns-home")
-                    .auto_shrink([false, false])
-                    .show(&mut inner, |ui| {
-                        ui.set_width(full.width() - 10.0);
-                        self.home_body(ui);
-                    });
+                let fits = !self.home_search.trim().is_empty() || self.home_starred || self.entries.is_empty();
+                let foot = self.foot_height(&inner);
+                let plan = plan_fit(full.width(), full.height(), foot).map(|f| (f, true)).or_else(|| plan_fit(full.width(), full.height(), 0.0).map(|f| (f, false)));
+                match plan.filter(|_| !fits) {
+                    Some((fit, with_foot)) => {
+                        inner.set_width(full.width());
+                        self.home_body(&mut inner, Some(fit));
+                        if with_foot {
+                            let at = Rect::from_min_max(Pos2::new(full.left(), full.bottom() - foot), full.max);
+                            let mut foot_ui = inner.new_child(egui::UiBuilder::new().max_rect(at).layout(Layout::top_down(Align::Min)));
+                            self.home_foot(&mut foot_ui);
+                        }
+                    }
+                    None => {
+                        egui::ScrollArea::vertical()
+                            .id_salt("ns-home")
+                            .auto_shrink([false, false])
+                            .show(&mut inner, |ui| {
+                                ui.set_width(full.width() - 10.0);
+                                self.home_body(ui, None);
+                                self.home_foot(ui);
+                            });
+                    }
+                }
             });
     }
 
-    fn home_body(&mut self, ui: &mut egui::Ui) {
+    fn foot_height(&self, ui: &egui::Ui) -> f32 {
+        let s = ui.spacing().item_spacing.y;
+        let youtrack = !self.settings.youtrack_url.trim().is_empty();
+        let buttons = if youtrack { 2.0 } else { 1.0 };
+        20.0 + buttons * (ui::BUTTON_H + s) + 10.0 + s + 14.0 + s + 12.0
+    }
+
+    pub fn debug_home_fits(&self, ctx: &egui::Context) -> bool {
+        ctx.data(|d| d.get_temp::<bool>(egui::Id::new("ns-home-fit"))).unwrap_or(false)
+    }
+
+    fn home_body(&mut self, ui: &mut egui::Ui, fit: Option<Fit>) {
+        ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("ns-home-fit"), fit.is_some()));
+        let (row1_h, row2_h) = fit.map(|f| (f.row1, f.row2)).unwrap_or((ROW1_H, ROW2_H));
         let w = ui.available_width();
         let gap = theme::GAP;
         let cols: usize = if w >= 860.0 { 4 } else if w >= 520.0 { 2 } else { 1 };
@@ -118,8 +181,8 @@ impl App {
             };
             let (hero, cont, week, due, bottom) = match cols {
                 4 => {
-                    let hero = at(0, 0.0, 2, ROW1_H + gap + ROW2_H);
-                    (hero, at(2, 0.0, 2, ROW1_H), at(2, ROW1_H + gap, 1, ROW2_H), at(3, ROW1_H + gap, 1, ROW2_H), hero.bottom())
+                    let hero = at(0, 0.0, 2, row1_h + gap + row2_h);
+                    (hero, at(2, 0.0, 2, row1_h), at(2, row1_h + gap, 1, row2_h), at(3, row1_h + gap, 1, row2_h), hero.bottom())
                 }
                 2 => {
                     let hero = at(0, 0.0, 2, HERO_NARROW_H);
@@ -148,7 +211,6 @@ impl App {
 
         if self.entries.is_empty() {
             self.home_empty(ui);
-            self.home_foot(ui);
             return;
         }
 
@@ -163,48 +225,69 @@ impl App {
         let top = ui.cursor().min;
         let mut list_ui = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(top, Vec2::new(list_w, f32::INFINITY))).layout(Layout::top_down(Align::Min)));
         let shown = list.len();
-        let limit = if self.home_all || searching || self.home_starred { usize::MAX } else { LIST_MAX };
+        let limit = if self.home_all || searching || self.home_starred || fit.is_some() { usize::MAX } else { LIST_MAX };
         let r = ncf::theme::surface_frame(ncf::theme::R_LG, ncf::theme::Lift::Rest)
             .inner_margin(egui::Margin::same(SCRIPTS_PAD))
             .show(&mut list_ui, |ui| {
                 let p = pal();
                 let iw = list_w - SCRIPTS_PAD * 2.0;
                 ui.set_width(iw);
-                let enter = self.scripts_head(ui, iw, shown, searching, limit);
+                let enter = self.scripts_head(ui, iw, shown, searching, if fit.is_some() { LIST_MAX } else { limit }, fit.is_none());
                 ui.add_space(10.0);
                 ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("ns-home-cols"), 1usize));
-                ui.spacing_mut().item_spacing.y = 2.0;
-                for e in list.iter().take(limit) {
-                    let selected = self.home_keyed && self.home_sel == order.len();
-                    order.push(e.path.clone());
-                    match self.script_row(ui, e, iw, selected) {
-                        CardAction::Open => open = Some(e.path.clone()),
-                        CardAction::Star => star = Some(e.path.clone()),
-                        CardAction::Menu(at) => menu = Some((e.path.clone(), at)),
-                        CardAction::None => {}
+                let mut rows = |ui: &mut egui::Ui| {
+                    ui.spacing_mut().item_spacing.y = 2.0;
+                    for e in list.iter().take(limit) {
+                        let selected = self.home_keyed && self.home_sel == order.len();
+                        order.push(e.path.clone());
+                        let before = ui.cursor().min;
+                        match self.script_row(ui, e, iw, selected) {
+                            CardAction::Open => open = Some(e.path.clone()),
+                            CardAction::Star => star = Some(e.path.clone()),
+                            CardAction::Menu(at) => menu = Some((e.path.clone(), at)),
+                            CardAction::None => {}
+                        }
+                        if selected && fit.is_some() {
+                            ui.scroll_to_rect(Rect::from_min_size(before, Vec2::new(iw, ROW_H)), None);
+                        }
                     }
-                }
-                let found = self.found_for(&needle);
-                self.hit_rows.clear();
-                if !found.is_empty() {
-                    ui.add_space(16.0);
-                    jump = self.found_section(ui, &found, iw);
-                }
-                if enter && open.is_none() && jump.is_none() && searching {
-                    match (order.first(), found.first().and_then(|f| f.hits.first().map(|h| (f.path.clone(), h.block)))) {
-                        (Some(path), _) => open = Some(path.clone()),
-                        (None, Some(hit)) => jump = Some(hit),
-                        (None, None) => {}
+                    let found = self.found_for(&needle);
+                    self.hit_rows.clear();
+                    if !found.is_empty() {
+                        ui.add_space(16.0);
+                        jump = self.found_section(ui, &found, iw);
                     }
-                }
-                if order.is_empty() && found.is_empty() {
-                    ui.add_space(6.0);
-                    ui.label(egui::RichText::new(if self.home_starred { "Nothing starred yet. Star a script from its menu." } else { "Nothing matches." }).font(theme::font(theme::T_SM)).color(p.text_faint));
+                    if enter && open.is_none() && jump.is_none() && searching {
+                        match (order.first(), found.first().and_then(|f| f.hits.first().map(|h| (f.path.clone(), h.block)))) {
+                            (Some(path), _) => open = Some(path.clone()),
+                            (None, Some(hit)) => jump = Some(hit),
+                            (None, None) => {}
+                        }
+                    }
+                    if order.is_empty() && found.is_empty() {
+                        ui.add_space(6.0);
+                        ui.label(egui::RichText::new(if self.home_starred { "Nothing starred yet. Star a script from its menu." } else { "Nothing matches." }).font(theme::font(theme::T_SM)).color(p.text_faint));
+                    }
+                };
+                match fit {
+                    Some(f) => {
+                        let room = (f.bottom - SCRIPTS_PAD * 2.0 - ui.min_rect().height()).max(ROW_H);
+                        egui::ScrollArea::vertical()
+                            .id_salt("ns-home-list")
+                            .auto_shrink([false, false])
+                            .max_height(room)
+                            .show(ui, |ui| {
+                                ui.set_width(iw);
+                                rows(ui);
+                            });
+                    }
+                    None => rows(ui),
                 }
             });
         let list_rect = r.response.rect;
         if side {
-            let rect = Rect::from_min_size(Pos2::new(top.x + list_w + gap, top.y), Vec2::new(unit, list_rect.height().max(SIDE_MIN_H)));
+            let side_h = fit.map(|f| f.bottom).unwrap_or(list_rect.height().max(SIDE_MIN_H));
+            let rect = Rect::from_min_size(Pos2::new(top.x + list_w + gap, top.y), Vec2::new(unit, side_h));
             self.side_tile(ui, rect);
             ui.allocate_rect(Rect::from_min_max(top, Pos2::new(top.x + w, top.y + rect.height().max(list_rect.height()))), Sense::hover());
         } else {
@@ -216,7 +299,6 @@ impl App {
             }
         }
         self.home_order = order;
-        self.home_foot(ui);
 
         if let Some(path) = star {
             self.toggle_star(&path);
@@ -232,7 +314,7 @@ impl App {
         }
     }
 
-    fn scripts_head(&mut self, ui: &mut egui::Ui, w: f32, shown: usize, searching: bool, limit: usize) -> bool {
+    fn scripts_head(&mut self, ui: &mut egui::Ui, w: f32, shown: usize, searching: bool, limit: usize, toggle: bool) -> bool {
         let p = pal();
         let team = self.store.team().is_some();
         let mut enter = false;
@@ -252,7 +334,7 @@ impl App {
                 ui::hud(ui, &shown.to_string(), Some(p.text_faint));
             }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if !searching && !self.home_starred && shown > LIST_MAX && ui::link(ui, if limit == usize::MAX { "Show fewer" } else { "View all" }) {
+                if toggle && !searching && !self.home_starred && shown > LIST_MAX && ui::link(ui, if limit == usize::MAX { "Show fewer" } else { "View all" }) {
                     self.home_all = !self.home_all;
                 }
                 let search = ui.add(
@@ -492,22 +574,23 @@ impl App {
                 .members
                 .iter()
                 .filter(|m| !m.pending)
-                .take(5)
                 .map(|m| {
                     let doing = live.iter().find(|(n, _)| *n == m.person.name).map(|(_, t)| format!("Writing {t}")).unwrap_or_else(|| m.role.label().to_string());
                     (m.person.clone(), doing)
                 })
                 .collect();
-            for (person, doing) in rows {
-                if y + 40.0 > rect.bottom() {
-                    break;
-                }
+            let total = rows.len();
+            let show = fitting(y, PERSON_STEP, rect.bottom(), total);
+            for (person, doing) in rows.into_iter().take(show) {
                 people::avatar(ui, Rect::from_center_size(Pos2::new(x + 15.0, y + 6.0), Vec2::splat(30.0)), &person);
                 let nf = theme::font_semi(theme::T_SM);
                 clip.text(Pos2::new(x + 40.0, y - 2.0), egui::Align2::LEFT_CENTER, ui::elide_to_width(ui.ctx(), &person.name, nf.clone(), 0.0, room - 40.0), nf, ink);
                 let sf = theme::font(theme::T_CAP);
                 clip.text(Pos2::new(x + 40.0, y + 15.0), egui::Align2::LEFT_CENTER, ui::elide_to_width(ui.ctx(), &doing, sf.clone(), 0.0, room - 40.0), sf, soft);
-                y += 46.0;
+                y += PERSON_STEP;
+            }
+            if total > show {
+                more_line(&clip, Pos2::new(x, y - 10.0), total - show, "more in the team", soft);
             }
         } else {
             let notes: Vec<(String, String, String, usize, PathBuf)> = self
@@ -530,10 +613,9 @@ impl App {
                 let g = ui.painter().layout("Notes you leave on a line gather here, from every script.".to_string(), f, soft, room);
                 clip.galley(Pos2::new(x, y - 8.0), g, soft);
             }
-            for (k, (text, title, at, cover, path)) in notes.into_iter().enumerate() {
-                if y + 40.0 > rect.bottom() {
-                    break;
-                }
+            let total = notes.len();
+            let show = fitting(y, NOTE_STEP, rect.bottom(), total);
+            for (k, (text, title, at, cover, path)) in notes.into_iter().take(show).enumerate() {
                 let row = Rect::from_min_size(Pos2::new(x - 8.0, y - 18.0), Vec2::new(room + 16.0, 44.0));
                 let resp = ui.interact(row, egui::Id::new(("ns-home-note", k)), Sense::click());
                 let hot = anim::ease(ui.ctx(), resp.id, resp.hovered(), anim::HOVER);
@@ -554,7 +636,11 @@ impl App {
                 if resp.clicked() {
                     open = Some(path);
                 }
-                y += 50.0;
+                y += NOTE_STEP;
+            }
+            if total > show {
+                let n = total - show;
+                more_line(&clip, Pos2::new(x, y - 10.0), n, if n == 1 { "more note" } else { "more notes" }, soft);
             }
         }
         if let Some(path) = open {
@@ -903,4 +989,23 @@ pub(crate) fn grouped(n: i64) -> String {
 
 fn plural(n: usize, one: &str, many: &str) -> String {
     format!("{n} {}", if n == 1 { one } else { many })
+}
+
+pub(crate) fn fitting(y: f32, step: f32, bottom: f32, total: usize) -> usize {
+    let mut cap = 0;
+    while cap < total && y + cap as f32 * step + 40.0 <= bottom {
+        cap += 1;
+    }
+    if cap == total {
+        return total;
+    }
+    while cap > 0 && y + cap as f32 * step + 2.0 > bottom - 22.0 {
+        cap -= 1;
+    }
+    cap
+}
+
+fn more_line(painter: &egui::Painter, at: Pos2, n: usize, what: &str, color: Color32) {
+    let f = theme::font_semi(theme::T_SM);
+    painter.text(at, egui::Align2::LEFT_CENTER, format!("+{n} {what}"), f, color);
 }

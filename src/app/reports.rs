@@ -150,7 +150,7 @@ impl App {
                 ui.add_space(12.0);
 
                 // table here---
-                let foot = 44.0;
+                let foot = super::button_foot(ui, 10.0);
                 let (area, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), (ui.available_height() - foot).max(80.0)), Sense::hover());
                 let mut body = ui.new_child(egui::UiBuilder::new().max_rect(area).layout(Layout::top_down(Align::Min)));
                 body.set_clip_rect(area);

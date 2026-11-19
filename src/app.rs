@@ -4355,7 +4355,8 @@ impl App {
 }
 
 impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, window: &mut eframe::Frame) {
+        chrome::system_corners(window);
         self.frame(ctx);
     }
 
@@ -4369,6 +4370,10 @@ impl eframe::App for App {
 }
 
 // small pieces here---
+
+fn button_foot(ui: &egui::Ui, gap: f32) -> f32 {
+    ui::BUTTON_H + gap + ui.spacing().item_spacing.y * 2.0 + 6.0
+}
 
 fn new_script_button(ui: &mut egui::Ui, width: f32, chord: &str) -> bool {
     ui::button_response(ui, "New script", Some(Icon::Plus), true, Some(width))
